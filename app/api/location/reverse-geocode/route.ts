@@ -13,7 +13,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    // Use a dedicated server-side key for the Geocoding API. The public
+    // NEXT_PUBLIC_* key may have app/referrer restrictions that cause
+    // REQUEST_DENIED when the server calls Google on the client's behalf.
+    const apiKey = process.env.GOOGLE_GEOCODING_API_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
     if (!apiKey) {
       return NextResponse.json(
         { error: 'Google Maps API key not configured' },
@@ -36,6 +39,9 @@ export async function GET(request: NextRequest) {
 
     // If precise address not found, try again without filters
     let result = data.results?.[0]
+    let currentStatus = data?.status
+    let currentErrorMessage = data?.error_message
+
     if (!result) {
       const fallbackUrl = new URL('https://maps.googleapis.com/maps/api/geocode/json')
       fallbackUrl.searchParams.set('latlng', `${lat},${lng}`)
@@ -46,6 +52,8 @@ export async function GET(request: NextRequest) {
       const fallbackResponse = await fetch(fallbackUrl.toString(), { cache: 'no-store' })
       const fallbackData = await fallbackResponse.json()
       result = fallbackData.results?.[0]
+      currentStatus = fallbackData?.status ?? currentStatus
+      currentErrorMessage = fallbackData?.error_message ?? currentErrorMessage
     }
 
     if (!result) {
@@ -61,7 +69,8 @@ export async function GET(request: NextRequest) {
           country: '',
         },
         details: {
-          googleStatus: data?.status || 'UNKNOWN_ERROR',
+          googleStatus: currentStatus || 'UNKNOWN_ERROR',
+          googleErrorMessage: currentErrorMessage,
           lat,
           lng,
         },

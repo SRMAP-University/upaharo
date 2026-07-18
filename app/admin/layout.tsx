@@ -51,6 +51,7 @@ export default function AdminLayout({
     { icon: '🏪', label: 'Sellers', href: '/admin/sellers' },
     { icon: '🎀', label: 'Gift Wraps', href: '/admin/gift-wraps' },
     { icon: '🎉', label: 'Occasions', href: '/admin/occasions' },
+    { icon: '🎟️', label: 'Coupons', href: '/admin/coupons' },
     { icon: '⚙️', label: 'Settings', href: '/admin/settings' },
   ]
 

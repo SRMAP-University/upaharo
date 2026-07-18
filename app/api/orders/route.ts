@@ -6,6 +6,7 @@ import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
+import { validateCoupon } from '@/lib/coupon'
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +32,7 @@ export async function POST(request: NextRequest) {
       greetingMessage,
       senderName,
       showSenderName,
+      couponCode,
     } = body
 
     if (paymentMethod !== 'CASH' && paymentMethod !== 'ONLINE') {
@@ -144,50 +146,95 @@ export async function POST(request: NextRequest) {
     const resolvedSubtotal = Number(subtotal) || 0
     const resolvedDeliveryFee = Number(deliveryFee) || 0
     const resolvedTax = 0
-    const resolvedTotal = Number.isFinite(Number(total))
-      ? Number(total)
-      : resolvedSubtotal + resolvedDeliveryFee
 
-    // Create order with items
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId,
-        addressId,
+    let couponId: string | undefined
+    let couponDiscount = 0
+    if (couponCode?.trim()) {
+      const result = await validateCoupon(couponCode, {
         subtotal: resolvedSubtotal,
-        deliveryFee: resolvedDeliveryFee,
-        tax: resolvedTax,
-        total: resolvedTotal,
-        paymentMethod,
-        estimatedTime: 0,
-        isGift: isGift || false,
-        recipientId: isGift ? recipientId : null,
-        occasionId: isGift ? occasionId : null,
-        giftWrapId: isGift ? giftWrapId : null,
-        greetingMessage: isGift ? greetingMessage : null,
-        senderName: isGift ? senderName : null,
-        showSenderName: isGift ? (showSenderName || false) : false,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.id,
-            quantity: item.quantity,
-            price: item.price,
-          })),
-        },
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              select: LEGACY_PRODUCT_SELECT,
-            },
+        productIds,
+      })
+
+      if (!result.valid || !result.coupon) {
+        return NextResponse.json(
+          { error: result.message || 'Invalid coupon' },
+          { status: 400 }
+        )
+      }
+
+      couponId = result.coupon.id
+      couponDiscount = result.discount
+    }
+
+    let giftWrapFee = 0
+    if (isGift && giftWrapId) {
+      const wrap = await prisma.giftWrap.findUnique({
+        where: { id: giftWrapId },
+        select: { price: true },
+      })
+      giftWrapFee = wrap?.price ?? 0
+    }
+
+    // Server-authoritative total (includes gift wrap when selected).
+    const resolvedTotal = Math.max(
+      0,
+      resolvedSubtotal + resolvedDeliveryFee + giftWrapFee - couponDiscount
+    )
+
+    const order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          orderNumber,
+          userId,
+          addressId,
+          subtotal: resolvedSubtotal,
+          deliveryFee: resolvedDeliveryFee,
+          tax: resolvedTax,
+          discount: couponDiscount,
+          couponDiscount,
+          couponId,
+          total: resolvedTotal,
+          paymentMethod,
+          estimatedTime: 0,
+          isGift: isGift || false,
+          recipientId: isGift ? recipientId : null,
+          occasionId: isGift ? occasionId : null,
+          giftWrapId: isGift ? giftWrapId : null,
+          greetingMessage: isGift ? greetingMessage : null,
+          senderName: isGift ? senderName : null,
+          showSenderName: isGift ? (showSenderName || false) : false,
+          items: {
+            create: items.map((item: any) => ({
+              productId: item.id,
+              quantity: item.quantity,
+              price: item.price,
+            })),
           },
         },
-        address: true,
-        recipient: true,
-        giftWrap: true,
-        occasion: true,
-      },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: LEGACY_PRODUCT_SELECT,
+              },
+            },
+          },
+          address: true,
+          recipient: true,
+          giftWrap: true,
+          occasion: true,
+          coupon: true,
+        },
+      })
+
+      if (couponId) {
+        await tx.coupon.update({
+          where: { id: couponId },
+          data: { usedCount: { increment: 1 } },
+        })
+      }
+
+      return created
     })
 
     // Publish order update to Redis (optional - don't fail if Redis is unavailable)
@@ -202,6 +249,17 @@ export async function POST(request: NextRequest) {
       )
     } catch (redisError) {
       console.warn('Redis publish failed (non-critical):', redisError)
+    }
+
+    if (couponId) {
+      try {
+        await prisma.coupon.update({
+          where: { id: couponId },
+          data: { usedCount: { increment: 1 } }
+        })
+      } catch (couponUpdateError) {
+        console.warn('Failed to update coupon usage:', couponUpdateError)
+      }
     }
 
     return NextResponse.json({ order }, { status: 201 })
