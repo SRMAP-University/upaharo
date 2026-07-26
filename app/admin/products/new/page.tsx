@@ -48,6 +48,7 @@ export default function NewProduct() {
     description: '',
     category: '',
     price: 0,
+    wholesalePrice: '' as number | '',
     image: '',
     images: [''],
     variants: [] as ProductVariant[],
@@ -220,6 +221,10 @@ export default function NewProduct() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          wholesalePrice:
+            formData.wholesalePrice === '' || formData.wholesalePrice == null
+              ? null
+              : Number(formData.wholesalePrice),
           tags: mergeSubProductTags(
             buildProductTags(formData.tags, recipientSelections, occasionSelections),
             subProductIds
@@ -331,16 +336,37 @@ export default function NewProduct() {
 
           <SubProductSelector value={subProductIds} onChange={setSubProductIds} />
 
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Price (NPR)*</label>
-            <input
-              type="number"
-              required
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-ink/70 mb-1">Retail price (NPR)*</label>
+              <input
+                type="number"
+                required
+                step="0.01"
+                min="0"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink/70 mb-1">Wholesale price (NPR)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.wholesalePrice}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    wholesalePrice: e.target.value === '' ? '' : parseFloat(e.target.value),
+                  })
+                }
+                placeholder="Leave empty if not for B2B"
+                className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              />
+              <p className="mt-1 text-xs text-ink/40">Shown on /b2b for local businesses</p>
+            </div>
           </div>
 
           <div className="col-span-2">

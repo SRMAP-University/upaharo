@@ -23,6 +23,9 @@ export async function GET() {
     // Get all orders that contain at least one product from this seller
     const orders = await prisma.order.findMany({
       where: {
+        NOT: {
+          AND: [{ paymentMethod: 'ONLINE' }, { paymentStatus: 'PENDING' }],
+        },
         items: {
           some: {
             product: {

@@ -122,6 +122,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    let wholesalePrice: number | null = null
+    if (body?.wholesalePrice !== undefined && body?.wholesalePrice !== null && body?.wholesalePrice !== '') {
+      const wp = toNumber(body.wholesalePrice, NaN)
+      if (!Number.isFinite(wp) || wp < 0) {
+        return NextResponse.json(
+          { error: 'wholesalePrice must be a valid non-negative number' },
+          { status: 400 }
+        )
+      }
+      wholesalePrice = wp
+    }
+
     const images = Array.isArray(body?.images)
       ? body.images
           .map((v: unknown) => String(v || '').trim())
@@ -138,6 +150,7 @@ export async function POST(request: NextRequest) {
       description,
       category,
       price,
+      wholesalePrice,
       image,
       images,
       variants,

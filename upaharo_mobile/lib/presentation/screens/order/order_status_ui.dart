@@ -78,7 +78,7 @@ OrderStatusTheme statusThemeFor(OrderStatus status) {
         background: Color(0xFFFFEBEE),
       );
     case OrderStatus.pending:
-      return const OrderStatusTheme(
+      return OrderStatusTheme(
         title: 'Order received',
         hint: 'We are confirming your order now.',
         color: AppTheme.wine,

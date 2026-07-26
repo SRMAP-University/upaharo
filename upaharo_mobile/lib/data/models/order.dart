@@ -47,6 +47,8 @@ class Order {
   final String? greetingMessage;
   final String? senderName;
   final bool showSenderName;
+  /// Shown to the customer to confirm delivery (share with rider).
+  final String? deliveryOtp;
 
   const Order({
     required this.id,
@@ -77,6 +79,7 @@ class Order {
     this.greetingMessage,
     this.senderName,
     this.showSenderName = true,
+    this.deliveryOtp,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -122,6 +125,7 @@ class Order {
       greetingMessage: json['greetingMessage'] as String?,
       senderName: json['senderName'] as String?,
       showSenderName: json['showSenderName'] as bool? ?? true,
+      deliveryOtp: json['deliveryOtp'] as String?,
     );
   }
 

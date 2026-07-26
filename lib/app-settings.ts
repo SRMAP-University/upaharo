@@ -21,6 +21,10 @@ export type PublicAppSettings = {
   homepageShowRecommendations: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
+  brandPrimary: string
+  brandSecondary: string
+  headerWash: string
+  pageBackground: string
 }
 
 export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
@@ -42,6 +46,21 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   homepageShowRecommendations: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: 'Latest Arrivals',
+  brandPrimary: '#8B5A2B',
+  brandSecondary: '#D4AF37',
+  headerWash: '#F7F0E8',
+  pageBackground: '#FFFFFF',
+}
+
+const HEX_COLOR_RE = /^#([0-9A-Fa-f]{6})$/
+
+/** Normalize and validate `#RRGGBB`; falls back when invalid/missing. */
+export function normalizeHexColor(value: unknown, fallback: string): string {
+  const raw = String(value ?? '').trim()
+  if (HEX_COLOR_RE.test(raw)) {
+    return raw.toUpperCase()
+  }
+  return fallback
 }
 
 export async function getAppSettings(): Promise<PublicAppSettings> {
@@ -81,6 +100,10 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
           settings.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode,
         homepageRecommendationTitle:
           settings.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle,
+        brandPrimary: normalizeHexColor(settings.brandPrimary, DEFAULT_APP_SETTINGS.brandPrimary),
+        brandSecondary: normalizeHexColor(settings.brandSecondary, DEFAULT_APP_SETTINGS.brandSecondary),
+        headerWash: normalizeHexColor(settings.headerWash, DEFAULT_APP_SETTINGS.headerWash),
+        pageBackground: normalizeHexColor(settings.pageBackground, DEFAULT_APP_SETTINGS.pageBackground),
       }
     })
   } catch (error) {

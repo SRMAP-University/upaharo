@@ -20,29 +20,33 @@ class LocationScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(
-        title: const Text('Choose Location'),
-        bottom: location != null && location.address.isNotEmpty
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(44),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Text(
-                    location.shortAddress,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
-                  ),
-                ),
-              )
-            : null,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      appBar: null,
+      body: SafeArea(
+        child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 1,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
+                  tooltip: 'Back',
+                  onPressed: () {
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    } else {
+                      Navigator.pushReplacementNamed(context, AppRoutes.main);
+                    }
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -55,12 +59,12 @@ class LocationScreen extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: AppTheme.creamDeep,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.location_on, color: AppTheme.wine),
+                        child: Icon(Icons.location_on, color: AppTheme.wine),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -91,15 +95,16 @@ class LocationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    location?.shortAddress ?? 'We need your location to check delivery availability.',
-                    style: const TextStyle(fontSize: 14, height: 1.5, color: AppTheme.charcoal),
+                    location?.shortAddress ??
+                        'We use your location only to check delivery availability in our service area.',
+                    style: TextStyle(fontSize: 14, height: 1.5, color: AppTheme.charcoal),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24),
             if (locationProvider.status == LocationStatus.loading)
-              const Center(child: CircularProgressIndicator(color: AppTheme.wine))
+              Center(child: CircularProgressIndicator(color: AppTheme.wine))
             else if (locationProvider.status == LocationStatus.denied &&
                 locationProvider.errorMessage != null) ...[
               Container(
@@ -166,6 +171,7 @@ class LocationScreen extends StatelessWidget {
               child: const Text('Continue without location'),
             ),
           ],
+        ),
         ),
       ),
     );

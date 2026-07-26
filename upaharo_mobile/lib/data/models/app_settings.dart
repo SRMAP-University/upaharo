@@ -17,6 +17,10 @@ class AppSettings {
   final bool homepageShowRecommendations;
   final String homepageRecommendationMode;
   final String homepageRecommendationTitle;
+  final String brandPrimary;
+  final String brandSecondary;
+  final String headerWash;
+  final String pageBackground;
 
   const AppSettings({
     this.siteName = 'Upaharo',
@@ -37,6 +41,10 @@ class AppSettings {
     this.homepageShowRecommendations = true,
     this.homepageRecommendationMode = 'LATEST',
     this.homepageRecommendationTitle = 'Latest Arrivals',
+    this.brandPrimary = '#8B5A2B',
+    this.brandSecondary = '#D4AF37',
+    this.headerWash = '#F7F0E8',
+    this.pageBackground = '#FFFFFF',
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -59,6 +67,10 @@ class AppSettings {
       homepageShowRecommendations: json['homepageShowRecommendations'] as bool? ?? true,
       homepageRecommendationMode: json['homepageRecommendationMode'] as String? ?? 'LATEST',
       homepageRecommendationTitle: json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
+      brandPrimary: json['brandPrimary'] as String? ?? '#8B5A2B',
+      brandSecondary: json['brandSecondary'] as String? ?? '#D4AF37',
+      headerWash: json['headerWash'] as String? ?? '#F7F0E8',
+      pageBackground: json['pageBackground'] as String? ?? '#FFFFFF',
     );
   }
 
@@ -81,5 +93,9 @@ class AppSettings {
         'homepageShowRecommendations': homepageShowRecommendations,
         'homepageRecommendationMode': homepageRecommendationMode,
         'homepageRecommendationTitle': homepageRecommendationTitle,
+        'brandPrimary': brandPrimary,
+        'brandSecondary': brandSecondary,
+        'headerWash': headerWash,
+        'pageBackground': pageBackground,
       };
 }

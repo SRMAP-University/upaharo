@@ -133,10 +133,21 @@ class ApiEndpoints {
   /// DELETE Body: { id }
   static const String recipients = '/api/recipients';
 
+  /// Active homepage banners from the admin panel.
+  /// GET -> { banners: [...] }
+  static const String banners = '/api/banners';
+
+  /// Active public coupons for the storefront / app.
+  /// GET -> { coupons: [...] }
+  static const String coupons = '/api/coupons';
+
   /// Validate a coupon against the current cart.
   /// Body: { code, subtotal, productIds?, categoryNames? }
   /// POST -> { valid, discount, message?, coupon? }
   static const String validateCoupon = '/api/coupons/validate';
+
+  /// GET/POST /api/promo/spin - roulette status + claim daily prize
+  static const String promoSpin = '/api/promo/spin';
 
   /// List or create orders for the authenticated user.
   /// GET -> { orders: List of Order }
@@ -153,6 +164,35 @@ class ApiEndpoints {
   /// Body: { orderId, paymentId, status? }
   /// POST -> { orderId, paymentStatus }
   static const String confirmDodoPayment = '/api/payments/dodo/confirm';
+
+  /// Confirm a Stripe Checkout Session payment.
+  /// Body: { orderId, sessionId }
+  /// POST -> { orderId, paymentStatus }
+  static const String confirmStripePayment = '/api/payments/stripe/confirm';
+
+  /// Cancel an unpaid ONLINE order after abandoning Stripe Checkout.
+  /// Body: { orderId }
+  /// POST -> { abandoned, orderId }
+  static const String cancelStripePayment = '/api/payments/stripe/cancel';
+
+  /// Delete the authenticated customer account (Play Store requirement).
+  /// DELETE -> { ok, message }
+  static const String account = '/api/account';
+
+  /// Register / unregister FCM device token.
+  /// POST Body: { token, platform: android|ios|web }
+  /// DELETE Body: { token? }
+  static const String devices = '/api/devices';
+
+  /// AI gifting assistant chat.
+  /// Body: { messages: [{ role, content }] }
+  /// Response: { role, content, products: [...] }
+  static const String aiChat = '/api/ai/chat';
+
+  /// In-app notification inbox.
+  /// GET -> { notifications, unreadCount }
+  /// PATCH Body: { ids?: string[], all?: boolean }
+  static const String notifications = '/api/notifications';
 
   /// ------------------------------------------------------------------------
   /// Admin / seller endpoints (not needed for the customer app but listed

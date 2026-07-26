@@ -47,7 +47,8 @@ class LocationService {
     await _handlePermission();
     return Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.best,
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 0,
       ),
     );
   }

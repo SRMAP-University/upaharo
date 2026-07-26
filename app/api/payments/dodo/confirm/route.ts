@@ -72,9 +72,25 @@ export async function POST(request: NextRequest) {
       },
       select: {
         id: true,
+        orderNumber: true,
         paymentStatus: true,
+        userId: true,
       },
     })
+
+    if (
+      normalizedStatus !== order.paymentStatus &&
+      (normalizedStatus === 'COMPLETED' || normalizedStatus === 'FAILED')
+    ) {
+      void import('@/lib/notifications').then(({ notifyPaymentUpdate }) =>
+        notifyPaymentUpdate({
+          userId: updatedOrder.userId,
+          orderId: updatedOrder.id,
+          orderNumber: updatedOrder.orderNumber,
+          paymentStatus: normalizedStatus,
+        }).catch((err) => console.error('Payment notification failed:', err))
+      )
+    }
 
     return NextResponse.json({
       orderId: updatedOrder.id,

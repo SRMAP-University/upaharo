@@ -1,31 +1,19 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/api_endpoints.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/progressive_network_image.dart';
 import '../../../core/storage/token_storage.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key, this.showBottomNav = true});
 
   final bool showBottomNav;
-
-  String _resolveImage(String rawUrl) {
-    final url = rawUrl.trim();
-    if (url.startsWith('/api/uploads')) {
-      return '${ApiEndpoints.baseUrl}$url';
-    }
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    return '';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,14 +36,13 @@ class CartScreen extends StatelessWidget {
                          children: [
                            ListTile(
                              contentPadding: EdgeInsets.zero,
-                             leading: ClipRRect(
+                             leading: ProgressiveNetworkImage(
+                               url: item.image,
+                               width: 56,
+                               height: 56,
+                               fit: BoxFit.cover,
                                borderRadius: BorderRadius.circular(8),
-                               child: CachedNetworkImage(
-                                 imageUrl: _resolveImage(item.image),
-                                 width: 56,
-                                 height: 56,
-                                 fit: BoxFit.cover,
-                               ),
+                               enableBlur: false,
                              ),
                              title: Text(item.name),
                              subtitle: Text(PriceFormatter.format(item.price * item.quantity)),
@@ -92,10 +79,10 @@ class CartScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total', style: TextStyle(fontSize: 16)),
+                            Text('Total', style: TextStyle(fontSize: 16)),
                             Text(
                               PriceFormatter.format(cart.totalPrice),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 20,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.wine,
@@ -131,7 +118,7 @@ class CartScreen extends StatelessWidget {
                 ),
               ],
             ),
-      bottomNavigationBar: showBottomNav ? const BottomNavBar(currentIndex: 2) : null,
+      bottomNavigationBar: showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
     );
   }
 }

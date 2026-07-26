@@ -3,7 +3,13 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
+    // Hide ONLINE checkouts that are still unpaid — they are not real orders yet.
     const orders = await prisma.order.findMany({
+      where: {
+        NOT: {
+          AND: [{ paymentMethod: 'ONLINE' }, { paymentStatus: 'PENDING' }],
+        },
+      },
       include: {
         user: {
           select: {

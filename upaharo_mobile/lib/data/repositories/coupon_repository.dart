@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../config/api_endpoints.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/dio_client.dart';
+import '../models/coupon.dart';
 
 class CouponValidationResult {
   const CouponValidationResult({
@@ -31,6 +32,29 @@ class CouponValidationResult {
 
 class CouponRepository {
   const CouponRepository();
+
+  Future<List<Coupon>> getAvailableCoupons() async {
+    try {
+      final data = await DioClient.request<Map<String, dynamic>>(
+        ApiEndpoints.coupons,
+        parser: (json) {
+          if (json is Map<String, dynamic>) return json;
+          if (json is Map) return Map<String, dynamic>.from(json);
+          if (json is List) return {'coupons': json};
+          return <String, dynamic>{};
+        },
+      );
+      final list = data['coupons'] as List<dynamic>? ?? const [];
+      return list
+          .whereType<Map>()
+          .map((e) => Coupon.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on ApiException {
+      return const [];
+    } catch (_) {
+      return const [];
+    }
+  }
 
   Future<CouponValidationResult> validate({
     required String code,

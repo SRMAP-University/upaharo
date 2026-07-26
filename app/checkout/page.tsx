@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { useLocationStore } from '@/lib/store/location'
 import { useUserStore } from '@/lib/store/user'
@@ -53,6 +53,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { items, getTotalPrice, clearCart, giftOptions, setGiftOptions } = useCartStore()
   const { deliveryAddress, setDeliveryAddress } = useLocationStore()
   const { user, _hasHydrated } = useUserStore()
@@ -61,7 +62,7 @@ export default function CheckoutPage() {
   const [addressesLoading, setAddressesLoading] = useState(true)
   const [giftDataLoading, setGiftDataLoading] = useState(true)
   const [showMobileSummary, setShowMobileSummary] = useState(false)
-  const [paymentMethod] = useState<'CASH'>('CASH')
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH')
   const [giftWraps, setGiftWraps] = useState<GiftWrap[]>([])
   const [occasions, setOccasions] = useState<Occasion[]>([])
   const [recipients, setRecipients] = useState<Recipient[]>([])
@@ -70,6 +71,10 @@ export default function CheckoutPage() {
   const [showAddressForm, setShowAddressForm] = useState(false)
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS)
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
+  const [couponError, setCouponError] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
   const [newAddress, setNewAddress] = useState({
     label: 'Home',
     street: '',
@@ -87,7 +92,8 @@ export default function CheckoutPage() {
   const giftWrapPrice = giftOptions.giftWrapId ? (giftWraps.find(w => w.id === giftOptions.giftWrapId)?.price || 0) : 0
   const deliveryFee = (subtotal + giftWrapPrice) > 199 ? 0 : 40
   const tax = 0
-  const total = subtotal + giftWrapPrice + deliveryFee
+  const couponDiscount = appliedCoupon?.discount ?? 0
+  const total = subtotal + giftWrapPrice + deliveryFee - couponDiscount
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const isSelectedAddressServiceable = selectedAddress
     ? isKathmanduValleyLocation({
@@ -125,6 +131,23 @@ export default function CheckoutPage() {
       }))
     }
   }, [deliveryAddress])
+
+  // User abandoned Stripe Checkout — cancel the unpaid placeholder order.
+  useEffect(() => {
+    const canceled = searchParams.get('canceled')
+    const orderId = searchParams.get('orderId')
+    if (canceled !== '1' || !orderId) return
+
+    void fetch('/api/payments/stripe/cancel', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId }),
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        router.replace('/checkout')
+      })
+  }, [searchParams, router])
 
   const fetchAddresses = async () => {
     try {
@@ -186,6 +209,43 @@ export default function CheckoutPage() {
     } catch (error) {
       console.error('Error fetching app settings:', error)
     }
+  }
+
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return
+    setCouponLoading(true)
+    setCouponError('')
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCode,
+          subtotal,
+          productIds: items.map((item) => item.id)
+        })
+      })
+
+      const result = await res.json()
+      if (result.valid) {
+        setAppliedCoupon({ code: couponCode, discount: result.discount })
+      } else {
+        setAppliedCoupon(null)
+        setCouponError(result.message || 'Invalid coupon code')
+      }
+    } catch (error) {
+      console.error('Error applying coupon:', error)
+      setCouponError('Failed to apply coupon')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponError('')
+    setCouponCode('')
   }
 
   const handleCreateAddress = async () => {
@@ -293,6 +353,7 @@ export default function CheckoutPage() {
           deliveryFee,
           tax,
           total,
+          couponCode: appliedCoupon?.code || undefined,
           isGift: giftOptions.isGift,
           recipientId: giftOptions.recipientId,
           occasionId: giftOptions.occasionId,
@@ -310,6 +371,13 @@ export default function CheckoutPage() {
       }
 
       const data = await response.json()
+
+      if (paymentMethod === 'ONLINE' && data.paymentUrl) {
+        // Keep cart until Stripe return page confirms payment.
+        setOrderPlaced(true)
+        window.location.href = data.paymentUrl
+        return
+      }
 
       // Set flag before clearing cart to prevent redirect
       setOrderPlaced(true)
@@ -768,8 +836,8 @@ export default function CheckoutPage() {
                     type="radio"
                     name="payment"
                     value="CASH"
-                    checked
-                    readOnly
+                    checked={paymentMethod === 'CASH'}
+                    onChange={() => setPaymentMethod('CASH')}
                     className="w-4 h-4 lg:w-5 lg:h-5 accent-wine"
                   />
                   <div className="flex-1">
@@ -777,9 +845,20 @@ export default function CheckoutPage() {
                     <p className="text-xs lg:text-sm text-ink/55">Pay when you receive</p>
                   </div>
                 </label>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                  Online payment is temporarily unavailable. Please use cash on delivery for now.
-                </div>
+                <label className="flex items-center space-x-2 lg:space-x-3 p-3 lg:p-4 bg-white border-2 border-wine/15 rounded-2xl cursor-pointer hover:border-wine/40 hover:shadow-sm transition-all active:scale-[0.98]">
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="ONLINE"
+                    checked={paymentMethod === 'ONLINE'}
+                    onChange={() => setPaymentMethod('ONLINE')}
+                    className="w-4 h-4 lg:w-5 lg:h-5 accent-wine"
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold text-ink text-sm lg:text-base">Pay Online</p>
+                    <p className="text-xs lg:text-sm text-ink/55">Secure card payment with Stripe</p>
+                  </div>
+                </label>
               </div>
             </motion.div>
           </div>
@@ -812,10 +891,48 @@ export default function CheckoutPage() {
                     {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
                   </span>
                 </div>
-                <div className="border-t border-wine/10 pt-3 flex justify-between text-xl font-semibold text-ink">
-                  <span>Total</span>
-                  <span className="text-wine">{formatPriceNoDecimals(total)}</span>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Coupon ({appliedCoupon?.code})</span>
+                    <span>-{formatPrice(couponDiscount)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Coupon input */}
+              {couponDiscount === 0 ? (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-ink/70 mb-1.5">Have a coupon?</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Enter code"
+                      className="flex-1 px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 uppercase"
+                    />
+                    <button
+                      onClick={applyCoupon}
+                      disabled={couponLoading || !couponCode.trim()}
+                      className="bg-wine text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-wine-deep disabled:opacity-50"
+                    >
+                      {couponLoading ? '...' : 'Apply'}
+                    </button>
+                  </div>
+                  {couponError && <p className="text-red-500 text-xs mt-1.5">{couponError}</p>}
                 </div>
+              ) : (
+                <div className="mb-4 flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+                  <span className="text-sm text-green-800 font-medium">{appliedCoupon?.code} applied</span>
+                  <button onClick={removeCoupon} className="text-xs text-red-600 font-semibold hover:underline">
+                    Remove
+                  </button>
+                </div>
+              )}
+
+              <div className="border-t border-wine/10 pt-3 flex justify-between text-xl font-semibold text-ink mb-4">
+                <span>Total</span>
+                <span className="text-wine">{formatPriceNoDecimals(total)}</span>
               </div>
 
               {giftOptions.isGift && selectedRecipient && (
@@ -854,7 +971,13 @@ export default function CheckoutPage() {
                     <span>Placing order...</span>
                   </div>
                 ) : (
-                  <span>{giftOptions.isGift ? '🎁 Send as Gift' : 'Place Order'}</span>
+                  <span>
+                    {giftOptions.isGift
+                      ? '🎁 Send as Gift'
+                      : paymentMethod === 'ONLINE'
+                        ? 'Pay Online'
+                        : 'Place Order'}
+                  </span>
                 )}
               </motion.button>
             </motion.div>
@@ -884,6 +1007,41 @@ export default function CheckoutPage() {
                       {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
                     </span>
                   </div>
+                  {couponDiscount > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Coupon ({appliedCoupon?.code})</span>
+                      <span>-{formatPrice(couponDiscount)}</span>
+                    </div>
+                  )}
+
+                  {couponDiscount === 0 ? (
+                    <div className="pt-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          placeholder="Coupon code"
+                          className="flex-1 px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 uppercase"
+                        />
+                        <button
+                          onClick={applyCoupon}
+                          disabled={couponLoading || !couponCode.trim()}
+                          className="bg-wine text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-wine-deep disabled:opacity-50"
+                        >
+                          {couponLoading ? '...' : 'Apply'}
+                        </button>
+                      </div>
+                      {couponError && <p className="text-red-500 text-xs mt-1.5">{couponError}</p>}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 mt-2">
+                      <span className="text-xs text-green-800 font-medium">{appliedCoupon?.code} applied</span>
+                      <button onClick={removeCoupon} className="text-xs text-red-600 font-semibold hover:underline">
+                        Remove
+                      </button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
 
@@ -913,7 +1071,13 @@ export default function CheckoutPage() {
                         <span className="text-sm">Processing...</span>
                       </div>
                     ) : (
-                      <span className="text-sm">{giftOptions.isGift ? '🎁 Send Gift' : 'Place Order'}</span>
+                      <span className="text-sm">
+                        {giftOptions.isGift
+                          ? '🎁 Send Gift'
+                          : paymentMethod === 'ONLINE'
+                            ? 'Pay Online'
+                            : 'Place Order'}
+                      </span>
                     )}
                   </motion.button>
                 </div>

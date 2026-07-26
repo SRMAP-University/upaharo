@@ -6,22 +6,27 @@ import '../../config/theme.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
 
-class BottomNavBar extends StatelessWidget {
+/// Compact bar: Home · Categories · Top picks + circular Promo orb.
+class BottomNavBar extends StatefulWidget {
   const BottomNavBar({super.key, required this.currentIndex});
 
+  /// 0 Home · 1 Categories · 2 Top picks · 3 Promo
   final int currentIndex;
 
+  @override
+  State<BottomNavBar> createState() => _BottomNavBarState();
+}
+
+class _BottomNavBarState extends State<BottomNavBar> {
   void _onTap(BuildContext context, int index) {
-    if (index == currentIndex) return;
+    if (index == widget.currentIndex) return;
 
     final tabs = context.read<ShellTabController>();
     tabs.goTo(index);
 
-    // Already inside MainShell — IndexedStack switches instantly, no reload.
     final inShell = context.findAncestorWidgetOfExactType<MainShell>() != null;
     if (inShell) return;
 
-    // Outside shell (e.g. product list) — jump back to main tabs.
     Navigator.of(context).pushNamedAndRemoveUntil(
       AppRoutes.main,
       (route) => false,
@@ -30,63 +35,220 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const items = [
-      (Icons.home_outlined, Icons.home, 'Home'),
-      (Icons.search_outlined, Icons.search, 'Search'),
-      (Icons.shopping_bag_outlined, Icons.shopping_bag, 'Cart'),
-      (Icons.receipt_long_outlined, Icons.receipt_long, 'Orders'),
-      (Icons.person_outline, Icons.person, 'Account'),
+    const items = <({IconData outline, IconData filled, String label})>[
+      (outline: Icons.cottage_outlined, filled: Icons.cottage_rounded, label: 'Home'),
+      (
+        outline: Icons.local_florist_outlined,
+        filled: Icons.local_florist_rounded,
+        label: 'Categories',
+      ),
+      (
+        outline: Icons.card_giftcard_outlined,
+        filled: Icons.card_giftcard_rounded,
+        label: 'Top picks',
+      ),
     ];
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha((0.12 * 255).toInt()),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
+    final selectedBar = widget.currentIndex.clamp(0, 2);
+    final promoSelected = widget.currentIndex == 3;
+    final barActive = widget.currentIndex <= 2;
+
+    return Material(
+      color: Colors.transparent,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppTheme.cream.withAlpha(0),
+              AppTheme.cream.withAlpha(220),
+              AppTheme.cream,
+            ],
+            stops: const [0, 0.35, 1],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(items.length, (index) {
-          final selected = index == currentIndex;
-          final item = items[index];
-          return GestureDetector(
-            onTap: () => _onTap(context, index),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: selected ? AppTheme.wine.withAlpha((0.10 * 255).toInt()) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    selected ? item.$2 : item.$1,
-                    color: selected ? AppTheme.wine : AppTheme.charcoal,
-                    size: 22,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    item.$3,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: selected ? FontWeight.bold : FontWeight.w500,
-                      color: selected ? AppTheme.wine : AppTheme.charcoal,
+        ),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: AppTheme.wine.withAlpha(28),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(28),
+                          blurRadius: 16,
+                          offset: Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: AppTheme.wine.withAlpha(16),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: List.generate(items.length, (index) {
+                        final selected = barActive && index == selectedBar;
+                        final item = items[index];
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => _onTap(context, index),
+                            behavior: HitTestBehavior.opaque,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  selected ? item.filled : item.outline,
+                                  color: selected
+                                      ? AppTheme.wine
+                                      : AppTheme.charcoal.withAlpha(170),
+                                  size: selected ? 21 : 19,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.label,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: selected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: selected
+                                        ? AppTheme.wine
+                                        : AppTheme.charcoal.withAlpha(170),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: () => _onTap(context, 3),
+                  child: SizedBox(
+                    width: 58,
+                    height: 58,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                AppTheme.gold.withAlpha(220),
+                                Color(0xFFE8C56A),
+                                AppTheme.wine.withAlpha(180),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: Colors.white.withAlpha(220),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(30),
+                                blurRadius: 14,
+                                offset: Offset(0, 5),
+                              ),
+                              BoxShadow(
+                                color: AppTheme.wine
+                                    .withAlpha(promoSelected ? 60 : 32),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 150),
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: promoSelected ? AppTheme.wine : Colors.white,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.local_offer_rounded,
+                                size: 18,
+                                color: promoSelected
+                                    ? AppTheme.gold
+                                    : AppTheme.wine,
+                              ),
+                              Text(
+                                'Promo',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w800,
+                                  color: promoSelected
+                                      ? Colors.white
+                                      : AppTheme.wine,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          top: 2,
+                          right: 3,
+                          child: Transform.rotate(
+                            angle: 0.35,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: promoSelected
+                                    ? AppTheme.gold
+                                    : const Color(0xFFE8A0B0),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '%',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: promoSelected
+                                      ? AppTheme.wine
+                                      : Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          );
-        }),
+          ),
+        ),
       ),
     );
   }

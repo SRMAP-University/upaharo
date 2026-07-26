@@ -64,6 +64,17 @@ class AuthRepository {
     await UserStorage.deleteUser();
   }
 
+  /// Permanently delete (anonymize) the signed-in account on the server.
+  Future<void> deleteAccount() async {
+    await DioClient.request<Map<String, dynamic>>(
+      ApiEndpoints.account,
+      method: 'DELETE',
+      parser: (json) => (json as Map<String, dynamic>?) ?? <String, dynamic>{},
+    );
+    await TokenStorage.deleteToken();
+    await UserStorage.deleteUser();
+  }
+
   Future<bool> isAuthenticated() async {
     final token = await TokenStorage.readToken();
     return token != null && token.isNotEmpty;

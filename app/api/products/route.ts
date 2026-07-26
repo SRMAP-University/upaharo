@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
     const idsParam = searchParams.get('ids')
     const limitParam = Number(searchParams.get('limit'))
     const view = String(searchParams.get('view') || '').toLowerCase()
+    const wholesaleOnly =
+      searchParams.get('wholesale') === '1' ||
+      searchParams.get('wholesale') === 'true' ||
+      searchParams.get('b2b') === '1'
 
     const where: any = {
       isAvailable: true,
@@ -52,6 +56,10 @@ export async function GET(request: NextRequest) {
           has: ARCHIVED_PRODUCT_TAG,
         },
       },
+    }
+
+    if (wholesaleOnly) {
+      where.wholesalePrice = { not: null }
     }
 
     if (idsParam) {
@@ -122,6 +130,7 @@ export async function GET(request: NextRequest) {
         categoryId,
         search,
         idsParam,
+        wholesaleOnly,
         limit: Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 60) : null,
         view: view || 'full',
       })

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { DEFAULT_APP_SETTINGS } from '@/lib/app-settings'
+import { DEFAULT_APP_SETTINGS, normalizeHexColor } from '@/lib/app-settings'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 
@@ -10,6 +10,58 @@ function toNumber(value: unknown, fallback: number) {
   }
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function toBool(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value
+  return fallback
+}
+
+function appearanceFields(body: Record<string, unknown>) {
+  return {
+    brandPrimary: normalizeHexColor(body?.brandPrimary, DEFAULT_APP_SETTINGS.brandPrimary),
+    brandSecondary: normalizeHexColor(body?.brandSecondary, DEFAULT_APP_SETTINGS.brandSecondary),
+    headerWash: normalizeHexColor(body?.headerWash, DEFAULT_APP_SETTINGS.headerWash),
+    pageBackground: normalizeHexColor(body?.pageBackground, DEFAULT_APP_SETTINGS.pageBackground),
+  }
+}
+
+function settingsPayload(body: Record<string, unknown>) {
+  return {
+    siteName: String(body?.siteName || DEFAULT_APP_SETTINGS.siteName).trim(),
+    supportPhone: String(body?.supportPhone || '').trim() || null,
+    supportEmail: String(body?.supportEmail || '').trim() || null,
+    supportHours: String(body?.supportHours || '').trim() || null,
+    supportMessage: String(body?.supportMessage || '').trim() || null,
+    deliveryEstimate: String(body?.deliveryEstimate || DEFAULT_APP_SETTINGS.deliveryEstimate).trim(),
+    deliveryNote: String(body?.deliveryNote || '').trim() || null,
+    announcementText: String(body?.announcementText || '').trim() || null,
+    storeAddress: String(body?.storeAddress || '').trim() || null,
+    mapLatitude: toNumber(body?.mapLatitude, DEFAULT_APP_SETTINGS.mapLatitude),
+    mapLongitude: toNumber(body?.mapLongitude, DEFAULT_APP_SETTINGS.mapLongitude),
+    homepageShowBanner: toBool(body?.homepageShowBanner, DEFAULT_APP_SETTINGS.homepageShowBanner),
+    homepageShowTopCategories: toBool(
+      body?.homepageShowTopCategories,
+      DEFAULT_APP_SETTINGS.homepageShowTopCategories
+    ),
+    homepageShowCategorySections: toBool(
+      body?.homepageShowCategorySections,
+      DEFAULT_APP_SETTINGS.homepageShowCategorySections
+    ),
+    homepageShowOccasionTabs: toBool(
+      body?.homepageShowOccasionTabs,
+      DEFAULT_APP_SETTINGS.homepageShowOccasionTabs
+    ),
+    homepageShowRecommendations: toBool(
+      body?.homepageShowRecommendations,
+      DEFAULT_APP_SETTINGS.homepageShowRecommendations
+    ),
+    homepageRecommendationMode:
+      String(body?.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode).trim(),
+    homepageRecommendationTitle:
+      String(body?.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle).trim(),
+    ...appearanceFields(body),
+  }
 }
 
 export async function GET() {
@@ -22,6 +74,10 @@ export async function GET() {
       id: 'default',
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
+      brandPrimary: normalizeHexColor(settings?.brandPrimary, DEFAULT_APP_SETTINGS.brandPrimary),
+      brandSecondary: normalizeHexColor(settings?.brandSecondary, DEFAULT_APP_SETTINGS.brandSecondary),
+      headerWash: normalizeHexColor(settings?.headerWash, DEFAULT_APP_SETTINGS.headerWash),
+      pageBackground: normalizeHexColor(settings?.pageBackground, DEFAULT_APP_SETTINGS.pageBackground),
     })
   } catch (error) {
     if (isMissingAppSettingsTableError(error)) {
@@ -41,60 +97,15 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json()
+    const body = (await request.json()) as Record<string, unknown>
+    const payload = settingsPayload(body)
 
     const settings = await prisma.appSettings.upsert({
       where: { id: 'default' },
-      update: {
-        siteName: String(body?.siteName || DEFAULT_APP_SETTINGS.siteName).trim(),
-        supportPhone: String(body?.supportPhone || '').trim() || null,
-        supportEmail: String(body?.supportEmail || '').trim() || null,
-        supportHours: String(body?.supportHours || '').trim() || null,
-        supportMessage: String(body?.supportMessage || '').trim() || null,
-        deliveryEstimate: String(body?.deliveryEstimate || DEFAULT_APP_SETTINGS.deliveryEstimate).trim(),
-        deliveryNote: String(body?.deliveryNote || '').trim() || null,
-        announcementText: String(body?.announcementText || '').trim() || null,
-        storeAddress: String(body?.storeAddress || '').trim() || null,
-        mapLatitude: toNumber(body?.mapLatitude, DEFAULT_APP_SETTINGS.mapLatitude),
-        mapLongitude: toNumber(body?.mapLongitude, DEFAULT_APP_SETTINGS.mapLongitude),
-        homepageShowBanner: body?.homepageShowBanner ?? DEFAULT_APP_SETTINGS.homepageShowBanner,
-        homepageShowTopCategories: body?.homepageShowTopCategories ?? DEFAULT_APP_SETTINGS.homepageShowTopCategories,
-        homepageShowCategorySections:
-          body?.homepageShowCategorySections ?? DEFAULT_APP_SETTINGS.homepageShowCategorySections,
-        homepageShowOccasionTabs:
-          body?.homepageShowOccasionTabs ?? DEFAULT_APP_SETTINGS.homepageShowOccasionTabs,
-        homepageShowRecommendations:
-          body?.homepageShowRecommendations ?? DEFAULT_APP_SETTINGS.homepageShowRecommendations,
-        homepageRecommendationMode:
-          String(body?.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode).trim(),
-        homepageRecommendationTitle:
-          String(body?.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle).trim(),
-      },
+      update: payload,
       create: {
         id: 'default',
-        siteName: String(body?.siteName || DEFAULT_APP_SETTINGS.siteName).trim(),
-        supportPhone: String(body?.supportPhone || '').trim() || null,
-        supportEmail: String(body?.supportEmail || '').trim() || null,
-        supportHours: String(body?.supportHours || '').trim() || null,
-        supportMessage: String(body?.supportMessage || '').trim() || null,
-        deliveryEstimate: String(body?.deliveryEstimate || DEFAULT_APP_SETTINGS.deliveryEstimate).trim(),
-        deliveryNote: String(body?.deliveryNote || '').trim() || null,
-        announcementText: String(body?.announcementText || '').trim() || null,
-        storeAddress: String(body?.storeAddress || '').trim() || null,
-        mapLatitude: toNumber(body?.mapLatitude, DEFAULT_APP_SETTINGS.mapLatitude),
-        mapLongitude: toNumber(body?.mapLongitude, DEFAULT_APP_SETTINGS.mapLongitude),
-        homepageShowBanner: body?.homepageShowBanner ?? DEFAULT_APP_SETTINGS.homepageShowBanner,
-        homepageShowTopCategories: body?.homepageShowTopCategories ?? DEFAULT_APP_SETTINGS.homepageShowTopCategories,
-        homepageShowCategorySections:
-          body?.homepageShowCategorySections ?? DEFAULT_APP_SETTINGS.homepageShowCategorySections,
-        homepageShowOccasionTabs:
-          body?.homepageShowOccasionTabs ?? DEFAULT_APP_SETTINGS.homepageShowOccasionTabs,
-        homepageShowRecommendations:
-          body?.homepageShowRecommendations ?? DEFAULT_APP_SETTINGS.homepageShowRecommendations,
-        homepageRecommendationMode:
-          String(body?.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode).trim(),
-        homepageRecommendationTitle:
-          String(body?.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle).trim(),
+        ...payload,
       },
     })
 

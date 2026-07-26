@@ -9,6 +9,7 @@ interface Product {
   id: string
   name: string
   price: number
+  wholesalePrice?: number | null
   image: string
   isAvailable: boolean
   category: string
@@ -169,7 +170,14 @@ export default function AdminProducts() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-ink/55">{product.category}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-ink">Rs. {product.price}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-ink">
+                      <div>Rs. {product.price}</div>
+                      {product.wholesalePrice != null && (
+                        <div className="text-xs font-normal text-wine mt-0.5">
+                          B2B Rs. {product.wholesalePrice}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <button
                         onClick={() => toggleAvailability(product.id, product.isAvailable)}
@@ -220,7 +228,14 @@ export default function AdminProducts() {
                   <div className="flex-1">
                     <div className="text-sm font-semibold text-ink">{product.name}</div>
                     <div className="text-xs text-ink/55">{product.category}</div>
-                    <div className="mt-1 text-xs font-semibold text-ink">Rs. {product.price}</div>
+                    <div className="mt-1 text-xs font-semibold text-ink">
+                      Rs. {product.price}
+                      {product.wholesalePrice != null && (
+                        <span className="ml-1.5 font-normal text-wine">
+                          · B2B Rs. {product.wholesalePrice}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => toggleAvailability(product.id, product.isAvailable)}

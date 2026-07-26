@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' show cos, sqrt;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
@@ -21,6 +22,7 @@ class MapLocationScreen extends StatefulWidget {
 
 class _MapLocationScreenState extends State<MapLocationScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _locationService = const LocationService();
   GoogleMapController? _mapController;
 
   late LatLng _selectedPosition;
@@ -38,6 +40,9 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
   final _pincodeController = TextEditingController();
 
   bool _isFetchingAddress = false;
+  bool _isCentering = false;
+  bool _didInit = false;
+  bool _didCenterOnCurrent = false;
   String _resolvedAddress = '';
   Timer? _addressDebounce;
   LatLng _lastFetchedPosition = const LatLng(
@@ -48,6 +53,9 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_didInit) return;
+    _didInit = true;
+
     final initial = ModalRoute.of(context)?.settings.arguments as UserLocation?;
     final appSettings = context.read<SettingsProvider>().settings;
     final defaultLat = appSettings.mapLatitude;
@@ -59,6 +67,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
     _currentCameraTarget = _selectedPosition;
     _lastFetchedPosition = _selectedPosition;
 
+    // Prefill label / details from a previous selection; GPS recenter updates address.
     _labelController.text = initial?.label ?? 'Home';
     _streetController.text = initial?.street ?? '';
     _cityController.text = initial?.city ?? '';
@@ -83,6 +92,43 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
     super.dispose();
   }
 
+  Future<void> _centerOnCurrentLocation({bool force = false}) async {
+    if (_isCentering) return;
+    if (!force && _didCenterOnCurrent) return;
+
+    setState(() => _isCentering = true);
+    try {
+      final position = await _locationService.getCurrentPosition();
+      if (!mounted) return;
+
+      final target = LatLng(position.latitude, position.longitude);
+      _didCenterOnCurrent = true;
+      setState(() {
+        _selectedPosition = target;
+        _currentCameraTarget = target;
+      });
+
+      await _mapController?.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: target, zoom: 19),
+        ),
+      );
+      // Address refresh is handled by onCameraIdle after the move.
+    } catch (_) {
+      // Permission denied / GPS unavailable — keep fallback pin and resolve its address.
+      if (_resolvedAddress.isEmpty) {
+        _fetchAddressFromPin();
+      }
+      if (force && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not get your current location')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCentering = false);
+    }
+  }
+
   double _distanceInKm(LatLng a, LatLng b) {
     const earthRadius = 6371;
     final dLat = _toRad(b.latitude - a.latitude);
@@ -103,7 +149,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
     setState(() => _isFetchingAddress = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final location = await const LocationService().reverseGeocode(
+      final location = await _locationService.reverseGeocode(
         _currentCameraTarget.latitude,
         _currentCameraTarget.longitude,
       );
@@ -167,169 +213,315 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.cream,
-      appBar: AppBar(
-        title: const Text('Choose delivery location'),
+    final formMaxHeight = MediaQuery.sizeOf(context).height * 0.42;
+    // Map padding must match the pin viewport so GPS/camera target == pin tip.
+    final mapBottomPadding = formMaxHeight;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: Colors.transparent,
       ),
-      body: Column(
-        children: [
-          // Map
-          Expanded(
-            flex: 3,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: _selectedPosition,
-                    zoom: 16,
-                  ),
-                  onMapCreated: (controller) => _mapController = controller,
-                  onCameraMove: (position) {
-                    _currentCameraTarget = position.target;
-                  },
-                  onCameraIdle: _onCameraIdle,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  zoomControlsEnabled: true,
-                  mapToolbarEnabled: false,
-                ),
-                IgnorePointer(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+      child: Scaffold(
+        // No AppBar — map is edge-to-edge with a floating back control.
+        appBar: null,
+        backgroundColor: Colors.black,
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _selectedPosition,
+                zoom: 19,
+              ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _centerOnCurrentLocation(force: true);
+              },
+              onCameraMove: (position) {
+                _currentCameraTarget = position.target;
+              },
+              onCameraIdle: _onCameraIdle,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              padding: EdgeInsets.only(bottom: mapBottomPadding),
+            ),
+            // Pin tip sits at the center of the padded map viewport (same as camera target).
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: mapBottomPadding,
+              child: IgnorePointer(
+                child: Center(
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
+                      // Label floats above — must not affect tip alignment.
+                      Transform.translate(
+                        offset: const Offset(0, -58),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.wine,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Move map to adjust',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Tip of the pin is at the bottom of the icon — shift up so tip == center.
+                      Transform.translate(
+                        offset: const Offset(0, -22),
+                        child: Icon(
+                          Icons.location_pin,
                           color: AppTheme.wine,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Move map to adjust',
-                          style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                          size: 44,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      const Icon(
-                        Icons.location_pin,
-                        color: AppTheme.wine,
-                        size: 44,
-                      ),
-                      const SizedBox(height: 38),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Address form
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
               ),
-              child: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppTheme.creamDeep,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.location_on, color: AppTheme.wine),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Selected location',
-                                  style: TextStyle(fontSize: 12, color: AppTheme.charcoal, fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _resolvedAddress.isNotEmpty
-                                      ? _resolvedAddress
-                                      : _streetController.text.isNotEmpty
-                                          ? _streetController.text
-                                          : _isFetchingAddress
-                                              ? 'Detecting address...'
-                                              : 'Move the pin to detect your address',
-                                  style: const TextStyle(fontSize: 14, color: AppTheme.ink, fontWeight: FontWeight.w500),
-                                ),
-                                if (_cityController.text.isNotEmpty || _stateController.text.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text(
-                                      [
-                                        if (_cityController.text.isNotEmpty) _cityController.text,
-                                        if (_stateController.text.isNotEmpty) _stateController.text,
-                                        if (_pincodeController.text.isNotEmpty) _pincodeController.text,
-                                      ].join(', '),
-                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          if (_isFetchingAddress)
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.wine),
-                            )
-                          else
-                            IconButton(
-                              icon: const Icon(Icons.refresh, size: 20, color: AppTheme.wine),
-                              tooltip: 'Refresh address',
-                              onPressed: _fetchAddressFromPin,
-                            ),
-                        ],
-                      ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Material(
+                    color: Colors.white,
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    shadowColor: Colors.black38,
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
+                      tooltip: 'Back',
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    const SizedBox(height: 14),
-                    _buildField(_labelController, 'Label', required: true),
-                    _buildField(_streetController, 'Street / Area', required: true),
-                    Row(
-                      children: [
-                        Expanded(child: _buildField(_apartmentController, 'Apt / Flat')),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildField(_landmarkController, 'Landmark')),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Expanded(child: _buildField(_cityController, 'City', required: true)),
-                        const SizedBox(width: 12),
-                        Expanded(child: _buildField(_stateController, 'State', required: true)),
-                      ],
-                    ),
-                    _buildField(_pincodeController, 'Pincode', required: true),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: _saveLocation,
-                        child: const Text('Save Delivery Location'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+            // Re-center on live GPS — sits just above the address sheet.
+            Positioned(
+              right: 16,
+              bottom: formMaxHeight + 12,
+              child: Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 3,
+                shadowColor: Colors.black38,
+                child: IconButton(
+                  tooltip: 'Go to my location',
+                  onPressed: _isCentering
+                      ? null
+                      : () => _centerOnCurrentLocation(force: true),
+                  icon: _isCentering
+                      ? SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppTheme.wine,
+                          ),
+                        )
+                      : Icon(Icons.my_location, color: AppTheme.wine),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Material(
+                color: Colors.transparent,
+                child: Container(
+                  constraints: BoxConstraints(maxHeight: formMaxHeight),
+                  width: double.infinity,
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    8,
+                    16,
+                    16 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 16,
+                        offset: Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      children: [
+                        Center(
+                          child: Container(
+                            width: 36,
+                            height: 4,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.black12,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.creamDeep,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.location_on, color: AppTheme.wine),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Selected location',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppTheme.charcoal,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _resolvedAddress.isNotEmpty
+                                          ? _resolvedAddress
+                                          : _streetController.text.isNotEmpty
+                                              ? _streetController.text
+                                              : _isFetchingAddress
+                                                  ? 'Detecting address...'
+                                                  : 'Move the pin to detect your address',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: AppTheme.ink,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (_cityController.text.isNotEmpty ||
+                                        _stateController.text.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          [
+                                            if (_cityController.text.isNotEmpty)
+                                              _cityController.text,
+                                            if (_stateController.text.isNotEmpty)
+                                              _stateController.text,
+                                            if (_pincodeController.text.isNotEmpty)
+                                              _pincodeController.text,
+                                          ].join(', '),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (_isFetchingAddress)
+                                SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppTheme.wine,
+                                  ),
+                                )
+                              else
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.refresh,
+                                    size: 20,
+                                    color: AppTheme.wine,
+                                  ),
+                                  tooltip: 'Refresh address',
+                                  onPressed: _fetchAddressFromPin,
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _buildField(_labelController, 'Label', required: true),
+                        _buildField(
+                          _streetController,
+                          'Street / Area',
+                          required: true,
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildField(_apartmentController, 'Apt / Flat'),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildField(_landmarkController, 'Landmark'),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildField(
+                                _cityController,
+                                'City',
+                                required: true,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildField(
+                                _stateController,
+                                'State',
+                                required: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                        _buildField(
+                          _pincodeController,
+                          'Pincode',
+                          required: true,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _saveLocation,
+                            child: const Text('Save Delivery Location'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

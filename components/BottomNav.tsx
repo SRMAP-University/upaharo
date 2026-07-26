@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function BottomNav() {
   const pathname = usePathname()
@@ -13,6 +13,8 @@ export default function BottomNav() {
   const { user } = useUserStore()
   const [cartCount, setCartCount] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [visible, setVisible] = useState(true)
+  const lastScrollYRef = useRef(0)
 
   useEffect(() => {
     setMounted(true)
@@ -24,6 +26,34 @@ export default function BottomNav() {
       setCartCount(getTotalItems())
     }
   }, [getTotalItems, mounted])
+
+  useEffect(() => {
+    let ticking = false
+
+    const handleScroll = () => {
+      if (ticking) return
+      ticking = true
+
+      requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY
+        const threshold = 20
+
+        if (currentScrollY < threshold) {
+          setVisible(true)
+        } else if (currentScrollY > lastScrollYRef.current) {
+          setVisible(false)
+        } else {
+          setVisible(true)
+        }
+
+        lastScrollYRef.current = currentScrollY
+        ticking = false
+      })
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   const navItems = [
     {
@@ -88,7 +118,12 @@ export default function BottomNav() {
   return (
     <>
       {/* Mobile */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-wine/10 z-50 lg:hidden safe-area-bottom">
+      <motion.div
+        initial={{ y: 0 }}
+        animate={{ y: visible ? 0 : '100%' }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-wine/10 z-50 lg:hidden safe-area-bottom"
+      >
         <div className="grid grid-cols-5 h-14">
           {navItems.map((item) => (
             <motion.button
@@ -104,10 +139,15 @@ export default function BottomNav() {
             </motion.button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
       {/* Desktop */}
-      <div className="fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 lg:block">
+      <motion.div
+        initial={{ y: 0, x: '-50%' }}
+        animate={{ y: visible ? 0 : 120, x: '-50%' }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+        className="fixed bottom-6 left-1/2 z-50 hidden lg:block"
+      >
         <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
           <div className="flex items-center gap-4">
             {navItems.map((item) => (
@@ -125,7 +165,7 @@ export default function BottomNav() {
             ))}
           </div>
         </div>
-      </div>
+      </motion.div>
     </>
   )
 }

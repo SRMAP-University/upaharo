@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../data/models/product.dart';
 import '../../../data/repositories/product_repository.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/explore_coupons_section.dart';
+import '../../widgets/mini_cart_bar.dart';
 import '../../widgets/product_card.dart';
+import '../../widgets/product_quick_sheet.dart';
 
 class ProductListScreen extends StatelessWidget {
   const ProductListScreen({super.key});
@@ -18,8 +20,13 @@ class ProductListScreen extends StatelessWidget {
     final categoryId = args?['categoryId'] as String?;
     final title = args?['title'] as String? ?? 'Products';
     final search = args?['search'] as String?;
+    final cartPad =
+        context.watch<CartProvider>().totalItems > 0 ? MiniCartBar.height + 8 : 0.0;
 
     return Scaffold(
+      // Let cream page show through; avoid Scaffold's default surface strip
+      // behind the floating bottom nav / mini cart.
+      extendBody: true,
       backgroundColor: AppTheme.cream,
       appBar: AppBar(title: Text(title)),
       body: FutureBuilder<List<Product>>(
@@ -31,7 +38,7 @@ class ProductListScreen extends StatelessWidget {
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: AppTheme.wine));
+            return Center(child: CircularProgressIndicator(color: AppTheme.wine));
           }
 
           if (snapshot.hasError) {
@@ -41,34 +48,60 @@ class ProductListScreen extends StatelessWidget {
           final products = snapshot.data ?? [];
 
           if (products.isEmpty) {
-            return const Center(child: Text('No products found.'));
+            return ListView(
+              children: [
+                const SizedBox(height: 8),
+                const ExploreCouponsSection(),
+                const Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(child: Text('No products found.')),
+                ),
+                SizedBox(height: 110 + cartPad),
+              ],
+            );
           }
 
-          return GridView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: products.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.72,
-            ),
-            itemBuilder: (_, index) {
-              final product = products[index];
-              return ProductCard(
-                product: product,
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.productDetail,
-                  arguments: product.id,
+          return CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(child: SizedBox(height: 8)),
+              const SliverToBoxAdapter(child: ExploreCouponsSection()),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.72,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final product = products[index];
+                      return ProductCard(
+                        product: product,
+                        onTap: () => showProductQuickSheet(
+                          context,
+                          product: product,
+                          peers: products,
+                        ),
+                      );
+                    },
+                    childCount: products.length,
+                  ),
                 ),
-                onAddToCart: () => context.read<CartProvider>().addProduct(product),
-              );
-            },
+              ),
+              SliverToBoxAdapter(child: SizedBox(height: 110 + cartPad)),
+            ],
           );
         },
       ),
-      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
+      bottomNavigationBar: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MiniCartBar(),
+          BottomNavBar(currentIndex: 0),
+        ],
+      ),
     );
   }
 }

@@ -21,6 +21,10 @@ type SettingsForm = {
   homepageShowRecommendations: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
+  brandPrimary: string
+  brandSecondary: string
+  headerWash: string
+  pageBackground: string
 }
 
 const EMPTY_FORM: SettingsForm = {
@@ -42,6 +46,51 @@ const EMPTY_FORM: SettingsForm = {
   homepageShowRecommendations: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',
+  brandPrimary: '#8B5A2B',
+  brandSecondary: '#D4AF37',
+  headerWash: '#F7F0E8',
+  pageBackground: '#FFFFFF',
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (hex: string) => void
+}) {
+  const hex = /^#[0-9A-Fa-f]{6}$/.test(value) ? value : '#000000'
+
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-ink/70">{label}</label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={hex}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          className="h-10 w-12 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+          aria-label={label}
+        />
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          spellCheck={false}
+          className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 font-mono text-sm uppercase text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+          placeholder="#RRGGBB"
+          maxLength={7}
+        />
+        <span
+          className="h-10 w-10 shrink-0 rounded-xl border border-wine/10"
+          style={{ backgroundColor: hex }}
+          aria-hidden
+        />
+      </div>
+    </div>
+  )
 }
 
 export default function AdminSettingsPage() {
@@ -81,6 +130,10 @@ export default function AdminSettingsPage() {
         homepageShowRecommendations: Boolean(data.homepageShowRecommendations ?? true),
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
+        brandPrimary: String(data.brandPrimary || EMPTY_FORM.brandPrimary).toUpperCase(),
+        brandSecondary: String(data.brandSecondary || EMPTY_FORM.brandSecondary).toUpperCase(),
+        headerWash: String(data.headerWash || EMPTY_FORM.headerWash).toUpperCase(),
+        pageBackground: String(data.pageBackground || EMPTY_FORM.pageBackground).toUpperCase(),
       })
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -128,7 +181,9 @@ export default function AdminSettingsPage() {
     <div className="max-w-4xl">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold text-ink">Settings</h1>
-        <p className="mt-1 text-ink/55">Control support details, delivery text, map defaults, and homepage announcements.</p>
+        <p className="mt-1 text-ink/55">
+          Control app colors, homepage layout, support details, delivery text, and map defaults.
+        </p>
       </div>
 
       {message && (
@@ -163,7 +218,45 @@ export default function AdminSettingsPage() {
         </section>
 
         <section className="rounded-[22px] border border-wine/10 bg-white p-6">
-          <h2 className="font-display text-lg font-semibold text-ink">Homepage Layout</h2>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-semibold text-ink">App appearance</h2>
+              <p className="mt-1 text-sm text-ink/55">
+                Mobile app picks this up on next launch / settings refresh — no app update required.
+              </p>
+            </div>
+            <div
+              className="flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white shadow-sm"
+              style={{ backgroundColor: formData.brandPrimary }}
+            >
+              Primary preview
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <ColorField
+              label="Brand primary"
+              value={formData.brandPrimary}
+              onChange={(hex) => setFormData((prev) => ({ ...prev, brandPrimary: hex }))}
+            />
+            <ColorField
+              label="Brand secondary"
+              value={formData.brandSecondary}
+              onChange={(hex) => setFormData((prev) => ({ ...prev, brandSecondary: hex }))}
+            />
+            <ColorField
+              label="Header wash"
+              value={formData.headerWash}
+              onChange={(hex) => setFormData((prev) => ({ ...prev, headerWash: hex }))}
+            />
+            <ColorField
+              label="Page background"
+              value={formData.pageBackground}
+              onChange={(hex) => setFormData((prev) => ({ ...prev, pageBackground: hex }))}
+            />
+          </div>
+
+          <h3 className="mt-8 font-display text-base font-semibold text-ink">Homepage layout</h3>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <label className="flex items-center gap-3 text-sm text-ink/70">
               <input
@@ -199,7 +292,9 @@ export default function AdminSettingsPage() {
               <input
                 type="checkbox"
                 checked={formData.homepageShowCategorySections}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageShowCategorySections: e.target.checked }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, homepageShowCategorySections: e.target.checked }))
+                }
                 className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
               />
               Show category sections
@@ -209,7 +304,9 @@ export default function AdminSettingsPage() {
               <input
                 type="checkbox"
                 checked={formData.homepageShowRecommendations}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageShowRecommendations: e.target.checked }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, homepageShowRecommendations: e.target.checked }))
+                }
                 className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
               />
               Show recommended products section
@@ -232,7 +329,9 @@ export default function AdminSettingsPage() {
               <input
                 type="text"
                 value={formData.homepageRecommendationTitle}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageRecommendationTitle: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, homepageRecommendationTitle: e.target.value }))
+                }
                 className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 placeholder="Latest Arrivals"
               />

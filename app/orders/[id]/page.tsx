@@ -216,6 +216,19 @@ export default function OrderTrackingPage() {
               )}
             </div>
           ) : null}
+
+          {order.deliveryOtp &&
+          (currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'READY') ? (
+            <div className="mt-4 rounded-xl border border-gold/40 bg-white/15 px-4 py-3">
+              <p className="text-xs uppercase tracking-[0.14em] text-cream/70">Delivery confirmation code</p>
+              <p className="mt-1 font-display text-3xl font-semibold tracking-[0.35em] text-gold">
+                {order.deliveryOtp}
+              </p>
+              <p className="mt-2 text-xs text-cream/80">
+                Share this code with the delivery person only when you receive your order.
+              </p>
+            </div>
+          ) : null}
         </motion.section>
 
         <motion.section

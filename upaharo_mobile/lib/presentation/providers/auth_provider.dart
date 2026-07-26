@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/notifications/order_progress_notification.dart';
+import '../../core/notifications/push_notification_service.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -36,6 +38,7 @@ class AuthProvider extends ChangeNotifier {
       _user = await _authRepository.restoreSession();
       _errorMessage = null;
       _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
     } catch (e) {
       if (kDebugMode) debugPrint('checkAuth failed: $e');
       _user = null;
@@ -50,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
       _user = await _authRepository.login(email: email, password: password);
       _errorMessage = null;
       _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -74,6 +78,7 @@ class AuthProvider extends ChangeNotifier {
       );
       _errorMessage = null;
       _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
       return true;
     } catch (e) {
       _errorMessage = e.toString();
@@ -83,10 +88,29 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushNotificationService.instance.clearTokenFromBackend();
+    await OrderProgressNotification.instance.cancelAll();
     await _authRepository.logout();
     _user = null;
     _errorMessage = null;
     _setStatus(AuthStatus.unauthenticated);
+  }
+
+  /// Self-service account deletion (Play requirement). Returns false on failure.
+  Future<bool> deleteAccount() async {
+    try {
+      await PushNotificationService.instance.clearTokenFromBackend();
+      await _authRepository.deleteAccount();
+      _user = null;
+      _errorMessage = null;
+      _setStatus(AuthStatus.unauthenticated);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      if (kDebugMode) debugPrint('deleteAccount failed: $e');
+      notifyListeners();
+      return false;
+    }
   }
 
   void _setStatus(AuthStatus status) {

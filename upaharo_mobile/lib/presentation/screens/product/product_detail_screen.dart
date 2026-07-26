@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -12,9 +11,13 @@ import '../../../data/models/product.dart';
 import '../../../data/models/product_recommendation_sections.dart';
 import '../../../data/repositories/product_repository.dart';
 
+import '../../../data/models/coupon.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/catalog_provider.dart';
+import '../../providers/coupon_provider.dart';
 import '../../widgets/product_card.dart';
-import '../../widgets/shimmer_loader.dart';
+import '../../widgets/product_coupon_chip.dart';
+import '../../widgets/progressive_network_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key});
@@ -33,12 +36,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
   bool _showAddedToast = false;
   bool _descriptionExpanded = false;
+  bool _productLoaded = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_productLoaded) return;
+    _productLoaded = true;
     final productId = ModalRoute.of(context)!.settings.arguments as String;
     _productFuture = _loadProduct(productId);
+    context.read<CouponProvider>().load();
   }
 
   Future<Product> _loadProduct(String productId) async {
@@ -115,13 +122,41 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     return variant?.price ?? product.finalPrice;
   }
 
+  Coupon? _appliedCouponFor(Product product) {
+    final coupons = context.read<CouponProvider>();
+    final applied = coupons.appliedCoupon;
+    if (applied == null) return null;
+    String? categoryId;
+    for (final c in context.read<CatalogProvider>().categories) {
+      if (c.name.toLowerCase() == product.category.toLowerCase()) {
+        categoryId = c.id;
+        break;
+      }
+    }
+    if (!applied.appliesToProduct(
+      productId: product.id,
+      categoryName: product.category,
+      categoryId: categoryId,
+    )) {
+      return null;
+    }
+    return applied;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
+    context.watch<CouponProvider>();
 
     return FutureBuilder<Product>(
       future: _productFuture,
       builder: (context, snapshot) {
+        final product = snapshot.data;
+        final unitPrice = product != null ? _effectivePrice(product) : 0.0;
+        final appliedCoupon = product != null ? _appliedCouponFor(product) : null;
+        final couponDiscount = appliedCoupon?.discountForAmount(unitPrice) ?? 0;
+        final discountedUnit = (unitPrice - couponDiscount).clamp(0.0, double.infinity);
+
         return Scaffold(
           backgroundColor: AppTheme.cream,
           extendBodyBehindAppBar: true,
@@ -170,8 +205,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         top: 6,
                         right: 6,
                         child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
                             color: AppTheme.wine,
                             shape: BoxShape.circle,
                           ),
@@ -186,11 +221,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ],
           ),
-          body: _buildBody(snapshot),
+          body: _buildBody(
+            snapshot,
+            displayPrice: discountedUnit,
+            basePrice: unitPrice,
+            couponDiscount: couponDiscount,
+            appliedCouponCode: appliedCoupon?.code,
+          ),
           bottomNavigationBar: snapshot.hasData && !snapshot.hasError
               ? _BottomCartBar(
                   product: snapshot.data!,
-                  variantPrice: _effectivePrice(snapshot.data!),
+                  variantPrice: discountedUnit,
+                  originalUnitPrice: couponDiscount > 0 ? unitPrice : null,
                   quantity: _quantity,
                   onQuantityChanged: (value) => setState(() => _quantity = value),
                   onAddToCart: () => _addToCart(snapshot.data!),
@@ -201,9 +243,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  Widget _buildBody(AsyncSnapshot<Product> snapshot) {
+  Widget _buildBody(
+    AsyncSnapshot<Product> snapshot, {
+    required double displayPrice,
+    required double basePrice,
+    required double couponDiscount,
+    String? appliedCouponCode,
+  }) {
     if (snapshot.connectionState == ConnectionState.waiting) {
-      return const Center(child: CircularProgressIndicator(color: AppTheme.wine));
+      return Center(child: CircularProgressIndicator(color: AppTheme.wine));
     }
 
     if (snapshot.hasError || !snapshot.hasData) {
@@ -211,7 +259,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppTheme.wine),
+            Icon(Icons.error_outline, size: 48, color: AppTheme.wine),
             const SizedBox(height: 12),
             Text('Failed to load product\n${snapshot.error}'),
           ],
@@ -240,11 +288,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    CachedNetworkImage(
-                      imageUrl: ImageResolver.resolve(allImages.isNotEmpty ? allImages[_selectedImageIndex.clamp(0, allImages.length - 1)] : ''),
+                    ProgressiveNetworkImage(
+                      url: allImages.isNotEmpty
+                          ? allImages[_selectedImageIndex.clamp(0, allImages.length - 1)]
+                          : '',
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const ShimmerLoader(),
-                      errorWidget: (context, url, error) => Container(color: AppTheme.creamDeep, child: const Icon(Icons.image_not_supported)),
                     ),
                     if ((product.discount ?? 0) > 0)
                       Positioned(
@@ -289,12 +337,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: ClipRRect(
+                          child: ProgressiveNetworkImage(
+                            url: allImages[index],
+                            fit: BoxFit.cover,
                             borderRadius: BorderRadius.circular(6),
-                            child: CachedNetworkImage(
-                              imageUrl: ImageResolver.resolve(allImages[index]),
-                              fit: BoxFit.cover,
-                            ),
                           ),
                         ),
                       );
@@ -352,12 +398,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             letterSpacing: 0.8,
                           ),
                         ),
-                        const Spacer(),
-                        const Icon(Icons.access_time, size: 14, color: AppTheme.wine),
-                        const SizedBox(width: 4),
+                        Spacer(),
+                        Icon(Icons.access_time, size: 14, color: AppTheme.wine),
+                        SizedBox(width: 4),
                         Text(
                           FormatTime.format(product.prepTime),
-                          style: const TextStyle(fontSize: 12, color: AppTheme.wine, fontWeight: FontWeight.w600),
+                          style: TextStyle(fontSize: 12, color: AppTheme.wine, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -383,14 +429,24 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          PriceFormatter.format(product.finalPrice),
-                          style: const TextStyle(
+                          PriceFormatter.format(displayPrice > 0 ? displayPrice : product.finalPrice),
+                          style: TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.bold,
                             color: AppTheme.wine,
                           ),
                         ),
-                        if ((product.discount ?? 0) > 0) ...[
+                        if (couponDiscount > 0) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            PriceFormatter.format(basePrice),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ] else if ((product.discount ?? 0) > 0) ...[
                           const SizedBox(width: 10),
                           Text(
                             PriceFormatter.format(product.price),
@@ -403,6 +459,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ],
                       ],
                     ),
+                    if (couponDiscount > 0 && appliedCouponCode != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'You save ${PriceFormatter.format(couponDiscount)} with $appliedCouponCode',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.charcoal.withAlpha(180),
+                        ),
+                      ),
+                    ],
                     if (product.tags.where((tag) => !tag.startsWith('sub:')).isNotEmpty) ...[
                       const SizedBox(height: 16),
                       _Tags(tags: product.tags.where((tag) => !tag.startsWith('sub:')).toList()),
@@ -410,6 +477,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   ],
                 ),
               ),
+
+              // Flipkart-style coupons / offers block
+              ProductCouponsSection(product: product),
 
               // Variants
               if (product.variants.isNotEmpty)
@@ -438,7 +508,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Description',
                           style: TextStyle(
                             fontSize: 16,
@@ -523,6 +593,7 @@ class _BottomCartBar extends StatelessWidget {
   const _BottomCartBar({
     required this.product,
     required this.variantPrice,
+    this.originalUnitPrice,
     required this.quantity,
     required this.onQuantityChanged,
     required this.onAddToCart,
@@ -530,6 +601,7 @@ class _BottomCartBar extends StatelessWidget {
 
   final Product product;
   final double variantPrice;
+  final double? originalUnitPrice;
   final int quantity;
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onAddToCart;
@@ -538,6 +610,8 @@ class _BottomCartBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasCouponPrice = originalUnitPrice != null && originalUnitPrice! > variantPrice;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -584,10 +658,30 @@ class _BottomCartBar extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text(
-                  product.isAvailable ? 'Add to Cart • ${PriceFormatter.format(total)}' : 'Currently Unavailable',
-                  style: const TextStyle(fontSize: 15),
-                ),
+                child: product.isAvailable
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Add to Cart • ', style: TextStyle(fontSize: 15)),
+                          Text(
+                            PriceFormatter.format(total),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
+                          if (hasCouponPrice) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              PriceFormatter.format(originalUnitPrice! * quantity),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withAlpha(180),
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: Colors.white.withAlpha(180),
+                              ),
+                            ),
+                          ],
+                        ],
+                      )
+                    : const Text('Currently Unavailable', style: TextStyle(fontSize: 15)),
               ),
             ),
           ],
@@ -641,7 +735,7 @@ class _VariantSelector extends StatelessWidget {
                   onTap: () => onSelected(isDefault ? null : index - 1),
                   child: Container(
                     width: 160,
-                    padding: const EdgeInsets.all(8),
+                    padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: isSelected ? AppTheme.creamDeep : Colors.white,
                       border: Border.all(
@@ -652,14 +746,13 @@ class _VariantSelector extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        ClipRRect(
+                        ProgressiveNetworkImage(
+                          url: variant?.image ?? product.image,
+                          width: 44,
+                          height: 44,
+                          fit: BoxFit.cover,
                           borderRadius: BorderRadius.circular(6),
-                          child: CachedNetworkImage(
-                            imageUrl: ImageResolver.resolve(variant?.image ?? product.image),
-                            width: 44,
-                            height: 44,
-                            fit: BoxFit.cover,
-                          ),
+                          enableBlur: false,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -671,11 +764,11 @@ class _VariantSelector extends StatelessWidget {
                                 label.isNotEmpty ? label : 'Default',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                               ),
                               Text(
                                 PriceFormatter.format(variant?.price ?? product.finalPrice),
-                                style: const TextStyle(fontSize: 12, color: AppTheme.wine, fontWeight: FontWeight.w600),
+                                style: TextStyle(fontSize: 12, color: AppTheme.wine, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -707,14 +800,14 @@ class _Tags extends StatelessWidget {
           .where((tag) => tag.trim().isNotEmpty)
           .map(
             (tag) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: AppTheme.creamDeep,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 tag,
-                style: const TextStyle(fontSize: 11, color: AppTheme.wine, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 11, color: AppTheme.wine, fontWeight: FontWeight.w500),
               ),
             ),
           )
@@ -770,7 +863,6 @@ class _ProductRecommendations extends StatelessWidget {
                   product: product,
                   onTap: () => _openProduct(context, product),
                   onAddToCart: () {
-                    context.read<CartProvider>().addProduct(product);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Added to cart')),
                     );
@@ -790,7 +882,7 @@ class _ProductRecommendations extends StatelessWidget {
       future: recommendationsFuture,
       builder: (context, recSnapshot) {
         if (recSnapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.all(24),
             child: Center(child: CircularProgressIndicator(color: AppTheme.wine)),
           );
@@ -838,7 +930,6 @@ class _ProductRecommendations extends StatelessWidget {
                         product: product,
                         onTap: () => _openProduct(context, product),
                         onAddToCart: () {
-                          context.read<CartProvider>().addProduct(product);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Added to cart')),
                           );

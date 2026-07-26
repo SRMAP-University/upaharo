@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { redis, REDIS_CHANNELS } from '@/lib/redis'
 import { generateOrderNumber } from '@/lib/utils'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { validateCoupon } from '@/lib/coupon'
+import { createStripeCheckoutSession, isStripeConfigured } from '@/lib/stripe'
+import {
+  abandonUnpaidOnlineOrder,
+  activateOrderFulfillment,
+} from '@/lib/order-payment-lifecycle'
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,10 +43,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
     }
 
-    if (paymentMethod === 'ONLINE') {
+    if (paymentMethod === 'ONLINE' && !isStripeConfigured()) {
       return NextResponse.json(
-        { error: 'Online payment is temporarily unavailable. Please use cash on delivery for now.' },
-        { status: 400 }
+        { error: 'Online payment is not configured. Please use cash on delivery.' },
+        { status: 503 }
       )
     }
 
@@ -227,7 +231,8 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      if (couponId) {
+      // COD: reserve coupon now. ONLINE: reserve only after Stripe payment succeeds.
+      if (couponId && paymentMethod !== 'ONLINE') {
         await tx.coupon.update({
           where: { id: couponId },
           data: { usedCount: { increment: 1 } },
@@ -237,30 +242,61 @@ export async function POST(request: NextRequest) {
       return created
     })
 
-    // Publish order update to Redis (optional - don't fail if Redis is unavailable)
-    try {
-      await redis.publish(
-        REDIS_CHANNELS.ORDER_UPDATES,
-        JSON.stringify({
-          orderId: order.id,
-          status: 'PENDING',
-          timestamp: new Date().toISOString(),
-        })
-      )
-    } catch (redisError) {
-      console.warn('Redis publish failed (non-critical):', redisError)
-    }
-
-    if (couponId) {
+    if (paymentMethod === 'ONLINE') {
       try {
-        await prisma.coupon.update({
-          where: { id: couponId },
-          data: { usedCount: { increment: 1 } }
+        const origin =
+          request.headers.get('origin') ||
+          process.env.NEXT_PUBLIC_APP_URL ||
+          request.nextUrl.origin
+        const baseUrl = origin.replace(/\/$/, '')
+
+        const session = await createStripeCheckoutSession({
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          userId,
+          amountMajor: Number(order.total),
+          customerEmail: user.email,
+          customerName: user.name,
+          successUrl: `${baseUrl}/checkout/stripe-return?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: `${baseUrl}/checkout?canceled=1&orderId=${order.id}`,
         })
-      } catch (couponUpdateError) {
-        console.warn('Failed to update coupon usage:', couponUpdateError)
+
+        if (!session.url) {
+          throw new Error('Stripe Checkout URL was not returned')
+        }
+
+        // Do NOT notify / publish until webhook/confirm marks payment COMPLETED.
+        return NextResponse.json(
+          {
+            order,
+            paymentUrl: session.url,
+            paymentProvider: 'STRIPE',
+            checkoutSessionId: session.id,
+          },
+          { status: 201 }
+        )
+      } catch (paymentError: any) {
+        await abandonUnpaidOnlineOrder(order.id)
+        console.error('Failed to start Stripe Checkout:', paymentError)
+        return NextResponse.json(
+          {
+            error: 'Failed to start online payment',
+            details: paymentError?.message || 'Unknown Stripe error',
+            orderId: order.id,
+          },
+          { status: 500 }
+        )
       }
     }
+
+    // COD only: order is ready for fulfillment immediately.
+    await activateOrderFulfillment({
+      id: order.id,
+      userId: order.userId,
+      orderNumber: order.orderNumber,
+      // Coupon already incremented in the transaction for CASH.
+      couponId: null,
+    })
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error: any) {

@@ -31,7 +31,7 @@ class SettingsProvider extends ChangeNotifier {
       final cached = await AppCache.read<AppSettings>(
         _cacheKey,
         (json) => AppSettings.fromJson(json as Map<String, dynamic>),
-        maxAge: const Duration(hours: 12),
+        maxAge: const Duration(hours: 1),
       );
       if (cached != null) {
         _settings = cached;

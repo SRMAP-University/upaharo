@@ -1,7 +1,6 @@
 class AppRoutes {
   AppRoutes._();
 
-  static const String splash = '/';
   static const String welcome = '/welcome';
   static const String location = '/location';
   static const String mapLocation = '/map-location';
@@ -22,4 +21,5 @@ class AppRoutes {
   static const String addAddress = '/add-address';
   static const String helpSupport = '/help-support';
   static const String about = '/about';
+  static const String aiChat = '/ai-chat';
 }

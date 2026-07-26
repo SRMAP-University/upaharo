@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 
 import 'config/routes.dart';
 import 'config/theme.dart';
+import 'core/navigation/app_navigator.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/account/about_screen.dart';
 import 'presentation/screens/account/account_screen.dart';
 import 'presentation/screens/account/help_support_screen.dart';
+import 'presentation/screens/ai/ai_chat_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/cart/cart_screen.dart';
@@ -20,7 +22,6 @@ import 'presentation/screens/order/orders_screen.dart';
 import 'presentation/screens/product/product_detail_screen.dart';
 import 'presentation/screens/product/product_list_screen.dart';
 import 'presentation/screens/search/search_screen.dart';
-import 'presentation/screens/splash_screen.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
 
 class UpaharoApp extends StatelessWidget {
@@ -28,15 +29,16 @@ class UpaharoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final siteName = context.watch<SettingsProvider>().settings.siteName;
+    final settings = context.watch<SettingsProvider>().settings;
+    AppTheme.applyTokens(settings);
 
     return MaterialApp(
-      title: siteName,
+      navigatorKey: appNavigatorKey,
+      title: settings.siteName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.splash,
+      initialRoute: AppRoutes.main,
       routes: <String, WidgetBuilder>{
-        AppRoutes.splash: (_) => const SplashScreen(),
         AppRoutes.welcome: (_) => const WelcomeScreen(),
         AppRoutes.location: (_) => const LocationScreen(),
         AppRoutes.mapLocation: (_) => const MapLocationScreen(),
@@ -55,6 +57,7 @@ class UpaharoApp extends StatelessWidget {
         AppRoutes.account: (_) => const AccountScreen(),
         AppRoutes.helpSupport: (_) => const HelpSupportScreen(),
         AppRoutes.about: (_) => const AboutScreen(),
+        AppRoutes.aiChat: (_) => const AiChatScreen(),
       },
     );
   }

@@ -1,13 +1,75 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { OrderStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
+import {
+  notifyOrderStatus,
+  notifyPaymentUpdate,
+  statusTimestampFields,
+} from '@/lib/notifications'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
     const body = await request.json()
-    const updateData: any = {}
-    
-    if (body.status) updateData.status = body.status
+    const updateData: Record<string, unknown> = {}
+
+    const existing = await prisma.order.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        userId: true,
+        orderNumber: true,
+        status: true,
+        paymentStatus: true,
+        deliveryOtp: true,
+      },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    const nextStatus = body.status ? (String(body.status) as OrderStatus) : null
+    let issuedOtp: string | null = null
+
+    if (nextStatus) {
+      // Confirm delivery with customer-shared OTP
+      if (nextStatus === 'DELIVERED' && existing.status !== 'DELIVERED') {
+        if (!existing.deliveryOtp) {
+          return NextResponse.json(
+            {
+              error:
+                'No delivery OTP on this order. Mark it Out for delivery first so the customer gets a code.',
+            },
+            { status: 400 }
+          )
+        }
+        if (!deliveryOtpsMatch(existing.deliveryOtp, body.deliveryOtp)) {
+          return NextResponse.json(
+            { error: 'Invalid delivery OTP. Ask the customer for the code shown in their app.' },
+            { status: 400 }
+          )
+        }
+      }
+
+      updateData.status = nextStatus
+      Object.assign(updateData, statusTimestampFields(nextStatus))
+
+      // Issue OTP when order is ready / out for delivery
+      if (nextStatus !== existing.status) {
+        if (nextStatus === 'OUT_FOR_DELIVERY') {
+          issuedOtp = generateDeliveryOtp()
+          updateData.deliveryOtp = issuedOtp
+          updateData.deliveryOtpCreatedAt = new Date()
+        } else if (nextStatus === 'READY' && !existing.deliveryOtp) {
+          issuedOtp = generateDeliveryOtp()
+          updateData.deliveryOtp = issuedOtp
+          updateData.deliveryOtpCreatedAt = new Date()
+        }
+      }
+    }
+
     if (body.paymentStatus) updateData.paymentStatus = body.paymentStatus
     if (body.estimatedTime !== undefined) {
       const estimatedTime = Number(body.estimatedTime)
@@ -25,8 +87,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           select: {
             name: true,
             email: true,
-            phone: true
-          }
+            phone: true,
+          },
         },
         address: true,
         recipient: {
@@ -55,13 +117,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             product: {
               select: {
                 name: true,
-                image: true
-              }
-            }
-          }
-        }
-      }
+                image: true,
+              },
+            },
+          },
+        },
+      },
     })
+
+    void (async () => {
+      try {
+        if (nextStatus && nextStatus !== existing.status) {
+          await notifyOrderStatus({
+            userId: existing.userId,
+            orderId: existing.id,
+            orderNumber: existing.orderNumber,
+            status: nextStatus,
+            deliveryOtp: order.deliveryOtp || issuedOtp || undefined,
+          })
+        }
+        if (body.paymentStatus && body.paymentStatus !== existing.paymentStatus) {
+          await notifyPaymentUpdate({
+            userId: existing.userId,
+            orderId: existing.id,
+            orderNumber: existing.orderNumber,
+            paymentStatus: body.paymentStatus,
+          })
+        }
+      } catch (err) {
+        console.error('Order update notification failed:', err)
+      }
+    })()
+
     return NextResponse.json(order)
   } catch (error) {
     console.error('Error updating order:', error)

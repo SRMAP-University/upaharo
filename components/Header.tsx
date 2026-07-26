@@ -103,6 +103,13 @@ export default function Header() {
               </div>
             )}
 
+            <a
+              href="/b2b"
+              className="hidden md:inline-flex items-center rounded-full border border-wine/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-wine hover:border-wine/35 hover:bg-white transition-colors shrink-0"
+            >
+              Business
+            </a>
+
             {/* Cart */}
             <Link href="/cart" className="hidden lg:block">
               <motion.div

@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // native = local Windows/macOS; rhel-openssl-3.0.x = Netlify Functions (AWS Linux)
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -23,12 +25,64 @@ model User {
   accounts          Account[]
   sessions          Session[]
   coupons           Coupon[]
+  spinPlays         SpinPlay[]
   productViewEvents ProductViewEvent[]
+  deviceTokens      DeviceToken[]
+  notifications     AppNotification[]
+  businessProfile   BusinessProfile?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
   @@index([email])
   @@index([phone])
+}
+
+/// B2B wholesale business account (separate from retail browsing).
+model BusinessProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopName  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shopName])
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String   // android | ios | web
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model AppNotification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_UPDATE
+  PAYMENT
+  REMINDER
+  PROMO
+  GENERAL
 }
 
 model Account {
@@ -93,6 +147,12 @@ model Banner {
   subtitle  String?
   image     String
   link      String?
+  /// Soft background tint for the app/home when this banner is active (hex, e.g. #FFE0E8).
+  bgColor   String?
+  /// Up to 3 product IDs shown in the banner strip (takes priority over category).
+  productIds String[] @default([])
+  /// When set (and productIds empty), show up to 3 products from this category name.
+  category  String?
   order     Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -109,6 +169,8 @@ model Product {
   description               String
   category                  String
   price                     Float
+  /// B2B / wholesale unit price for local businesses (null = not sold wholesale).
+  wholesalePrice            Float?
   image                     String
   images                    String[]             @default([])
   variants                  Json[]               @default([])
@@ -161,8 +223,14 @@ model Order {
   outForDeliveryAt  DateTime?
   deliveredAt       DateTime?
   cancelledAt       DateTime?
+  /// Customer shares this code with the rider/admin to confirm delivery.
+  deliveryOtp       String?
+  deliveryOtpCreatedAt DateTime?
   trackingUpdates   Json[]           @default([])
   isGift            Boolean          @default(false)
+  /// Wholesale / B2B order (separate from retail storefront cart).
+  isWholesale       Boolean          @default(false)
+  businessName      String?
   recipientId       String?
   recipient         GiftRecipient?   @relation(fields: [recipientId], references: [id])
   occasionId        String?
@@ -180,6 +248,7 @@ model Order {
   @@index([orderNumber])
   @@index([couponId])
   @@index([isGift])
+  @@index([isWholesale])
 }
 
 enum CouponType {
@@ -218,6 +287,18 @@ model Coupon {
   @@index([isActive])
   @@index([code])
   @@index([createdByUserId])
+}
+
+/// One promo roulette play (limits spins + links awarded coupon).
+model SpinPlay {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couponId  String?
+  percent   Int
+  playedAt  DateTime @default(now())
+
+  @@index([userId, playedAt])
 }
 
 model OrderItem {
@@ -404,6 +485,14 @@ model AppSettings {
   homepageShowRecommendations Boolean  @default(true)
   homepageRecommendationMode  String   @default("LATEST")
   homepageRecommendationTitle String?
+  /// Mobile brand primary (buttons / accents), hex `#RRGGBB`.
+  brandPrimary                String   @default("#8B5A2B")
+  /// Mobile brand secondary (gold accents), hex `#RRGGBB`.
+  brandSecondary              String   @default("#D4AF37")
+  /// Home header soft wash fallback, hex `#RRGGBB`.
+  headerWash                  String   @default("#F7F0E8")
+  /// Scaffold / page background, hex `#RRGGBB`.
+  pageBackground              String   @default("#FFFFFF")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 }

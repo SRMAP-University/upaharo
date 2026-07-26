@@ -1,0 +1,11 @@
+# Copy to android/key.properties (gitignored) and fill in your upload keystore values.
+# Generate a keystore (one-time):
+#   keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# Recommended path for the .jks: android/upload-keystore.jks (also gitignored)
+
+storePassword=YOUR_STORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+# Relative to android/app/ (gradle module dir)
+storeFile=../upload-keystore.jks

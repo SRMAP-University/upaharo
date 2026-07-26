@@ -25,11 +25,14 @@ interface Order {
   deliveryFee?: number
   tax?: number
   isGift?: boolean
+  isWholesale?: boolean
+  businessName?: string | null
   greetingMessage?: string | null
   senderName?: string | null
   showSenderName?: boolean
   status: 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
   paymentStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
+  deliveryOtp?: string | null
   deliveryDate: string
   createdAt: string
   user: {
@@ -142,20 +145,37 @@ export default function AdminOrders() {
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
+      let deliveryOtp: string | undefined
+      if (status === 'DELIVERED') {
+        const code = window.prompt(
+          'Enter the 4-digit delivery code from the customer to confirm they received the order:'
+        )
+        if (code == null) return
+        deliveryOtp = code.trim()
+        if (!deliveryOtp) {
+          alert('Delivery OTP is required to mark as delivered.')
+          return
+        }
+      }
+
       const res = await fetch(`/api/admin/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({ status, ...(deliveryOtp ? { deliveryOtp } : {}) }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         fetchOrders()
         if (selectedOrder?.id === orderId) {
-          const updated = await res.json()
-          setSelectedOrder(updated)
+          setSelectedOrder(data)
         }
+      } else {
+        alert(data.error || 'Failed to update status')
+        fetchOrders()
       }
     } catch (error) {
       console.error('Error updating order:', error)
+      alert('Failed to update order status')
     }
   }
 
@@ -275,7 +295,14 @@ export default function AdminOrders() {
                 {filteredOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-cream/60">
                     <td className="px-4 py-4">
-                      <div className="font-medium text-ink">{order.orderNumber}</div>
+                      <div className="font-medium text-ink">
+                        {order.orderNumber}
+                        {order.isWholesale && (
+                          <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-wine bg-wine/10 px-1.5 py-0.5 rounded">
+                            B2B
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-ink/55">{new Date(order.createdAt).toLocaleDateString()}</div>
                     </td>
                     <td className="px-4 py-4">
@@ -456,7 +483,12 @@ export default function AdminOrders() {
                 <h3 className="font-display font-semibold text-ink mb-2">Gift Details</h3>
                 <div className="bg-cream rounded-xl p-4 space-y-2">
                   <p className="text-ink">
-                    <span className="font-medium">Order Type:</span> {selectedOrder.isGift ? 'Gift' : 'Direct'}
+                    <span className="font-medium">Order Type:</span>{' '}
+                    {selectedOrder.isWholesale
+                      ? `Wholesale (B2B)${selectedOrder.businessName ? ` · ${selectedOrder.businessName}` : ''}`
+                      : selectedOrder.isGift
+                        ? 'Gift'
+                        : 'Direct'}
                   </p>
 
                   {selectedOrder.isGift ? (
@@ -573,6 +605,18 @@ export default function AdminOrders() {
                     {selectedOrder.status}
                   </span>
                 </div>
+                {(selectedOrder.status === 'OUT_FOR_DELIVERY' || selectedOrder.status === 'READY') &&
+                selectedOrder.deliveryOtp ? (
+                  <div className="mb-3 rounded-xl border border-gold/30 bg-gold-soft/30 px-3 py-2 text-sm">
+                    <span className="text-ink/55">Customer delivery code: </span>
+                    <span className="font-mono text-lg font-bold tracking-widest text-wine">
+                      {selectedOrder.deliveryOtp}
+                    </span>
+                    <p className="mt-1 text-xs text-ink/45">
+                      Ask the customer for this code before marking Delivered.
+                    </p>
+                  </div>
+                ) : null}
                 <div className="flex justify-between items-center mb-4">
                   <span className="font-medium text-ink/55">Payment Status:</span>
                   <span className={`px-2 py-1 rounded-lg text-xs font-medium ${getStatusColor(selectedOrder.paymentStatus)}`}>

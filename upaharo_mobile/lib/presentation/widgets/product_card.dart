@@ -1,11 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../config/theme.dart';
-import '../../core/utils/image_resolver.dart';
 import '../../core/utils/price_formatter.dart';
 import '../../data/models/product.dart';
-import 'shimmer_loader.dart';
+import 'add_to_cart_plus.dart';
+import 'product_coupon_chip.dart';
+import 'progressive_network_image.dart';
 
 class ProductCard extends StatelessWidget {
   const ProductCard({
@@ -36,22 +36,18 @@ class ProductCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha((0.04 * 255).toInt()),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CachedNetworkImage(
-              imageUrl: ImageResolver.resolve(product.image),
+            ProgressiveNetworkImage(
+              url: product.image,
               fit: BoxFit.cover,
-              placeholder: (context, url) => const ShimmerLoader(),
-              errorWidget: (context, url, error) => Container(
-                color: AppTheme.creamDeep,
-                child: const Icon(Icons.image_not_supported, color: Colors.grey),
-              ),
+              fadeDuration: Duration.zero,
             ),
             Positioned(
               left: 0,
@@ -94,33 +90,22 @@ class ProductCard extends StatelessWidget {
                         color: Colors.white,
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    ProductCouponChip(product: product),
                   ],
                 ),
               ),
             ),
-            if (onAddToCart != null)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: GestureDetector(
-                  onTap: onAddToCart,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.wine,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withAlpha((0.4 * 255).toInt()),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.add, size: 14, color: Colors.white),
-                  ),
-                ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: AddToCartPlus(
+                product: product,
+                size: 28,
+                iconSize: 16,
+                onAdded: onAddToCart,
               ),
+            ),
           ],
         ),
       ),

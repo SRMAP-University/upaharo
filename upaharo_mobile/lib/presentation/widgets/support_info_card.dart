@@ -33,7 +33,7 @@ class SupportInfoCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.creamDeep,
         borderRadius: BorderRadius.circular(16),
@@ -142,7 +142,7 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -158,7 +158,7 @@ class _InfoRow extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: '$label: ',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     TextSpan(
                       text: value,

@@ -29,9 +29,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(title: const Text('Help & Support')),
+      appBar: AppBar(title: Text('Help & Support')),
       body: loading
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.wine))
+          ? Center(child: CircularProgressIndicator(color: AppTheme.wine))
           : RefreshIndicator(
               color: AppTheme.wine,
               onRefresh: () => context.read<SettingsProvider>().load(force: true),

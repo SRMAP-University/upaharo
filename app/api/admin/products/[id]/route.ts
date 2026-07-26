@@ -90,6 +90,21 @@ export async function PATCH(
       data.miniDescription = String(body.miniDescription || '').trim() || null
     }
 
+    if (body?.wholesalePrice !== undefined) {
+      if (body.wholesalePrice === null || body.wholesalePrice === '') {
+        data.wholesalePrice = null
+      } else {
+        const wp = Number(body.wholesalePrice)
+        if (!Number.isFinite(wp) || wp < 0) {
+          return NextResponse.json(
+            { error: 'wholesalePrice must be a valid non-negative number' },
+            { status: 400 }
+          )
+        }
+        data.wholesalePrice = wp
+      }
+    }
+
     const product = await withProductWriteCompatibility(data, (safeData) =>
       prisma.product.updateMany({
         where: {

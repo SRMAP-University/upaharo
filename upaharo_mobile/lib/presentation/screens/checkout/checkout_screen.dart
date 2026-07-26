@@ -1,27 +1,29 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-import '../../../config/api_endpoints.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../widgets/progressive_network_image.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/token_storage.dart';
-import '../../../core/utils/image_resolver.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/address.dart';
 import '../../../data/models/gift_recipient.dart';
 import '../../../data/models/gift_wrap.dart';
 import '../../../data/models/occasion.dart';
+import '../../../data/models/order.dart';
 import '../../../data/repositories/address_repository.dart';
 import '../../../data/repositories/coupon_repository.dart';
 import '../../../data/repositories/gift_repository.dart';
 import '../../../data/repositories/order_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/coupon_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../widgets/explore_coupons_section.dart';
 import '../../widgets/support_info_card.dart';
 import 'order_success_screen.dart';
 
@@ -61,6 +63,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _appliedCouponCode;
   double _couponDiscount = 0;
   String? _couponMessage;
+  String _paymentMethod = 'CASH';
 
   @override
   void initState() {
@@ -133,6 +136,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = context.read<CartProvider>();
     final settings = context.read<SettingsProvider>();
     final location = context.read<LocationProvider>();
+    final couponProvider = context.read<CouponProvider>();
     final token = await TokenStorage.readToken();
 
     if (token == null || token.isEmpty) {
@@ -157,6 +161,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     await settings.load();
     await location.loadSavedLocation();
+
+    final savedCoupon = couponProvider.appliedCode;
+    if (savedCoupon != null && savedCoupon.isNotEmpty) {
+      _couponController.text = savedCoupon;
+    }
 
     try {
       final results = await Future.wait([
@@ -202,6 +211,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _error = e is ApiException ? e.message : e.toString();
     } finally {
       if (mounted) setState(() => _booting = false);
+    }
+
+    // One-tap apply from home/product carries into checkout.
+    if (mounted &&
+        _couponController.text.trim().isNotEmpty &&
+        _appliedCouponCode == null) {
+      await _applyCoupon();
     }
   }
 
@@ -325,16 +341,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       addressLatitude: address.latitude,
       addressLongitude: address.longitude,
       total: total,
+      paymentMethod: _paymentMethod,
     );
 
     try {
       final ordersProvider = context.read<OrdersProvider>();
-      final order = await _orderRepo.createOrder(payload);
+      final couponProvider = context.read<CouponProvider>();
+      final result = await _orderRepo.createOrderWithPayment(payload);
+      final order = result.order;
+
+      if (_paymentMethod == 'ONLINE') {
+        final paymentUrl = result.paymentUrl;
+        if (paymentUrl == null || paymentUrl.isEmpty) {
+          throw const ApiException(
+            message: 'Online payment URL was not returned. Please try again.',
+          );
+        }
+
+        final launched = await _openStripeCheckout(paymentUrl);
+        if (!launched) {
+          throw const ApiException(
+            message: 'Could not open Stripe Checkout. Please try again.',
+          );
+        }
+
+        if (!mounted) return;
+        final paid = await _waitForStripePayment(
+          orderId: order.id,
+          sessionId: result.checkoutSessionId,
+        );
+        if (!mounted) return;
+
+        if (!paid) {
+          setState(() {
+            _error =
+                'Payment not completed yet. Your order is saved — finish paying in the browser, or check Orders.';
+            _placing = false;
+          });
+          await ordersProvider.refreshAfterPlaceOrder();
+          return;
+        }
+      }
+
       final amountSaved = order.couponDiscount > 0
           ? order.couponDiscount
           : (_couponDiscount > 0 ? _couponDiscount : order.discount);
       final couponCode = order.couponCode ?? _appliedCouponCode;
       cart.clearCart();
+      await couponProvider.clearApplied();
       await ordersProvider.refreshAfterPlaceOrder();
       if (!mounted) return;
       Navigator.pushNamedAndRemoveUntil(
@@ -376,9 +430,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
-      appBar: AppBar(title: const Text('Checkout')),
+      appBar: AppBar(title: Text('Checkout')),
       body: _booting
-          ? const Center(child: CircularProgressIndicator(color: AppTheme.wine))
+          ? Center(child: CircularProgressIndicator(color: AppTheme.wine))
           : Column(
               children: [
                 Expanded(
@@ -417,12 +471,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         label: Text(_addresses.isEmpty ? 'Set delivery location' : 'Add / update location'),
                       ),
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       _sectionTitle('Send as gift'),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('This is a gift'),
-                        subtitle: const Text('Add recipient, occasion, wrap & greeting'),
+                        title: Text('This is a gift'),
+                        subtitle: Text('Add recipient, occasion, wrap & greeting'),
                         value: _isGift,
                         activeThumbColor: AppTheme.wine,
                         onChanged: (v) => setState(() => _isGift = v),
@@ -501,7 +555,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         TextField(
                           controller: _senderController,
-                          decoration: const InputDecoration(labelText: 'Sender name'),
+                          decoration: InputDecoration(labelText: 'Sender name'),
                         ),
                         CheckboxListTile(
                           contentPadding: EdgeInsets.zero,
@@ -514,6 +568,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
                       const SizedBox(height: 8),
                       _sectionTitle('Coupon'),
+                      ExploreCouponsSection(
+                        padding: EdgeInsets.zero,
+                        onApply: (code) async {
+                          _couponController.text = code;
+                          await context.read<CouponProvider>().applyCode(code);
+                          await _applyCoupon();
+                        },
+                      ),
+                      const SizedBox(height: 10),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -523,7 +586,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               textCapitalization: TextCapitalization.characters,
                               enabled: _appliedCouponCode == null,
                               decoration: InputDecoration(
-                                hintText: 'Enter coupon code',
+                                hintText: 'Or enter coupon code',
                                 filled: true,
                                 fillColor: Colors.white,
                                 border: OutlineInputBorder(
@@ -582,37 +645,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ],
 
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16),
                       _sectionTitle('Payment'),
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppTheme.wine.withAlpha(40)),
-                        ),
-                        child: const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.payments_outlined, color: AppTheme.wine),
-                                SizedBox(width: 10),
-                                Text(
-                                  'Cash on Delivery',
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                                ),
-                                Spacer(),
-                                Icon(Icons.check_circle, color: AppTheme.wine, size: 20),
-                              ],
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Online payment is temporarily unavailable — same as the website.',
-                              style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
-                            ),
-                          ],
-                        ),
+                      _paymentOption(
+                        value: 'CASH',
+                        title: 'Cash on Delivery',
+                        subtitle: 'Pay when you receive',
+                        icon: Icons.payments_outlined,
+                      ),
+                      const SizedBox(height: 10),
+                      _paymentOption(
+                        value: 'ONLINE',
+                        title: 'Pay Online',
+                        subtitle: 'Secure card payment with Stripe',
+                        icon: Icons.credit_card_outlined,
                       ),
 
                       const SizedBox(height: 16),
@@ -620,19 +666,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ...cart.items.map(
                         (item) => ListTile(
                           contentPadding: EdgeInsets.zero,
-                          leading: ClipRRect(
+                          leading: ProgressiveNetworkImage(
+                            url: item.image,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
                             borderRadius: BorderRadius.circular(8),
-                            child: CachedNetworkImage(
-                              imageUrl: ImageResolver.resolve(item.image),
+                            enableBlur: false,
+                            errorWidget: Container(
                               width: 48,
                               height: 48,
-                              fit: BoxFit.cover,
-                              errorWidget: (_, _, _) => Container(
-                                width: 48,
-                                height: 48,
-                                color: AppTheme.creamDeep,
-                                child: const Icon(Icons.image, size: 18),
-                              ),
+                              color: AppTheme.creamDeep,
+                              child: const Icon(Icons.image, size: 18),
                             ),
                           ),
                           title: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -707,10 +752,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Total payable', style: TextStyle(fontSize: 12, color: AppTheme.charcoal)),
+                  Text('Total payable', style: TextStyle(fontSize: 12, color: AppTheme.charcoal)),
                   Text(
                     PriceFormatter.format(total),
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.wine),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.wine),
                   ),
                 ],
               ),
@@ -764,7 +809,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _addressTile(Address address) {
     final selected = address.id == _selectedAddressId;
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -793,8 +838,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       onTap: onTap,
       child: Container(
         width: 110,
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.all(8),
+        margin: EdgeInsets.only(right: 10),
+        padding: EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -807,13 +852,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: image != null && image.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: image.startsWith('/')
-                            ? '${ApiEndpoints.baseUrl}$image'
-                            : ImageResolver.resolve(image),
+                    ? ProgressiveNetworkImage(
+                        url: image,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        errorWidget: (_, _, _) => const ColoredBox(
+                        errorWidget: const ColoredBox(
                           color: AppTheme.creamDeep,
                           child: Icon(Icons.card_giftcard),
                         ),
@@ -824,11 +867,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            SizedBox(height: 6),
+            Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             Text(
               price <= 0 ? 'Free' : PriceFormatter.format(price),
-              style: const TextStyle(fontSize: 11, color: AppTheme.wine, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 11, color: AppTheme.wine, fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -858,12 +901,153 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   fontSize: bold ? 18 : 14,
                   fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
                   color: amount < 0
-                      ? const Color(0xFF2E7D32)
+                      ? Color(0xFF2E7D32)
                       : (bold ? AppTheme.wine : AppTheme.ink),
                 ),
               ),
         ],
       ),
     );
+  }
+
+  Widget _paymentOption({
+    required String value,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final selected = _paymentMethod == value;
+    return InkWell(
+      onTap: () => setState(() => _paymentMethod = value),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? AppTheme.wine : AppTheme.wine.withAlpha(40),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.wine),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected ? AppTheme.wine : AppTheme.charcoal.withAlpha(120),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Opens Stripe Checkout. Avoids canLaunchUrl (false on Android 11+ without queries).
+  Future<bool> _openStripeCheckout(String paymentUrl) async {
+    final uri = Uri.tryParse(paymentUrl);
+    if (uri == null || !(uri.isScheme('https') || uri.isScheme('http'))) {
+      return false;
+    }
+
+    for (final mode in <LaunchMode>[
+      LaunchMode.externalApplication,
+      LaunchMode.platformDefault,
+      LaunchMode.inAppBrowserView,
+    ]) {
+      try {
+        if (await launchUrl(uri, mode: mode)) {
+          return true;
+        }
+      } catch (_) {
+        // Try next launch mode.
+      }
+    }
+    return false;
+  }
+
+  /// Opens Stripe in the browser, then waits for the user to confirm back in-app.
+  Future<bool> _waitForStripePayment({
+    required String orderId,
+    String? sessionId,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete payment'),
+        content: const Text(
+          'Finish paying in your browser, then tap “I’ve paid” to verify the order.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("I've paid"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      try {
+        await _orderRepo.cancelStripePayment(orderId: orderId);
+      } catch (_) {
+        // Webhook/expiry will also cancel unpaid ONLINE orders.
+      }
+      return false;
+    }
+
+    if (sessionId != null && sessionId.isNotEmpty) {
+      try {
+        final result = await _orderRepo.confirmStripePayment(
+          orderId: orderId,
+          sessionId: sessionId,
+        );
+        if (result['paymentStatus'] == 'COMPLETED') {
+          return true;
+        }
+      } catch (_) {
+        // Fall through to order polling — webhook may have already updated status.
+      }
+    }
+
+    for (var i = 0; i < 8; i++) {
+      try {
+        final order = await _orderRepo.getOrderById(orderId);
+        if (order.paymentStatus == PaymentStatus.completed) {
+          return true;
+        }
+        if (order.paymentStatus == PaymentStatus.failed) {
+          return false;
+        }
+      } catch (_) {
+        // Retry while webhook / return page settles.
+      }
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
+
+    return false;
   }
 }

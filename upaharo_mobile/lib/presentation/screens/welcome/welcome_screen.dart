@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../widgets/progressive_network_image.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -150,13 +150,13 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                         color: AppTheme.creamDeep,
                                         borderRadius: BorderRadius.circular(34),
                                       ),
-                                      child: CachedNetworkImage(
-                                        imageUrl: slide.imageUrl,
+                                      child: ProgressiveNetworkImage(
+                                        url: slide.imageUrl,
                                         fit: BoxFit.cover,
-                                        placeholder: (context, url) => Container(
+                                        placeholder: Container(
                                           color: AppTheme.creamDeep,
                                         ),
-                                        errorWidget: (context, url, error) => Container(
+                                        errorWidget: Container(
                                           color: AppTheme.creamDeep,
                                           child: const Icon(Icons.image_not_supported),
                                         ),
@@ -213,8 +213,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               children: List.generate(
                 _slides.length,
                 (index) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  duration: Duration(milliseconds: 300),
+                  margin: EdgeInsets.symmetric(horizontal: 4),
                   width: _currentPage == index ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(

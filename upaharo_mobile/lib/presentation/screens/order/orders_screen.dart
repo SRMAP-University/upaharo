@@ -1,16 +1,15 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
-import '../../../core/utils/image_resolver.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/order.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/progressive_network_image.dart';
 import '../../widgets/skeleton.dart';
 import 'order_status_ui.dart';
 
@@ -109,7 +108,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         },
       ),
       bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 3) : null,
+          widget.showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
     );
   }
 }
@@ -182,19 +181,18 @@ class _OrderCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
-                  ClipRRect(
+                  ProgressiveNetworkImage(
+                    url: image,
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
                     borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: ImageResolver.resolve(image),
+                    enableBlur: false,
+                    errorWidget: Container(
                       width: 56,
                       height: 56,
-                      fit: BoxFit.cover,
-                      errorWidget: (_, _, _) => Container(
-                        width: 56,
-                        height: 56,
-                        color: AppTheme.creamDeep,
-                        child: const Icon(Icons.image_not_supported, size: 18),
-                      ),
+                      color: AppTheme.creamDeep,
+                      child: const Icon(Icons.image_not_supported, size: 18),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -210,14 +208,14 @@ class _OrderCard extends StatelessWidget {
                         ),
                         Text(
                           'Qty ${item.quantity}',
-                          style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                          style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                         ),
                       ],
                     ),
                   ),
                   Text(
                     PriceFormatter.format(item.price * item.quantity),
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppTheme.wine),
+                    style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.wine),
                   ),
                 ],
               ),

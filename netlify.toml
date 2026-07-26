@@ -1,0 +1,15 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_FLAGS = "--include=dev"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Daily reminders (UTC) — same schedule as former vercel.json cron
+[functions."reminders-cron"]
+  schedule = "0 3 * * *"

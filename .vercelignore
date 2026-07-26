@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.turbo
+coverage
+upaharo_mobile
+android
+ios
+*.log
+.env*.local
+.env.local.bak*
+.codex
+tmp_check.sql

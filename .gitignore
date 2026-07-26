@@ -28,8 +28,18 @@ yarn-error.log*
 .env
 .env*.local
 
-# Vercel
+# Local database backup staging (uploaded copies live in R2)
+.backups/
+
+# Firebase service account keys (never commit)
+*firebase-adminsdk*.json
+**/serviceAccount*.json
+lib/firebase-sa.generated.ts
+firebase-sa.json
+
+# Vercel / Netlify local link state
 .vercel
+.netlify
 
 # TypeScript
 *.tsbuildinfo
@@ -52,3 +62,6 @@ prisma/migrations/
 .dev.vars.*
 cloudflare-env.d.ts
 .env*
+
+# Local Netlify folder
+.netlify

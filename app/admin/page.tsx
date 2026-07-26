@@ -18,6 +18,16 @@ interface Stats {
   }>
 }
 
+const statusStyle: Record<string, string> = {
+  PENDING: 'bg-amber-50 text-amber-700',
+  ACCEPTED: 'bg-blue-50 text-blue-700',
+  PREPARING: 'bg-purple-50 text-purple-700',
+  READY: 'bg-indigo-50 text-indigo-700',
+  OUT_FOR_DELIVERY: 'bg-sky-50 text-sky-700',
+  DELIVERED: 'bg-green-50 text-green-700',
+  CANCELLED: 'bg-red-50 text-red-700',
+}
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -28,11 +38,8 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/admin/stats')
-      if (res.ok) {
-        const data = await res.json()
-        setStats(data)
-      }
+      const res = await fetch('/api/admin/stats', { cache: 'no-store' })
+      if (res.ok) setStats(await res.json())
     } catch (error) {
       console.error('Error fetching stats:', error)
     } finally {
@@ -40,136 +47,103 @@ export default function AdminDashboard() {
     }
   }
 
+  const quickLinks = [
+    { href: '/admin/orders', label: 'Orders', icon: '📦' },
+    { href: '/admin/products', label: 'Products', icon: '🎁' },
+    { href: '/admin/coupons', label: 'Coupons', icon: '🎟️' },
+    { href: '/admin/notifications', label: 'Marketing push', icon: '📣' },
+  ]
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-ink/55">Loading...</div>
+        <div className="animate-pulse text-ink/50">Loading dashboard...</div>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-semibold text-ink">Dashboard</h1>
-        <p className="text-ink/55 mt-1">Welcome to Upaharo Admin Panel</p>
+    <div className="space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
+        <p className="text-sm text-ink/50 mt-0.5">Overview of your store</p>
+      </header>
+
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {quickLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="flex items-center gap-3 rounded-xl border border-wine/10 bg-white px-4 py-3 text-sm font-medium text-ink hover:border-wine/30 hover:bg-cream transition-colors"
+          >
+            <span className="text-xl">{link.icon}</span>
+            {link.label}
+          </Link>
+        ))}
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
-        <div className="rounded-[22px] bg-white p-6 border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ink/55 mb-1">Total Orders</p>
-              <p className="font-display text-2xl md:text-3xl font-semibold text-ink">{stats?.totalOrders || 0}</p>
-            </div>
-            <div className="text-4xl">📦</div>
-          </div>
-        </div>
-
-        <div className="rounded-[22px] bg-white p-6 border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ink/55 mb-1">Total Revenue</p>
-              <p className="font-display text-2xl md:text-3xl font-semibold text-ink">{formatPriceNoDecimals(stats?.totalRevenue || 0)}</p>
-            </div>
-            <div className="text-4xl">💰</div>
-          </div>
-        </div>
-
-        <div className="rounded-[22px] bg-white p-6 border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ink/55 mb-1">Total Products</p>
-              <p className="font-display text-2xl md:text-3xl font-semibold text-ink">{stats?.totalProducts || 0}</p>
-            </div>
-            <div className="text-4xl">🎁</div>
-          </div>
-        </div>
-
-        <div className="rounded-[22px] bg-white p-6 border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-ink/55 mb-1">Total Users</p>
-              <p className="font-display text-2xl md:text-3xl font-semibold text-ink">{stats?.totalUsers || 0}</p>
-            </div>
-            <div className="text-4xl">👥</div>
-          </div>
-        </div>
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <StatCard label="Orders" value={stats?.totalOrders || 0} />
+        <StatCard label="Revenue" value={formatPriceNoDecimals(stats?.totalRevenue || 0)} />
+        <StatCard label="Products" value={stats?.totalProducts || 0} />
+        <StatCard label="Users" value={stats?.totalUsers || 0} />
       </div>
 
-      {/* Recent Orders */}
-      <div className="bg-white rounded-[22px] border border-wine/10">
-        <div className="p-4 md:p-6 border-b border-wine/10">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg md:text-xl font-semibold text-ink">Recent Orders</h2>
-            <Link href="/admin/orders" className="text-sm text-wine hover:text-wine-deep font-semibold">
-              View All →
-            </Link>
-          </div>
+      {/* Recent orders */}
+      <section className="bg-white rounded-2xl border border-wine/10 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-wine/10">
+          <h2 className="font-medium text-ink">Recent Orders</h2>
+          <Link href="/admin/orders" className="text-sm text-wine hover:underline font-medium">
+            View all
+          </Link>
         </div>
-        <div className="overflow-x-auto hidden md:block">
-          <table className="w-full">
-            <thead className="bg-cream-deep/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Order</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-wine/10">
-              {stats?.recentOrders && stats.recentOrders.length > 0 ? (
-                stats.recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-cream/60">
-                    <td className="px-6 py-4 text-sm font-medium text-ink">
-                      {order.orderNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-ink">
-                      {formatPriceNoDecimals(order.total || 0)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-ink/55">
-                      {new Date(order.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-ink/55">
-                    No orders yet
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="md:hidden divide-y divide-wine/10">
-          {stats?.recentOrders && stats.recentOrders.length > 0 ? (
-            stats.recentOrders.map((order) => (
-              <div key={order.id} className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-semibold text-ink">{order.orderNumber}</div>
-                  <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                    {order.status}
+
+        {stats?.recentOrders && stats.recentOrders.length > 0 ? (
+          <div className="divide-y divide-wine/10">
+            {stats.recentOrders.map((order) => (
+              <div
+                key={order.id}
+                className="flex items-center justify-between px-4 py-3 hover:bg-cream/40 transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink truncate">{order.orderNumber}</p>
+                  <p className="text-xs text-ink/50">
+                    {new Date(order.createdAt).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-semibold text-ink">
+                    {formatPriceNoDecimals(order.total || 0)}
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      statusStyle[order.status] || 'bg-gray-100 text-gray-700'
+                    }`}
+                  >
+                    {order.status.toLowerCase().replace(/_/g, ' ')}
                   </span>
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs text-ink/55">
-                  <span>{new Date(order.createdAt).toLocaleDateString()}</span>
-                  <span className="font-semibold text-ink">{formatPriceNoDecimals(order.total || 0)}</span>
-                </div>
               </div>
-            ))
-          ) : (
-            <div className="px-6 py-6 text-center text-ink/55">No orders yet</div>
-          )}
-        </div>
-      </div>
+            ))}
+          </div>
+        ) : (
+          <div className="px-4 py-8 text-center text-sm text-ink/50">No orders yet</div>
+        )}
+      </section>
     </div>
   )
 }
 
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-wine/10 bg-white p-4">
+      <p className="text-xs text-ink/50 uppercase tracking-wide">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
+    </div>
+  )
+}

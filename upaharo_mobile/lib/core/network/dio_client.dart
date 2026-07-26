@@ -65,6 +65,8 @@ class DioClient {
     String method = 'GET',
     Map<String, dynamic>? queryParameters,
     Object? data,
+    Duration? receiveTimeout,
+    Duration? sendTimeout,
     required T Function(dynamic json) parser,
   }) async {
     try {
@@ -72,13 +74,17 @@ class DioClient {
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(method: method),
+        options: Options(
+          method: method,
+          receiveTimeout: receiveTimeout,
+          sendTimeout: sendTimeout,
+        ),
       );
       return parser(response.data);
     } on DioException catch (e) {
       throw _handleDioError(e);
     } catch (e) {
-      throw ServerException(message: 'Unexpected error: $e');
+      throw ServerException(message: 'Unexpected error. Please try again.');
     }
   }
 
@@ -88,10 +94,21 @@ class DioClient {
     final message = _extractMessage(data) ?? error.message ?? 'Request failed';
 
     if (statusCode == 401) return UnauthorizedException(message: message);
-    if (statusCode != null && statusCode >= 500) return ServerException(message: message);
+    if (statusCode != null && statusCode >= 500) {
+      return ServerException(
+        message: message == 'Request failed'
+            ? 'Assistant is busy right now. Please try again.'
+            : message,
+      );
+    }
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
-        error.type == DioExceptionType.connectionError) {
+        error.type == DioExceptionType.sendTimeout) {
+      return const NetworkException(
+        message: 'That took too long. Please try again.',
+      );
+    }
+    if (error.type == DioExceptionType.connectionError) {
       return const NetworkException();
     }
 

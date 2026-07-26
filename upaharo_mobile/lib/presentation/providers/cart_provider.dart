@@ -195,6 +195,7 @@ class CartProvider extends ChangeNotifier {
     double? addressLatitude,
     double? addressLongitude,
     double? total,
+    String paymentMethod = 'CASH',
   }) {
     final computedTotal =
         total ?? (totalPrice + giftWrapPrice + deliveryFee - couponDiscount).clamp(0, double.infinity);
@@ -212,7 +213,7 @@ class CartProvider extends ChangeNotifier {
       'addressId': addressId,
       'addressLatitude': addressLatitude,
       'addressLongitude': addressLongitude,
-      'paymentMethod': 'CASH',
+      'paymentMethod': paymentMethod,
       'subtotal': totalPrice,
       'deliveryFee': deliveryFee,
       'tax': 0,

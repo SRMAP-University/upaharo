@@ -7,7 +7,6 @@ export async function POST(request: NextRequest) {
     const result = await validateCoupon(body.code, {
       subtotal: Number(body.subtotal ?? 0),
       productIds: Array.isArray(body.productIds) ? body.productIds : [],
-      categoryNames: Array.isArray(body.categoryNames) ? body.categoryNames : [],
     })
 
     // Lean payload for mobile clients (avoid serializing full Prisma models).

@@ -45,7 +45,7 @@ class SearchScreen extends StatelessWidget {
         ),
       ),
       body: const Center(child: Text('Type to start searching')),
-      bottomNavigationBar: showBottomNav ? const BottomNavBar(currentIndex: 1) : null,
+      bottomNavigationBar: showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
     );
   }
 }

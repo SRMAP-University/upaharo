@@ -164,25 +164,25 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                           'Order ${args.orderNumber}',
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                         ),
-                        const SizedBox(height: 6),
+                        SizedBox(height: 6),
                         Text(
                           'Total ${PriceFormatter.format(args.total)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
                             color: AppTheme.wine,
                           ),
                         ),
                         if (hasSavings) ...[
-                          const SizedBox(height: 14),
+                          SizedBox(height: 14),
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: [
                                   AppTheme.wine.withAlpha(18),
-                                  const Color(0xFFFFF3E0),
+                                  Color(0xFFFFF3E0),
                                 ],
                               ),
                               borderRadius: BorderRadius.circular(14),
@@ -198,10 +198,10 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                     color: AppTheme.charcoal,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                SizedBox(height: 2),
                                 Text(
                                   PriceFormatter.format(args.amountSaved),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w900,
                                     color: AppTheme.wine,
@@ -270,7 +270,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
               minBlastForce: 10,
               emissionFrequency: 0.05,
               gravity: 0.22,
-              colors: const [
+              colors: [
                 AppTheme.wine,
                 Color(0xFFFFC107),
                 Color(0xFFE91E63),
@@ -290,7 +290,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
               emissionFrequency: 0.06,
               numberOfParticles: 16,
               gravity: 0.25,
-              colors: const [AppTheme.wine, Color(0xFFFF9800), Color(0xFFE91E63)],
+              colors: [AppTheme.wine, Color(0xFFFF9800), Color(0xFFE91E63)],
             ),
           ),
           Align(
@@ -303,7 +303,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
               emissionFrequency: 0.06,
               numberOfParticles: 16,
               gravity: 0.25,
-              colors: const [Color(0xFF4CAF50), Color(0xFFFFC107), AppTheme.wine],
+              colors: [Color(0xFF4CAF50), Color(0xFFFFC107), AppTheme.wine],
             ),
           ),
         ],
