@@ -258,7 +258,7 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
                                       product?.name ?? slide.title,
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w800,
                                         color: AppTheme.ink,
@@ -500,7 +500,7 @@ class _BannerProductTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.ink,

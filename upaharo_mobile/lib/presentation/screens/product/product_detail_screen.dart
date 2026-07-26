@@ -170,7 +170,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppTheme.ink),
+                icon: Icon(Icons.arrow_back, color: AppTheme.ink),
                 onPressed: () => Navigator.pop(context),
               ),
             ),
@@ -183,7 +183,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     shape: BoxShape.circle,
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.share_outlined, color: AppTheme.ink),
+                    icon: Icon(Icons.share_outlined, color: AppTheme.ink),
                     onPressed: () => _shareProduct(snapshot.data!),
                   ),
                 ),
@@ -197,7 +197,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   alignment: Alignment.center,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.shopping_bag_outlined, color: AppTheme.ink),
+                      icon: Icon(Icons.shopping_bag_outlined, color: AppTheme.ink),
                       onPressed: () => Navigator.pushNamed(context, AppRoutes.cart),
                     ),
                     if (cart.totalItems > 0)
@@ -391,7 +391,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           ),
                         Text(
                           product.category.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.charcoal,
@@ -410,7 +410,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     const SizedBox(height: 12),
                     Text(
                       product.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: AppTheme.ink,
@@ -421,7 +421,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 8),
                       Text(
                         product.miniDescription!,
-                        style: const TextStyle(fontSize: 14, color: AppTheme.charcoal),
+                        style: TextStyle(fontSize: 14, color: AppTheme.charcoal),
                       ),
                     ],
                     const SizedBox(height: 14),
@@ -539,7 +539,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         product.description,
                         maxLines: _descriptionExpanded ? null : 3,
                         overflow: _descriptionExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           height: 1.6,
                           color: AppTheme.charcoal,
@@ -709,7 +709,7 @@ class _VariantSelector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: 4, bottom: 10),
             child: Text(
               'Variants',
@@ -844,7 +844,7 @@ class _ProductRecommendations extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.ink),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.ink),
           ),
         ),
         const SizedBox(height: 12),
@@ -905,7 +905,7 @@ class _ProductRecommendations extends StatelessWidget {
                 _horizontalSection(context, 'Sub Products', subProducts),
                 if (subProducts.isNotEmpty) const SizedBox(height: 24),
                 if (sections.related.isNotEmpty) ...[
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       'You May Also Like',

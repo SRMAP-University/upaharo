@@ -217,7 +217,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
           child: Column(
             children: [
-              const Text(
+              Text(
                 'Spin & Win',
                 style: TextStyle(
                   fontSize: 18,
@@ -283,7 +283,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
                             ),
                     ),
                     // Top pointer
-                    const Positioned(
+                    Positioned(
                       top: 0,
                       child: Icon(
                         Icons.arrow_drop_down,

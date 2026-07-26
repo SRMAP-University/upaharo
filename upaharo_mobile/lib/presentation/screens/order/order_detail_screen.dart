@@ -394,7 +394,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               ),
                             ],
                             const SizedBox(height: 8),
-                            const Text(
+                            Text(
                               'Updates every few seconds',
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 11, color: AppTheme.charcoal),
@@ -492,7 +492,7 @@ class _MapStatusHover extends StatelessWidget {
                         theme.hint,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: AppTheme.charcoal,
                           height: 1.25,
@@ -611,7 +611,7 @@ class _SheetHeader extends StatelessWidget {
               if (date.isNotEmpty)
                 Text(
                   date,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                  style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                 ),
             ],
           ),
@@ -650,7 +650,7 @@ class _OtpBanner extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'DELIVERY CODE',
                   style: TextStyle(
                     fontSize: 11,
@@ -669,7 +669,7 @@ class _OtpBanner extends StatelessWidget {
                     color: AppTheme.wine,
                   ),
                 ),
-                const Text(
+                Text(
                   'Share with the rider only when you receive the order.',
                   style: TextStyle(fontSize: 11, color: AppTheme.charcoal, height: 1.3),
                 ),
@@ -703,7 +703,7 @@ class _AddressCard extends StatelessWidget {
     return _SectionCard(
       title: 'Delivery address',
       child: address == null
-          ? const Text('Address unavailable', style: TextStyle(color: AppTheme.charcoal))
+          ? Text('Address unavailable', style: TextStyle(color: AppTheme.charcoal))
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -742,7 +742,7 @@ class _BillCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               'Payment: ${order.paymentMethod.name.toUpperCase()} · ${order.paymentStatus.name}',
-              style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+              style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
             ),
           ),
         ],
@@ -817,7 +817,7 @@ class _ItemsCard extends StatelessWidget {
                       ),
                       Text(
                         'Qty ${item.quantity}',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                        style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                       ),
                     ],
                   ),

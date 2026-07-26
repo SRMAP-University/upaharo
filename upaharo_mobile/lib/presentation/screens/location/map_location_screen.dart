@@ -307,7 +307,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
                     elevation: 3,
                     shadowColor: Colors.black38,
                     child: IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
+                      icon: Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
                       tooltip: 'Back',
                       onPressed: () => Navigator.pop(context),
                     ),
@@ -397,7 +397,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Selected location',
                                       style: TextStyle(
                                         fontSize: 12,
@@ -414,7 +414,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
                                               : _isFetchingAddress
                                                   ? 'Detecting address...'
                                                   : 'Move the pin to detect your address',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 14,
                                         color: AppTheme.ink,
                                         fontWeight: FontWeight.w500,

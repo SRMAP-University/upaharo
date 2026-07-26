@@ -145,7 +145,7 @@ class _AccountScreenState extends State<AccountScreen> {
               ),
               child: Text(
                 settings.announcementText,
-                style: const TextStyle(fontSize: 13, color: AppTheme.ink, height: 1.35),
+                style: TextStyle(fontSize: 13, color: AppTheme.ink, height: 1.35),
               ),
             ),
           _sectionLabel('Orders & delivery'),
@@ -278,7 +278,7 @@ class _AccountScreenState extends State<AccountScreen> {
       padding: const EdgeInsets.only(bottom: 4, top: 4),
       child: Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w800,
           color: AppTheme.charcoal,

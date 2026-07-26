@@ -76,7 +76,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                 children: [
                   Icon(Icons.local_offer_outlined, size: 18, color: AppTheme.wine),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Explore coupons',
                       style: TextStyle(
@@ -146,7 +146,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                                 coupon.code,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
                                   letterSpacing: 0.4,

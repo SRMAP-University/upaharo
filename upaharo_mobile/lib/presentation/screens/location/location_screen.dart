@@ -34,7 +34,7 @@ class LocationScreen extends StatelessWidget {
                 shape: const CircleBorder(),
                 elevation: 1,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
+                  icon: Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
                   tooltip: 'Back',
                   onPressed: () {
                     if (Navigator.canPop(context)) {
@@ -71,7 +71,7 @@ class LocationScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Delivery Location',
                               style: TextStyle(
                                 fontSize: 12,
@@ -82,7 +82,7 @@ class LocationScreen extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               location?.label ?? 'Your location',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppTheme.ink,

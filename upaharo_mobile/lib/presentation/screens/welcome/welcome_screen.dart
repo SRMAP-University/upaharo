@@ -100,7 +100,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Gifts that say everything words can\'t.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -172,7 +172,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                         Text(
                                           slide.title,
                                           textAlign: TextAlign.center,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 22,
                                             fontWeight: FontWeight.bold,
                                             color: AppTheme.ink,
@@ -184,7 +184,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                           child: Text(
                                             slide.subtitle,
                                             textAlign: TextAlign.center,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 14,
                                               height: 1.5,
                                               color: AppTheme.charcoal,

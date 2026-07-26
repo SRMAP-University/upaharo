@@ -135,7 +135,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                   Text(
                     args.isGift ? 'Gift order placed!' : 'Congratulations!',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
                       color: AppTheme.ink,
@@ -147,7 +147,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                         ? 'Your gift is on its way — thank you for spreading joy.'
                         : 'Your order has been placed successfully.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 15, color: AppTheme.charcoal, height: 1.4),
+                    style: TextStyle(fontSize: 15, color: AppTheme.charcoal, height: 1.4),
                   ),
                   const SizedBox(height: 20),
                   Container(
@@ -190,7 +190,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                             ),
                             child: Column(
                               children: [
-                                const Text(
+                                Text(
                                   'You saved',
                                   style: TextStyle(
                                     fontSize: 12,
@@ -210,7 +210,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                 if (hasCoupon)
                                   Text(
                                     'with coupon ${args.couponCode}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.ink,

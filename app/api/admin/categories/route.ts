@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeCategoryIcon, normalizeCategoryWash } from '@/lib/category-style'
 import { prisma } from '@/lib/prisma'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 
@@ -27,7 +28,9 @@ export async function POST(request: NextRequest) {
         image: body.image,
         type: body.type,
         parentId: body.parentId || null,
-        isActive: body.isActive ?? true
+        isActive: body.isActive ?? true,
+        washColor: normalizeCategoryWash(body.washColor),
+        iconName: normalizeCategoryIcon(body.iconName)
       }
     })
     await redis.del(

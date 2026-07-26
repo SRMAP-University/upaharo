@@ -40,14 +40,14 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 children: [
                   Text(
                     'Need help with ${settings.siteName}?',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Reach our team using the details below. Hours and contact info come from store settings.',
                     style: TextStyle(fontSize: 13, color: AppTheme.charcoal, height: 1.4),
                   ),

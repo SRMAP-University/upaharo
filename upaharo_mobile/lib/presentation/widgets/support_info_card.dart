@@ -43,7 +43,7 @@ class SupportInfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (showTitle)
-            const Text(
+            Text(
               'Support',
               style: TextStyle(
                 fontSize: 16,
@@ -53,7 +53,7 @@ class SupportInfoCard extends StatelessWidget {
             ),
           if (showTitle) const SizedBox(height: 10),
           if (message.isNotEmpty) ...[
-            Text(message, style: const TextStyle(fontSize: 13, color: AppTheme.charcoal, height: 1.35)),
+            Text(message, style: TextStyle(fontSize: 13, color: AppTheme.charcoal, height: 1.35)),
             const SizedBox(height: 12),
           ],
           if (hours.isNotEmpty)
@@ -117,7 +117,7 @@ class SupportInfoCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               note,
-              style: const TextStyle(fontSize: 12, color: AppTheme.charcoal, height: 1.35),
+              style: TextStyle(fontSize: 12, color: AppTheme.charcoal, height: 1.35),
             ),
           ],
         ],
@@ -154,7 +154,7 @@ class _InfoRow extends StatelessWidget {
             Expanded(
               child: RichText(
                 text: TextSpan(
-                  style: const TextStyle(fontSize: 13, color: AppTheme.ink, height: 1.35),
+                  style: TextStyle(fontSize: 13, color: AppTheme.ink, height: 1.35),
                   children: [
                     TextSpan(
                       text: '$label: ',
@@ -173,7 +173,7 @@ class _InfoRow extends StatelessWidget {
               ),
             ),
             if (onTap != null)
-              const Icon(Icons.open_in_new, size: 14, color: AppTheme.charcoal),
+              Icon(Icons.open_in_new, size: 14, color: AppTheme.charcoal),
           ],
         ),
       ),

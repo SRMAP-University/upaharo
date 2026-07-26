@@ -70,7 +70,7 @@ class _PromoScreenState extends State<PromoScreen> {
           const SpinRouletteCard(),
           const ExploreCouponsSection(),
           if (banners.isNotEmpty) ...[
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: Text(
                 'Featured offers',
@@ -127,7 +127,7 @@ class _PromoScreenState extends State<PromoScreen> {
                               children: [
                                 Text(
                                   banner.title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.ink,

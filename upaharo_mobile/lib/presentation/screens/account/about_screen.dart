@@ -59,7 +59,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 const SizedBox(height: 12),
                 Text(
                   settings.siteName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.ink,
@@ -68,7 +68,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'Version $_version',
-                  style: const TextStyle(fontSize: 13, color: AppTheme.charcoal),
+                  style: TextStyle(fontSize: 13, color: AppTheme.charcoal),
                 ),
               ],
             ),

@@ -500,7 +500,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(height: 12),
                         _sectionTitle('Recipient'),
                         if (_recipients.isEmpty)
-                          const Text(
+                          Text(
                             'No saved recipients. Order can still be placed after you add one on the website, or continue without gift mode.',
                             style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                           )
@@ -719,7 +719,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         const SizedBox(height: 8),
                         Text(
                           settings.deliveryEstimate,
-                          style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                          style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -784,7 +784,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       padding: const EdgeInsets.only(bottom: 8, top: 4),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.ink),
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.ink),
       ),
     );
   }
@@ -799,7 +799,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.black12),
       ),
-      child: const Text(
+      child: Text(
         'No saved address yet. Set your delivery location on the map — we’ll save it for this order.',
         style: TextStyle(fontSize: 13, color: AppTheme.charcoal, height: 1.35),
       ),
@@ -856,12 +856,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         url: image,
                         fit: BoxFit.cover,
                         width: double.infinity,
-                        errorWidget: const ColoredBox(
+                        errorWidget: ColoredBox(
                           color: AppTheme.creamDeep,
                           child: Icon(Icons.card_giftcard),
                         ),
                       )
-                    : const ColoredBox(
+                    : ColoredBox(
                         color: AppTheme.creamDeep,
                         child: Center(child: Icon(Icons.do_not_disturb_alt)),
                       ),

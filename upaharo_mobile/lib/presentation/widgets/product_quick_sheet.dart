@@ -359,7 +359,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                                   Text(
                                                     product.category
                                                         .toUpperCase(),
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w600,
@@ -370,7 +370,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                                   const SizedBox(height: 6),
                                                   Text(
                                                     product.name,
-                                                    style: const TextStyle(
+                                                    style: TextStyle(
                                                       fontSize: 21,
                                                       fontWeight:
                                                           FontWeight.bold,
@@ -385,7 +385,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                                     const SizedBox(height: 8),
                                                     Text(
                                                       product.miniDescription!,
-                                                      style: const TextStyle(
+                                                      style: TextStyle(
                                                         fontSize: 14,
                                                         color:
                                                             AppTheme.charcoal,
@@ -443,7 +443,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                                       const SizedBox(height: 8),
                                                       Text(
                                                         product.description,
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                           fontSize: 14,
                                                           height: 1.55,
                                                           color:
@@ -623,7 +623,7 @@ class _HeroGalleryState extends State<_HeroGallery> {
           ColoredBox(
             color: Colors.white,
             child: images.isEmpty
-                ? const Center(
+                ? Center(
                     child: Icon(Icons.image_not_supported,
                         color: AppTheme.charcoal),
                   )
@@ -805,7 +805,7 @@ class _SheetVariantSelector extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Options',
             style: TextStyle(
               fontSize: 14,
@@ -855,7 +855,7 @@ class _SheetVariantSelector extends StatelessWidget {
                           item.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.ink,
@@ -929,7 +929,7 @@ class _SheetAddBar extends StatelessWidget {
                   children: [
                     Text(
                       PriceFormatter.format(total),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.ink,

@@ -112,7 +112,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: AppTheme.ink,

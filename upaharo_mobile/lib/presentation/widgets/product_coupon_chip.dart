@@ -243,7 +243,7 @@ class ProductCouponsSection extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'All coupons',
                   style: TextStyle(
                     fontSize: 17,
@@ -320,7 +320,7 @@ class ProductCouponsSection extends StatelessWidget {
             children: [
               Icon(Icons.local_offer_outlined, size: 18, color: AppTheme.wine.withAlpha(200)),
               const SizedBox(width: 8),
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Coupons for this product',
                   style: TextStyle(

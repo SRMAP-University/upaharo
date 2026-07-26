@@ -374,6 +374,10 @@ model Category {
   children            Category[]           @relation("CategoryHierarchy")
   recommendationRules RecommendationRule[] @relation("SourceCategoryRecommendationRules")
   isActive            Boolean              @default(true)
+  /// Home header wash tint for this category, hex `#RRGGBB`.
+  washColor           String?
+  /// Mobile icon key (see ADMIN_CATEGORY_ICONS), e.g. `cake`.
+  iconName            String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
@@ -484,8 +488,11 @@ model AppSettings {
   homepageShowOccasionTabs    Boolean  @default(true)
   homepageShowRecommendations Boolean  @default(true)
   homepageShowValueDeals      Boolean  @default(true)
+  homepageShowSpinBanner      Boolean  @default(true)
   homepageRecommendationMode  String   @default("LATEST")
   homepageRecommendationTitle String?
+  /// Ordered mobile home sections: `[{ id, title, subtitle, visible }]`.
+  homeSectionLayout           Json?
   /// Mobile brand primary (buttons / accents), hex `#RRGGBB`.
   brandPrimary                String   @default("#8B5A2B")
   /// Mobile brand secondary (gold accents), hex `#RRGGBB`.
@@ -494,6 +501,33 @@ model AppSettings {
   headerWash                  String   @default("#F7F0E8")
   /// Scaffold / page background, hex `#RRGGBB`.
   pageBackground              String   @default("#FFFFFF")
+  /// Primary text colour, hex `#RRGGBB`.
+  textInk                     String   @default("#1F1F1F")
+  /// Secondary / muted text colour, hex `#RRGGBB`.
+  textMuted                   String   @default("#3E3E3E")
+  /// Chip + image placeholder fill, hex `#RRGGBB`.
+  surfaceSoft                 String   @default("#F4F4F5")
+  /// Card / tile surface, hex `#RRGGBB`.
+  cardBackground              String   @default("#FFFFFF")
+  /// Card + input corner radius in logical pixels.
+  cornerRadius                Int      @default(12)
+  /// Button corner radius in logical pixels.
+  buttonRadius                Int      @default(30)
+  /// Spacing scale: COMPACT | COMFORTABLE | SPACIOUS.
+  uiDensity                   String   @default("COMFORTABLE")
+  /// Product grid columns on home / category tabs.
+  productGridColumns          Int      @default(2)
+  /// Product tile width-to-height ratio.
+  productCardAspectRatio      Float    @default(0.68)
+  productShowDiscountBadge    Boolean  @default(true)
+  productShowCategoryLabel    Boolean  @default(false)
+  /// Show the floating promo orb / Promo tab in the mobile bottom nav.
+  showPromoTab                Boolean  @default(true)
+  /// Promo orb flip text, e.g. `20% OFF`.
+  promoOrbLabel               String   @default("20% OFF")
+  navHomeLabel                String   @default("Home")
+  navCategoriesLabel          String   @default("Categories")
+  navTopPicksLabel            String   @default("Top picks")
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
 }

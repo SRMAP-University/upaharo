@@ -331,7 +331,7 @@ class _QuickChips extends StatelessWidget {
             side: BorderSide(color: AppTheme.wine.withAlpha(40)),
             label: Text(
               suggestions[index],
-              style: const TextStyle(fontSize: 12, color: AppTheme.ink),
+              style: TextStyle(fontSize: 12, color: AppTheme.ink),
             ),
             onPressed: () => onTap(suggestions[index]),
           );

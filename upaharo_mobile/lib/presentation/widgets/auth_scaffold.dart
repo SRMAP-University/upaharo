@@ -39,7 +39,7 @@ class AuthScaffold extends StatelessWidget {
                     left: 4,
                     child: IconButton(
                       onPressed: () => Navigator.maybePop(context),
-                      icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
+                      icon: Icon(Icons.arrow_back_rounded, color: AppTheme.ink),
                     ),
                   ),
                 Positioned.fill(

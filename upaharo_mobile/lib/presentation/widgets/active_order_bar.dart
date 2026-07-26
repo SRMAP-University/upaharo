@@ -205,7 +205,7 @@ class _ActiveOrderCardState extends State<_ActiveOrderCard>
                           subtitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 9.5,
                             color: AppTheme.charcoal,
                             fontWeight: FontWeight.w500,

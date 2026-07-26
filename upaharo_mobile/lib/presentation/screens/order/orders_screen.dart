@@ -153,7 +153,7 @@ class _OrderCard extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                     ),
                     if (date.isNotEmpty)
-                      Text(date, style: const TextStyle(fontSize: 12, color: AppTheme.charcoal)),
+                      Text(date, style: TextStyle(fontSize: 12, color: AppTheme.charcoal)),
                   ],
                 ),
               ),
@@ -226,7 +226,7 @@ class _OrderCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 '+${order.items.length - 4} more item(s)',
-                style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
               ),
             ),
           if (order.isGift) ...[

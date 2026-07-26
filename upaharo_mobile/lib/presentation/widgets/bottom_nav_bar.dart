@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../config/routes.dart';
 import '../../config/theme.dart';
+import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
 
@@ -94,16 +95,28 @@ class _BottomNavBarState extends State<BottomNavBar>
     );
   }
 
+  /// `20% OFF` → big `20%` over small `OFF`; a single word fills the big line.
+  static (String, String) _splitOrbLabel(String raw) {
+    final parts = raw.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return ('20%', 'OFF');
+    if (parts.length == 1) return (parts.first, '');
+    return (parts.first, parts.sublist(1).join(' '));
+  }
+
   Widget _promoFace({
     required bool offerSide,
     required bool selected,
+    required String orbLabel,
+    required String promoLabel,
   }) {
     if (offerSide) {
+      final (top, bottom) = _splitOrbLabel(orbLabel);
       return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            '20%',
+            top,
+            maxLines: 1,
             style: TextStyle(
               fontSize: 13,
               height: 1,
@@ -111,16 +124,18 @@ class _BottomNavBarState extends State<BottomNavBar>
               color: selected ? AppTheme.gold : AppTheme.wine,
             ),
           ),
-          Text(
-            'OFF',
-            style: TextStyle(
-              fontSize: 8,
-              height: 1.05,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
-              color: selected ? Colors.white : AppTheme.wine,
+          if (bottom.isNotEmpty)
+            Text(
+              bottom,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 8,
+                height: 1.05,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+                color: selected ? Colors.white : AppTheme.wine,
+              ),
             ),
-          ),
         ],
       );
     }
@@ -134,7 +149,8 @@ class _BottomNavBarState extends State<BottomNavBar>
           color: selected ? AppTheme.gold : AppTheme.wine,
         ),
         Text(
-          'Promo',
+          promoLabel,
+          maxLines: 1,
           style: TextStyle(
             fontSize: 8,
             height: 1.1,
@@ -148,17 +164,22 @@ class _BottomNavBarState extends State<BottomNavBar>
 
   @override
   Widget build(BuildContext context) {
-    const items = <({IconData outline, IconData filled, String label})>[
-      (outline: Icons.cottage_outlined, filled: Icons.cottage_rounded, label: 'Home'),
+    final settings = context.watch<SettingsProvider>().settings;
+    final items = <({IconData outline, IconData filled, String label})>[
+      (
+        outline: Icons.cottage_outlined,
+        filled: Icons.cottage_rounded,
+        label: settings.navHomeLabel,
+      ),
       (
         outline: Icons.local_florist_outlined,
         filled: Icons.local_florist_rounded,
-        label: 'Categories',
+        label: settings.navCategoriesLabel,
       ),
       (
         outline: Icons.card_giftcard_outlined,
         filled: Icons.card_giftcard_rounded,
-        label: 'Top picks',
+        label: settings.navTopPicksLabel,
       ),
     ];
 
@@ -252,6 +273,7 @@ class _BottomNavBarState extends State<BottomNavBar>
                     ),
                   ),
                 ),
+                if (settings.showPromoTab) ...[
                 const SizedBox(width: 10),
                 GestureDetector(
                   onTap: () => _onTap(context, 3),
@@ -325,6 +347,8 @@ class _BottomNavBarState extends State<BottomNavBar>
                                   child: _promoFace(
                                     offerSide: showOffer,
                                     selected: promoSelected,
+                                    orbLabel: settings.promoOrbLabel,
+                                    promoLabel: 'Promo',
                                   ),
                                 ),
                               ),
@@ -364,6 +388,7 @@ class _BottomNavBarState extends State<BottomNavBar>
                     ),
                   ),
                 ),
+                ],
               ],
             ),
           ),

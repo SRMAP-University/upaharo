@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../../core/utils/category_style.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/banner.dart';
 import '../../../data/models/category.dart';
@@ -26,45 +27,6 @@ import '../../widgets/product_quick_sheet.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/value_deals_sky_background.dart';
-
-/// Soft wash tint for a home header category (header + page background).
-Color categoryWashColor(String name) {
-  final key = name.toLowerCase();
-  if (key.contains('birthday')) return const Color(0xFFF3C4D4);
-  if (key.contains('annivers')) return const Color(0xFFE4C7E8);
-  if (key.contains('flower') || key.contains('bouquet')) {
-    return const Color(0xFFC9E4D2);
-  }
-  if (key.contains('cake') || key.contains('dessert') || key.contains('bento')) {
-    return const Color(0xFFF5D5C0);
-  }
-  if (key.contains('father') || key.contains('dad')) {
-    return const Color(0xFFC5D8F0);
-  }
-  if (key.contains('mother') || key.contains('mom')) {
-    return const Color(0xFFF0C9D8);
-  }
-  if (key.contains('personal') || key.contains('custom')) {
-    return const Color(0xFFD7CFF0);
-  }
-  if (key.contains('gift') || key.contains('hamper')) {
-    return const Color(0xFFE8D4B8);
-  }
-  if (key.contains('plant')) return const Color(0xFFC8E0C4);
-  if (key.contains('chocol')) return const Color(0xFFE6D0BE);
-  if (key.contains('party') || key.contains('event')) {
-    return const Color(0xFFF0D4B8);
-  }
-  const palette = <Color>[
-    Color(0xFFE8D5E0),
-    Color(0xFFD5E3F0),
-    Color(0xFFE5E0D0),
-    Color(0xFFD8E8DE),
-    Color(0xFFE8D8D0),
-    Color(0xFFDDD5E8),
-  ];
-  return palette[name.hashCode.abs() % palette.length];
-}
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.showBottomNav = true});
@@ -145,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     if (index <= categories.length) {
-      _animateWashTo(categoryWashColor(categories[index - 1].name));
+      _animateWashTo(categoryWashFor(categories[index - 1]));
     }
 
     if (index <= 0 || index > categories.length) return;
@@ -483,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen>
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
                 color: AppTheme.ink,
@@ -491,37 +453,13 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           ),
         ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.68,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final product = gridProducts[index];
-                return _PlainHomeProductTile(
-                  product: product,
-                  onTap: () => _openProduct(product, peers: gridProducts),
-                );
-              },
-              childCount: gridProducts.length,
-            ),
-          ),
-        ),
+        _productGridSliver(gridProducts, settings),
       ];
     }
 
     final discounted = pool.where((p) => (p.discount ?? 0) > 0).toList()
       ..sort((a, b) => (b.discount ?? 0).compareTo(a.discount ?? 0));
     final deals = discounted.isNotEmpty ? discounted : pool;
-
-    // Quick picks / top categories strip is home-only.
-    final showTopCategories = settings.homepageShowTopCategories;
-    final showValueDeals = settings.homepageShowValueDeals;
 
     final dealPeers = <Product>[];
     final dealSeen = <String>{};
@@ -533,118 +471,142 @@ class _HomeScreenState extends State<HomeScreen>
     }
     final quickPicks = _slice(pool, 5, 12);
 
-    return [
-      // Spin & Win teaser → Promo tab (hidden once used until daily reset).
-      if (showSpinBanner)
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(12, 10, 12, 4),
-            child: Material(
-              color: AppTheme.wine.withAlpha(18),
-              borderRadius: BorderRadius.circular(14),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => context.read<ShellTabController>().goTo(3),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(14, 12, 12, 12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: AppTheme.wine,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.casino_rounded,
-                            color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Spin & Win',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                                color: AppTheme.ink,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Daily roulette · 5% to 30% off',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.charcoal,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right_rounded,
-                          color: AppTheme.wine.withAlpha(220)),
-                    ],
-                  ),
+    // Admin owns order + copy; each builder still gates on its own data/toggle.
+    final builders = <String, List<Widget> Function(HomeSectionConfig)>{
+      'spinBanner': (section) =>
+          showSpinBanner ? [_spinBannerSliver(section)] : const [],
+      'valueDeals': (section) => settings.homepageShowValueDeals
+          ? [
+              SliverToBoxAdapter(
+                child: _Section1DealScroll(
+                  title: section.title,
+                  accentTitle: section.subtitle,
+                  products: dealPeers,
+                  onSeeAll: () => _openProducts(title: 'Deals'),
+                  onTap: (p) => _openProduct(p, peers: dealPeers),
                 ),
+              ),
+            ]
+          : const [],
+      'quickPicks': (section) => settings.homepageShowTopCategories
+          ? [
+              _pad(_Section4MiniCircles(
+                title: section.title,
+                products: quickPicks,
+                onTap: (p) => _openProduct(p, peers: quickPicks),
+              )),
+            ]
+          : const [],
+      'productGrid': (section) => gridProducts.isEmpty
+          ? const []
+          : [
+              SliverToBoxAdapter(child: SizedBox(height: AppTheme.space(10))),
+              _productGridSliver(gridProducts, settings),
+            ],
+    };
+
+    final slivers = <Widget>[];
+    for (final section in settings.homeSectionLayout) {
+      if (!section.visible) continue;
+      slivers.addAll(builders[section.id]?.call(section) ?? const []);
+    }
+    return slivers;
+  }
+
+  /// Spin & Win teaser → Promo tab (hidden once used until daily reset).
+  Widget _spinBannerSliver(HomeSectionConfig section) {
+    final radius = BorderRadius.circular(AppTheme.cornerRadius + 2);
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, AppTheme.space(10), 12, 4),
+        child: Material(
+          color: AppTheme.wine.withAlpha(18),
+          borderRadius: radius,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: () => context.read<ShellTabController>().goTo(3),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppTheme.wine,
+                      borderRadius: BorderRadius.circular(AppTheme.cornerRadius),
+                    ),
+                    child: const Icon(Icons.casino_rounded,
+                        color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        if (section.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            section.subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.charcoal,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded,
+                      color: AppTheme.wine.withAlpha(220)),
+                ],
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
 
-      // 1 — Value Deals
-      if (showValueDeals)
-        SliverToBoxAdapter(
-          child: _Section1DealScroll(
-            title: 'Value',
-            accentTitle: 'DEALS',
-            products: dealPeers,
-            onSeeAll: () => _openProducts(title: 'Deals'),
-            onTap: (p) => _openProduct(p, peers: dealPeers),
-          ),
+  /// Shared grid so home and category tabs honour the same admin card settings.
+  Widget _productGridSliver(List<Product> products, AppSettings settings) {
+    final spacing = AppTheme.space(10);
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(10, 0, 10, spacing),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: settings.productGridColumns,
+          mainAxisSpacing: spacing,
+          crossAxisSpacing: spacing,
+          childAspectRatio: settings.productCardAspectRatio,
         ),
-
-      // 2 — Quick picks
-      if (showTopCategories)
-        _pad(_Section4MiniCircles(
-          title: 'Quick picks',
-          products: quickPicks,
-          onTap: (p) => _openProduct(p, peers: quickPicks),
-        )),
-
-      // 3 — Plain products with light padding
-      if (gridProducts.isNotEmpty)
-        const SliverToBoxAdapter(child: SizedBox(height: 10)),
-      if (gridProducts.isNotEmpty)
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 0.68,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final product = gridProducts[index];
-                return _PlainHomeProductTile(
-                  product: product,
-                  onTap: () => _openProduct(product, peers: gridProducts),
-                );
-              },
-              childCount: gridProducts.length,
-            ),
-          ),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final product = products[index];
+            return _PlainHomeProductTile(
+              product: product,
+              settings: settings,
+              onTap: () => _openProduct(product, peers: products),
+            );
+          },
+          childCount: products.length,
         ),
-    ];
+      ),
+    );
   }
 
   Widget _pad(Widget child) => SliverToBoxAdapter(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+          padding: EdgeInsets.fromLTRB(12, AppTheme.space(12), 12, 0),
           child: child,
         ),
       );
@@ -654,17 +616,23 @@ class _HomeScreenState extends State<HomeScreen>
 class _PlainHomeProductTile extends StatelessWidget {
   const _PlainHomeProductTile({
     required this.product,
+    required this.settings,
     required this.onTap,
   });
 
   final Product product;
+  final AppSettings settings;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final discount = product.discount ?? 0;
+    final showBadge = settings.productShowDiscountBadge && discount > 0;
+    final category = product.category.trim();
+
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      color: AppTheme.cardSurface,
+      borderRadius: BorderRadius.circular(AppTheme.cornerRadius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -679,12 +647,32 @@ class _PlainHomeProductTile extends StatelessWidget {
                     url: product.image,
                     fit: BoxFit.cover,
                     fadeDuration: Duration.zero,
-                    placeholder: const ColoredBox(color: Color(0xFFF0E8EA)),
-                    errorWidget: const ColoredBox(
-                      color: Color(0xFFF0E8EA),
-                      child: Icon(Icons.image_not_supported, color: Colors.grey),
+                    placeholder: ColoredBox(color: AppTheme.creamDeep),
+                    errorWidget: ColoredBox(
+                      color: AppTheme.creamDeep,
+                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
                     ),
                   ),
+                  if (showBadge)
+                    Positioned(
+                      left: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppTheme.wine,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '-${discount.round()}%',
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
                   Positioned(
                     right: 6,
                     bottom: 6,
@@ -702,18 +690,32 @@ class _PlainHomeProductTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (settings.productShowCategoryLabel && category.isNotEmpty) ...[
+                    Text(
+                      category.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                        color: AppTheme.charcoal.withAlpha(160),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   Text(
                     product.name,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.ink,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Text(
                     PriceFormatter.format(product.finalPrice),
                     style: TextStyle(
@@ -826,17 +828,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
       _promoHeight +
       _bottomPad;
 
-  IconData _iconForCategory(String name) {
-    final key = name.toLowerCase();
-    if (key.contains('flower') || key.contains('bouquet')) return Icons.local_florist_outlined;
-    if (key.contains('cake') || key.contains('dessert')) return Icons.cake_outlined;
-    if (key.contains('gift') || key.contains('hamper')) return Icons.card_giftcard_outlined;
-    if (key.contains('plant')) return Icons.yard_outlined;
-    if (key.contains('chocol')) return Icons.cookie_outlined;
-    if (key.contains('occasion') || key.contains('birthday')) return Icons.celebration_outlined;
-    return Icons.shopping_bag_outlined;
-  }
-
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     final height = (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
@@ -856,7 +847,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
 
     final tabs = <({String label, IconData icon})>[
       (label: 'All', icon: Icons.grid_view_rounded),
-      ...categories.map((c) => (label: c.name, icon: _iconForCategory(c.name))),
+      ...categories.map((c) => (label: c.name, icon: categoryIconFor(c))),
     ];
     final eta = deliveryEstimate.trim().isEmpty ? 'Same day' : deliveryEstimate.trim();
     final headerTint = AppTheme.headerWash;
@@ -945,7 +936,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                             eta,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w800,
                                               color: AppTheme.ink,
@@ -1028,7 +1019,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                               ),
                             ],
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
                               Icon(Icons.search, size: 18, color: AppTheme.charcoal),
                               SizedBox(width: 8),
@@ -1074,7 +1065,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                             constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                             visualDensity: VisualDensity.compact,
                             onPressed: onOrdersTap,
-                            icon: const Icon(Icons.receipt_long_outlined, size: 20, color: AppTheme.ink),
+                            icon: Icon(Icons.receipt_long_outlined, size: 20, color: AppTheme.ink),
                             tooltip: 'Orders',
                           ),
                           IconButton(
@@ -1082,7 +1073,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                             constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                             visualDensity: VisualDensity.compact,
                             onPressed: onWishlistTap,
-                            icon: const Icon(Icons.favorite_border, size: 20, color: AppTheme.ink),
+                            icon: Icon(Icons.favorite_border, size: 20, color: AppTheme.ink),
                             tooltip: 'Cart',
                           ),
                         ],
@@ -2781,12 +2772,12 @@ class _ErrorState extends StatelessWidget {
           children: [
             Icon(Icons.error_outline, size: 48, color: AppTheme.wine),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Something went wrong',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.ink),
             ),
             const SizedBox(height: 8),
-            Text(error, textAlign: TextAlign.center, style: const TextStyle(color: AppTheme.charcoal)),
+            Text(error, textAlign: TextAlign.center, style: TextStyle(color: AppTheme.charcoal)),
             const SizedBox(height: 24),
             ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Retry')),
           ],
