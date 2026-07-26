@@ -110,6 +110,10 @@ class CatalogProvider extends ChangeNotifier {
     if (list.isEmpty) return true;
     final key = category.name.trim().toLowerCase();
     if (key.isEmpty) return true;
+    // Occasion/recipient categories are filtered by tags on the API — don't
+    // require Product.category to equal the occasion name.
+    final type = category.type.trim().toUpperCase();
+    if (type != 'PRODUCT') return true;
     var matches = 0;
     for (final p in list) {
       if (p.category.trim().toLowerCase() == key) matches++;

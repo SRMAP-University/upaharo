@@ -1,57 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import {
+  clampFloat,
+  clampInt,
+  DEFAULT_HOME_SECTIONS,
+  normalizeDensity,
+  normalizeHomeSections,
+  UI_DENSITIES,
+} from '@/lib/app-settings-schema'
+import { MobilePreview } from './mobile-preview'
+import { SectionLayoutEditor } from './section-layout-editor'
+import { CHECKBOX_CLASS, EMPTY_FORM, INPUT_CLASS, type SettingsForm } from './types'
 
-type SettingsForm = {
-  siteName: string
-  supportPhone: string
-  supportEmail: string
-  supportHours: string
-  supportMessage: string
-  deliveryEstimate: string
-  deliveryNote: string
-  announcementText: string
-  storeAddress: string
-  mapLatitude: string
-  mapLongitude: string
-  homepageShowBanner: boolean
-  homepageShowTopCategories: boolean
-  homepageShowCategorySections: boolean
-  homepageShowOccasionTabs: boolean
-  homepageShowRecommendations: boolean
-  homepageShowValueDeals: boolean
-  homepageRecommendationMode: string
-  homepageRecommendationTitle: string
-  brandPrimary: string
-  brandSecondary: string
-  headerWash: string
-  pageBackground: string
-}
-
-const EMPTY_FORM: SettingsForm = {
-  siteName: '',
-  supportPhone: '',
-  supportEmail: '',
-  supportHours: '',
-  supportMessage: '',
-  deliveryEstimate: '',
-  deliveryNote: '',
-  announcementText: '',
-  storeAddress: '',
-  mapLatitude: '',
-  mapLongitude: '',
-  homepageShowBanner: true,
-  homepageShowTopCategories: true,
-  homepageShowCategorySections: true,
-  homepageShowOccasionTabs: true,
-  homepageShowRecommendations: true,
-  homepageShowValueDeals: true,
-  homepageRecommendationMode: 'LATEST',
-  homepageRecommendationTitle: '',
-  brandPrimary: '#8B5A2B',
-  brandSecondary: '#D4AF37',
-  headerWash: '#F7F0E8',
-  pageBackground: '#FFFFFF',
+const DENSITY_LABELS: Record<string, string> = {
+  COMPACT: 'Compact — tighter gaps, more on screen',
+  COMFORTABLE: 'Comfortable — default spacing',
+  SPACIOUS: 'Spacious — airier, larger gaps',
 }
 
 function ColorField({
@@ -85,12 +50,103 @@ function ColorField({
           placeholder="#RRGGBB"
           maxLength={7}
         />
-        <span
-          className="h-10 w-10 shrink-0 rounded-xl border border-wine/10"
-          style={{ backgroundColor: hex }}
-          aria-hidden
-        />
       </div>
+    </div>
+  )
+}
+
+function RangeField({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  display,
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step?: number
+  display: string
+  onChange: (value: number) => void
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-baseline justify-between">
+        <label className="text-sm font-medium text-ink/70">{label}</label>
+        <span className="font-mono text-sm text-ink/50">{display}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-wine"
+      />
+    </div>
+  )
+}
+
+function Toggle({
+  label,
+  checked,
+  hint,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  hint?: string
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="flex items-start gap-3 text-sm text-ink/70">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className={`mt-0.5 ${CHECKBOX_CLASS}`}
+      />
+      <span>
+        {label}
+        {hint && <span className="mt-0.5 block text-xs text-ink/40">{hint}</span>}
+      </span>
+    </label>
+  )
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  step,
+  maxLength,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  type?: string
+  step?: string
+  maxLength?: number
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-ink/70">{label}</label>
+      <input
+        type={type}
+        step={step}
+        maxLength={maxLength}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={INPUT_CLASS}
+      />
     </div>
   )
 }
@@ -104,6 +160,10 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     void fetchSettings()
   }, [])
+
+  const set = <K extends keyof SettingsForm>(key: K, value: SettingsForm[K]) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+  }
 
   const fetchSettings = async () => {
     try {
@@ -131,12 +191,35 @@ export default function AdminSettingsPage() {
         homepageShowOccasionTabs: Boolean(data.homepageShowOccasionTabs ?? true),
         homepageShowRecommendations: Boolean(data.homepageShowRecommendations ?? true),
         homepageShowValueDeals: Boolean(data.homepageShowValueDeals ?? true),
+        homepageShowSpinBanner: Boolean(data.homepageShowSpinBanner ?? true),
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
+        homeSectionLayout: normalizeHomeSections(data.homeSectionLayout),
         brandPrimary: String(data.brandPrimary || EMPTY_FORM.brandPrimary).toUpperCase(),
         brandSecondary: String(data.brandSecondary || EMPTY_FORM.brandSecondary).toUpperCase(),
         headerWash: String(data.headerWash || EMPTY_FORM.headerWash).toUpperCase(),
         pageBackground: String(data.pageBackground || EMPTY_FORM.pageBackground).toUpperCase(),
+        textInk: String(data.textInk || EMPTY_FORM.textInk).toUpperCase(),
+        textMuted: String(data.textMuted || EMPTY_FORM.textMuted).toUpperCase(),
+        surfaceSoft: String(data.surfaceSoft || EMPTY_FORM.surfaceSoft).toUpperCase(),
+        cardBackground: String(data.cardBackground || EMPTY_FORM.cardBackground).toUpperCase(),
+        cornerRadius: clampInt(data.cornerRadius, EMPTY_FORM.cornerRadius, 0, 32),
+        buttonRadius: clampInt(data.buttonRadius, EMPTY_FORM.buttonRadius, 0, 40),
+        uiDensity: normalizeDensity(data.uiDensity, EMPTY_FORM.uiDensity),
+        productGridColumns: clampInt(data.productGridColumns, EMPTY_FORM.productGridColumns, 2, 4),
+        productCardAspectRatio: clampFloat(
+          data.productCardAspectRatio,
+          EMPTY_FORM.productCardAspectRatio,
+          0.5,
+          1.2
+        ),
+        productShowDiscountBadge: Boolean(data.productShowDiscountBadge ?? true),
+        productShowCategoryLabel: Boolean(data.productShowCategoryLabel ?? false),
+        showPromoTab: Boolean(data.showPromoTab ?? true),
+        promoOrbLabel: String(data.promoOrbLabel || EMPTY_FORM.promoOrbLabel),
+        navHomeLabel: String(data.navHomeLabel || EMPTY_FORM.navHomeLabel),
+        navCategoriesLabel: String(data.navCategoriesLabel || EMPTY_FORM.navCategoriesLabel),
+        navTopPicksLabel: String(data.navTopPicksLabel || EMPTY_FORM.navTopPicksLabel),
       })
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -181,11 +264,12 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-7xl">
       <div className="mb-6">
         <h1 className="font-display text-3xl font-semibold text-ink">Settings</h1>
         <p className="mt-1 text-ink/55">
-          Control app colors, homepage layout, support details, delivery text, and map defaults.
+          Control app colours, shape, home section order, product cards, navigation, support details
+          and map defaults.
         </p>
       </div>
 
@@ -195,271 +279,356 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <section className="rounded-[22px] border border-wine/10 bg-white p-6">
-          <h2 className="font-display text-lg font-semibold text-ink">Branding</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Site Name</label>
-              <input
-                type="text"
+      <div className="flex flex-col gap-8 xl:flex-row xl:items-start">
+        <form onSubmit={handleSubmit} className="min-w-0 flex-1 space-y-6">
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Branding</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <TextField
+                label="Site Name"
                 value={formData.siteName}
-                onChange={(e) => setFormData((prev) => ({ ...prev, siteName: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('siteName', value)}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Homepage Announcement</label>
-              <input
-                type="text"
+              <TextField
+                label="Homepage Announcement"
                 value={formData.announcementText}
-                onChange={(e) => setFormData((prev) => ({ ...prev, announcementText: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('announcementText', value)}
               />
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-[22px] border border-wine/10 bg-white p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-lg font-semibold text-ink">App appearance</h2>
-              <p className="mt-1 text-sm text-ink/55">
-                Mobile app picks this up on next launch / settings refresh — no app update required.
-              </p>
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Theme colours</h2>
+            <p className="mt-1 text-sm text-ink/55">
+              The mobile app picks these up on next launch or settings refresh — no app update
+              required.
+            </p>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <ColorField
+                label="Brand primary"
+                value={formData.brandPrimary}
+                onChange={(hex) => set('brandPrimary', hex)}
+              />
+              <ColorField
+                label="Brand secondary"
+                value={formData.brandSecondary}
+                onChange={(hex) => set('brandSecondary', hex)}
+              />
+              <ColorField
+                label="Header wash"
+                value={formData.headerWash}
+                onChange={(hex) => set('headerWash', hex)}
+              />
+              <ColorField
+                label="Page background"
+                value={formData.pageBackground}
+                onChange={(hex) => set('pageBackground', hex)}
+              />
+              <ColorField
+                label="Primary text"
+                value={formData.textInk}
+                onChange={(hex) => set('textInk', hex)}
+              />
+              <ColorField
+                label="Muted text"
+                value={formData.textMuted}
+                onChange={(hex) => set('textMuted', hex)}
+              />
+              <ColorField
+                label="Chip / placeholder fill"
+                value={formData.surfaceSoft}
+                onChange={(hex) => set('surfaceSoft', hex)}
+              />
+              <ColorField
+                label="Card surface"
+                value={formData.cardBackground}
+                onChange={(hex) => set('cardBackground', hex)}
+              />
             </div>
-            <div
-              className="flex h-12 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white shadow-sm"
-              style={{ backgroundColor: formData.brandPrimary }}
-            >
-              Primary preview
+
+            <h3 className="mt-8 font-display text-base font-semibold text-ink">Shape and density</h3>
+            <div className="mt-4 grid gap-5 md:grid-cols-2">
+              <RangeField
+                label="Card corner radius"
+                value={formData.cornerRadius}
+                min={0}
+                max={32}
+                display={`${formData.cornerRadius}px`}
+                onChange={(value) => set('cornerRadius', value)}
+              />
+              <RangeField
+                label="Button corner radius"
+                value={formData.buttonRadius}
+                min={0}
+                max={40}
+                display={`${formData.buttonRadius}px`}
+                onChange={(value) => set('buttonRadius', value)}
+              />
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-ink/70">Spacing density</label>
+                <select
+                  value={formData.uiDensity}
+                  onChange={(e) => set('uiDensity', e.target.value)}
+                  className={INPUT_CLASS}
+                >
+                  {UI_DENSITIES.map((density) => (
+                    <option key={density} value={density}>
+                      {DENSITY_LABELS[density]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
+          </section>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <ColorField
-              label="Brand primary"
-              value={formData.brandPrimary}
-              onChange={(hex) => setFormData((prev) => ({ ...prev, brandPrimary: hex }))}
-            />
-            <ColorField
-              label="Brand secondary"
-              value={formData.brandSecondary}
-              onChange={(hex) => setFormData((prev) => ({ ...prev, brandSecondary: hex }))}
-            />
-            <ColorField
-              label="Header wash"
-              value={formData.headerWash}
-              onChange={(hex) => setFormData((prev) => ({ ...prev, headerWash: hex }))}
-            />
-            <ColorField
-              label="Page background"
-              value={formData.pageBackground}
-              onChange={(hex) => setFormData((prev) => ({ ...prev, pageBackground: hex }))}
-            />
-          </div>
-
-          <h3 className="mt-8 font-display text-base font-semibold text-ink">Homepage layout</h3>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowBanner}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageShowBanner: e.target.checked }))}
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show homepage banner
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowTopCategories}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageShowTopCategories: e.target.checked }))}
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show top category cards
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowOccasionTabs}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageShowOccasionTabs: e.target.checked }))}
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show occasion tabs row
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowCategorySections}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, homepageShowCategorySections: e.target.checked }))
-                }
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show category sections
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowRecommendations}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, homepageShowRecommendations: e.target.checked }))
-                }
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show recommended products section
-            </label>
-
-            <label className="flex items-center gap-3 text-sm text-ink/70">
-              <input
-                type="checkbox"
-                checked={formData.homepageShowValueDeals}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, homepageShowValueDeals: e.target.checked }))
-                }
-                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
-              />
-              Show Value Deals section (mobile home)
-            </label>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Recommendation Type</label>
-              <select
-                value={formData.homepageRecommendationMode}
-                onChange={(e) => setFormData((prev) => ({ ...prev, homepageRecommendationMode: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-ink">Home sections</h2>
+                <p className="mt-1 text-sm text-ink/55">
+                  Drag to reorder, rename, or hide each block of the mobile home feed.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => set('homeSectionLayout', DEFAULT_HOME_SECTIONS)}
+                className="rounded-full border border-wine/20 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-cream"
               >
-                <option value="LATEST">Latest Arrivals</option>
-                <option value="BEST_OFFER">Best Offers</option>
-              </select>
+                Reset order
+              </button>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Recommendation Title</label>
-              <input
-                type="text"
+            <SectionLayoutEditor
+              sections={formData.homeSectionLayout}
+              onChange={(sections) => set('homeSectionLayout', sections)}
+            />
+
+            <h3 className="mt-8 font-display text-base font-semibold text-ink">
+              Other homepage blocks
+            </h3>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Toggle
+                label="Show homepage banner"
+                checked={formData.homepageShowBanner}
+                onChange={(checked) => set('homepageShowBanner', checked)}
+              />
+              <Toggle
+                label="Show top category cards"
+                hint="Required for the Quick picks section."
+                checked={formData.homepageShowTopCategories}
+                onChange={(checked) => set('homepageShowTopCategories', checked)}
+              />
+              <Toggle
+                label="Show occasion tabs row"
+                checked={formData.homepageShowOccasionTabs}
+                onChange={(checked) => set('homepageShowOccasionTabs', checked)}
+              />
+              <Toggle
+                label="Show category sections"
+                checked={formData.homepageShowCategorySections}
+                onChange={(checked) => set('homepageShowCategorySections', checked)}
+              />
+              <Toggle
+                label="Show recommended products section"
+                checked={formData.homepageShowRecommendations}
+                onChange={(checked) => set('homepageShowRecommendations', checked)}
+              />
+              <Toggle
+                label="Show Value Deals section (mobile home)"
+                checked={formData.homepageShowValueDeals}
+                onChange={(checked) => set('homepageShowValueDeals', checked)}
+              />
+              <Toggle
+                label="Show Spin & Win banner"
+                hint="Still hides itself once a customer spins, until the daily reset."
+                checked={formData.homepageShowSpinBanner}
+                onChange={(checked) => set('homepageShowSpinBanner', checked)}
+              />
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink/70">
+                  Recommendation Type
+                </label>
+                <select
+                  value={formData.homepageRecommendationMode}
+                  onChange={(e) => set('homepageRecommendationMode', e.target.value)}
+                  className={INPUT_CLASS}
+                >
+                  <option value="LATEST">Latest Arrivals</option>
+                  <option value="BEST_OFFER">Best Offers</option>
+                </select>
+              </div>
+
+              <TextField
+                label="Recommendation Title"
                 value={formData.homepageRecommendationTitle}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, homepageRecommendationTitle: e.target.value }))
-                }
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('homepageRecommendationTitle', value)}
                 placeholder="Latest Arrivals"
               />
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-[22px] border border-wine/10 bg-white p-6">
-          <h2 className="font-display text-lg font-semibold text-ink">Support</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Support Phone</label>
-              <input
-                type="text"
-                value={formData.supportPhone}
-                onChange={(e) => setFormData((prev) => ({ ...prev, supportPhone: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Product cards</h2>
+            <p className="mt-1 text-sm text-ink/55">
+              Applies to the mobile home grid and every category tab.
+            </p>
+
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-ink/70">Grid columns</label>
+                <select
+                  value={formData.productGridColumns}
+                  onChange={(e) => set('productGridColumns', Number(e.target.value))}
+                  className={INPUT_CLASS}
+                >
+                  <option value={2}>2 — large cards</option>
+                  <option value={3}>3 — compact</option>
+                  <option value={4}>4 — dense</option>
+                </select>
+              </div>
+              <RangeField
+                label="Card shape (width ÷ height)"
+                value={formData.productCardAspectRatio}
+                min={0.5}
+                max={1.2}
+                step={0.02}
+                display={formData.productCardAspectRatio.toFixed(2)}
+                onChange={(value) => set('productCardAspectRatio', value)}
+              />
+              <Toggle
+                label="Show discount badge"
+                checked={formData.productShowDiscountBadge}
+                onChange={(checked) => set('productShowDiscountBadge', checked)}
+              />
+              <Toggle
+                label="Show category label above product name"
+                checked={formData.productShowCategoryLabel}
+                onChange={(checked) => set('productShowCategoryLabel', checked)}
               />
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Support Email</label>
-              <input
+          </section>
+
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Bottom navigation</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <TextField
+                label="Home tab label"
+                value={formData.navHomeLabel}
+                onChange={(value) => set('navHomeLabel', value)}
+                maxLength={16}
+              />
+              <TextField
+                label="Categories tab label"
+                value={formData.navCategoriesLabel}
+                onChange={(value) => set('navCategoriesLabel', value)}
+                maxLength={16}
+              />
+              <TextField
+                label="Top picks tab label"
+                value={formData.navTopPicksLabel}
+                onChange={(value) => set('navTopPicksLabel', value)}
+                maxLength={16}
+              />
+              <TextField
+                label="Promo orb text"
+                value={formData.promoOrbLabel}
+                onChange={(value) => set('promoOrbLabel', value)}
+                placeholder="20% OFF"
+                maxLength={12}
+              />
+              <div className="md:col-span-2">
+                <Toggle
+                  label="Show the floating promo orb"
+                  hint="Hiding it removes the only nav entry to the Promo / Spin tab."
+                  checked={formData.showPromoTab}
+                  onChange={(checked) => set('showPromoTab', checked)}
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Support</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <TextField
+                label="Support Phone"
+                value={formData.supportPhone}
+                onChange={(value) => set('supportPhone', value)}
+              />
+              <TextField
+                label="Support Email"
                 type="email"
                 value={formData.supportEmail}
-                onChange={(e) => setFormData((prev) => ({ ...prev, supportEmail: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('supportEmail', value)}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Support Hours</label>
-              <input
-                type="text"
+              <TextField
+                label="Support Hours"
                 value={formData.supportHours}
-                onChange={(e) => setFormData((prev) => ({ ...prev, supportHours: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('supportHours', value)}
                 placeholder="9:00 AM - 9:00 PM"
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Support Message</label>
-              <input
-                type="text"
+              <TextField
+                label="Support Message"
                 value={formData.supportMessage}
-                onChange={(e) => setFormData((prev) => ({ ...prev, supportMessage: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('supportMessage', value)}
               />
             </div>
-          </div>
-        </section>
+          </section>
 
-        <section className="rounded-[22px] border border-wine/10 bg-white p-6">
-          <h2 className="font-display text-lg font-semibold text-ink">Delivery and Map</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Delivery Estimate</label>
-              <input
-                type="text"
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Delivery and Map</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <TextField
+                label="Delivery Estimate"
                 value={formData.deliveryEstimate}
-                onChange={(e) => setFormData((prev) => ({ ...prev, deliveryEstimate: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('deliveryEstimate', value)}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Delivery Note</label>
-              <input
-                type="text"
+              <TextField
+                label="Delivery Note"
                 value={formData.deliveryNote}
-                onChange={(e) => setFormData((prev) => ({ ...prev, deliveryNote: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('deliveryNote', value)}
               />
-            </div>
-            <div className="md:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-ink/70">Store Address</label>
-              <input
-                type="text"
-                value={formData.storeAddress}
-                onChange={(e) => setFormData((prev) => ({ ...prev, storeAddress: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Default Map Latitude</label>
-              <input
+              <div className="md:col-span-2">
+                <TextField
+                  label="Store Address"
+                  value={formData.storeAddress}
+                  onChange={(value) => set('storeAddress', value)}
+                />
+              </div>
+              <TextField
+                label="Default Map Latitude"
                 type="number"
                 step="0.000001"
                 value={formData.mapLatitude}
-                onChange={(e) => setFormData((prev) => ({ ...prev, mapLatitude: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('mapLatitude', value)}
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-ink/70">Default Map Longitude</label>
-              <input
+              <TextField
+                label="Default Map Longitude"
                 type="number"
                 step="0.000001"
                 value={formData.mapLongitude}
-                onChange={(e) => setFormData((prev) => ({ ...prev, mapLongitude: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                onChange={(value) => set('mapLongitude', value)}
               />
             </div>
-          </div>
-        </section>
+          </section>
 
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded-full bg-wine px-6 py-2.5 font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-full bg-wine px-6 py-2.5 font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </form>
+
+        <div className="xl:sticky xl:top-6 xl:w-[320px] xl:shrink-0">
+          <MobilePreview form={formData} />
         </div>
-      </form>
+      </div>
     </div>
   )
 }

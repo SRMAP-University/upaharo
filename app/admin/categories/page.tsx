@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { CATEGORY_ICON_KEYS, CATEGORY_WASH_PRESETS } from '@/lib/category-style'
 
 interface Category {
   id: string
@@ -9,22 +10,31 @@ interface Category {
   type: 'PRODUCT' | 'RECIPIENT' | 'OCCASION'
   parentId: string | null
   isActive: boolean
+  washColor: string | null
+  iconName: string | null
 }
 
 const CATEGORY_TYPES = ['PRODUCT', 'RECIPIENT', 'OCCASION']
+
+const INPUT_CLASS =
+  'w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+
+const EMPTY_FORM = {
+  name: '',
+  image: '',
+  type: 'PRODUCT' as 'PRODUCT' | 'RECIPIENT' | 'OCCASION',
+  parentId: '',
+  isActive: true,
+  washColor: '',
+  iconName: '',
+}
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    image: '',
-    type: 'PRODUCT' as 'PRODUCT' | 'RECIPIENT' | 'OCCASION',
-    parentId: '',
-    isActive: true
-  })
+  const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
     fetchCategories()
@@ -57,7 +67,9 @@ export default function AdminCategories() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          parentId: formData.parentId || null
+          parentId: formData.parentId || null,
+          washColor: formData.washColor || null,
+          iconName: formData.iconName || null
         })
       })
 
@@ -87,13 +99,15 @@ export default function AdminCategories() {
       image: category.image,
       type: category.type,
       parentId: category.parentId || '',
-      isActive: category.isActive
+      isActive: category.isActive,
+      washColor: category.washColor || '',
+      iconName: category.iconName || ''
     })
     setShowForm(true)
   }
 
   const resetForm = () => {
-    setFormData({ name: '', image: '', type: 'PRODUCT', parentId: '', isActive: true })
+    setFormData(EMPTY_FORM)
     setEditingCategory(null)
     setShowForm(false)
   }
@@ -126,7 +140,7 @@ export default function AdminCategories() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className={INPUT_CLASS}
                 />
               </div>
               <div>
@@ -136,7 +150,7 @@ export default function AdminCategories() {
                   required
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className={INPUT_CLASS}
                   placeholder="https://example.com/image.jpg"
                 />
               </div>
@@ -145,7 +159,7 @@ export default function AdminCategories() {
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className={INPUT_CLASS}
                 >
                   {CATEGORY_TYPES.map(type => (
                     <option key={type} value={type}>{type}</option>
@@ -157,7 +171,7 @@ export default function AdminCategories() {
                 <select
                   value={formData.parentId}
                   onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className={INPUT_CLASS}
                 >
                   <option value="">None</option>
                   {categories.filter(c => c.type === formData.type && c.id !== editingCategory?.id).map(cat => (
@@ -165,6 +179,66 @@ export default function AdminCategories() {
                   ))}
                 </select>
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink/70 mb-1">Mobile icon</label>
+                <select
+                  value={formData.iconName}
+                  onChange={(e) => setFormData({ ...formData, iconName: e.target.value })}
+                  className={INPUT_CLASS}
+                >
+                  <option value="">Auto — guess from the name</option>
+                  {CATEGORY_ICON_KEYS.map(key => (
+                    <option key={key} value={key}>{key}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-ink/45">Shown in the home category tab strip.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-ink/70 mb-1">Header tint</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={/^#[0-9A-Fa-f]{6}$/.test(formData.washColor) ? formData.washColor : '#F3E9DF'}
+                    onChange={(e) => setFormData({ ...formData, washColor: e.target.value.toUpperCase() })}
+                    className="h-10 w-12 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                    aria-label="Header tint"
+                  />
+                  <input
+                    type="text"
+                    value={formData.washColor}
+                    onChange={(e) => setFormData({ ...formData, washColor: e.target.value.toUpperCase() })}
+                    placeholder="Auto from name"
+                    maxLength={7}
+                    spellCheck={false}
+                    className="w-full px-3 py-2 border border-wine/15 rounded-xl bg-white font-mono text-sm uppercase text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  />
+                  {formData.washColor && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, washColor: '' })}
+                      className="shrink-0 rounded-lg border border-wine/15 px-2 py-2 text-xs text-wine"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {CATEGORY_WASH_PRESETS.map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, washColor: preset })}
+                      style={{ backgroundColor: preset }}
+                      title={preset}
+                      aria-label={`Use ${preset}`}
+                      className="h-6 w-6 rounded-md border border-black/10"
+                    />
+                  ))}
+                </div>
+              </div>
+
               <div className="flex items-center">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -196,27 +270,37 @@ export default function AdminCategories() {
             <h2 className="font-display text-xl font-semibold mb-3 text-ink">{type} Categories</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {categories.filter(cat => cat.type === type).map(category => (
-                <div key={category.id} className="bg-white rounded-[22px] border border-wine/10 p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 bg-cream-deep rounded-xl overflow-hidden flex-shrink-0">
-                      <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
+                <div key={category.id} className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
+                  <div
+                    className="h-2"
+                    style={{ backgroundColor: category.washColor || 'transparent' }}
+                    aria-hidden
+                  />
+                  <div className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-12 h-12 bg-cream-deep rounded-xl overflow-hidden flex-shrink-0">
+                        <img src={category.image} alt={category.name} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-display font-semibold text-ink">{category.name}</h3>
+                        <p className="text-xs text-ink/45">
+                          {category.iconName || 'auto icon'} · {category.washColor || 'auto tint'}
+                        </p>
+                      </div>
+                      {category.isActive && (
+                        <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-medium">
+                          Active
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-display font-semibold text-ink">{category.name}</h3>
+                    <div className="flex gap-2">
+                      <button onClick={() => editCategory(category)} className="text-wine hover:text-wine-deep text-sm font-semibold">
+                        Edit
+                      </button>
+                      <button onClick={() => deleteCategory(category.id)} className="text-red-600 hover:text-red-700 text-sm font-medium">
+                        Delete
+                      </button>
                     </div>
-                    {category.isActive && (
-                      <span className="bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs font-medium">
-                        Active
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => editCategory(category)} className="text-wine hover:text-wine-deep text-sm font-semibold">
-                      Edit
-                    </button>
-                    <button onClick={() => deleteCategory(category.id)} className="text-red-600 hover:text-red-700 text-sm font-medium">
-                      Delete
-                    </button>
                   </div>
                 </div>
               ))}

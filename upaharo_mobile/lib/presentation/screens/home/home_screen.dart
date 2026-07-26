@@ -330,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen>
                   groups: groups,
                   settings: appSettings,
                   showSpinBanner: _selectedTab == 0 &&
+                      appSettings.homepageShowSpinBanner &&
                       context.watch<PromoSpinProvider>().showHomeBanner,
                 ),
                 SliverToBoxAdapter(
