@@ -1,7 +1,8 @@
 /// Production API endpoints extracted from the Upaharo Next.js website.
 ///
-/// Base URL: https://www.upaharo.com
-/// All routes below are prefixed with this base URL.
+/// Base URL uses the Vercel deployment while Cloudflare/apex still fronts
+/// Netlify. Netlify CDN was caching `/api/products` and `/api/uploads` without
+/// varying on query params (every category showed the same products/images).
 ///
 /// Authentication is handled via JWT. After login/signup the backend returns
 /// a `token` which must be sent as `Authorization: Bearer token` for
@@ -10,7 +11,7 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   /// Production base URL for the Upaharo backend / API.
-  static const String baseUrl = 'https://www.upaharo.com';
+  static const String baseUrl = 'https://upaharo.vercel.app';
 
   /// ------------------------------------------------------------------------
   /// Public / unauthenticated endpoints

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,7 +20,65 @@ class BottomNavBar extends StatefulWidget {
   State<BottomNavBar> createState() => _BottomNavBarState();
 }
 
-class _BottomNavBarState extends State<BottomNavBar> {
+class _BottomNavBarState extends State<BottomNavBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _promoFlip;
+  Timer? _promoLoopTimer;
+  bool _promoLoopActive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _promoFlip = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _schedulePromoLoop();
+  }
+
+  @override
+  void didUpdateWidget(covariant BottomNavBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.currentIndex == 3 && _promoFlip.value != 0) {
+      _promoFlip.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _promoLoopActive = false;
+    _promoLoopTimer?.cancel();
+    _promoFlip.dispose();
+    super.dispose();
+  }
+
+  void _schedulePromoLoop() {
+    _promoLoopTimer?.cancel();
+    _promoLoopTimer = Timer(const Duration(milliseconds: 2200), _runPromoLoop);
+  }
+
+  Future<void> _runPromoLoop() async {
+    if (!_promoLoopActive || !mounted) return;
+    // Skip the tease while the Promo tab is already open.
+    if (widget.currentIndex == 3) {
+      _schedulePromoLoop();
+      return;
+    }
+
+    try {
+      await _promoFlip.forward(from: 0);
+      if (!_promoLoopActive || !mounted) return;
+      await Future<void>.delayed(const Duration(milliseconds: 1600));
+      if (!_promoLoopActive || !mounted) return;
+      await _promoFlip.reverse();
+    } catch (_) {
+      // Controller disposed mid-animation.
+      return;
+    }
+
+    if (_promoLoopActive && mounted) _schedulePromoLoop();
+  }
+
   void _onTap(BuildContext context, int index) {
     if (index == widget.currentIndex) return;
 
@@ -30,6 +91,58 @@ class _BottomNavBarState extends State<BottomNavBar> {
     Navigator.of(context).pushNamedAndRemoveUntil(
       AppRoutes.main,
       (route) => false,
+    );
+  }
+
+  Widget _promoFace({
+    required bool offerSide,
+    required bool selected,
+  }) {
+    if (offerSide) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '20%',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1,
+              fontWeight: FontWeight.w900,
+              color: selected ? AppTheme.gold : AppTheme.wine,
+            ),
+          ),
+          Text(
+            'OFF',
+            style: TextStyle(
+              fontSize: 8,
+              height: 1.05,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              color: selected ? Colors.white : AppTheme.wine,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.local_offer_rounded,
+          size: 18,
+          color: selected ? AppTheme.gold : AppTheme.wine,
+        ),
+        Text(
+          'Promo',
+          style: TextStyle(
+            fontSize: 8,
+            height: 1.1,
+            fontWeight: FontWeight.w800,
+            color: selected ? Colors.white : AppTheme.wine,
+          ),
+        ),
+      ],
     );
   }
 
@@ -145,103 +258,109 @@ class _BottomNavBarState extends State<BottomNavBar> {
                   child: SizedBox(
                     width: 58,
                     height: 58,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppTheme.gold.withAlpha(220),
-                                Color(0xFFE8C56A),
-                                AppTheme.wine.withAlpha(180),
-                              ],
-                            ),
-                            border: Border.all(
-                              color: Colors.white.withAlpha(220),
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(30),
-                                blurRadius: 14,
-                                offset: Offset(0, 5),
-                              ),
-                              BoxShadow(
-                                color: AppTheme.wine
-                                    .withAlpha(promoSelected ? 60 : 32),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                        ),
-                        AnimatedContainer(
-                          duration: Duration(milliseconds: 150),
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: promoSelected ? AppTheme.wine : Colors.white,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.local_offer_rounded,
-                                size: 18,
-                                color: promoSelected
-                                    ? AppTheme.gold
-                                    : AppTheme.wine,
-                              ),
-                              Text(
-                                'Promo',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  height: 1.1,
-                                  fontWeight: FontWeight.w800,
-                                  color: promoSelected
-                                      ? Colors.white
-                                      : AppTheme.wine,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 2,
-                          right: 3,
-                          child: Transform.rotate(
-                            angle: 0.35,
-                            child: Container(
-                              width: 14,
-                              height: 14,
+                    child: AnimatedBuilder(
+                      animation: _promoFlip,
+                      builder: (context, _) {
+                        final t = Curves.easeInOutCubic.transform(_promoFlip.value);
+                        final angle = t * math.pi;
+                        final showOffer = t >= 0.5;
+
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
                               decoration: BoxDecoration(
-                                color: promoSelected
-                                    ? AppTheme.gold
-                                    : const Color(0xFFE8A0B0),
-                                borderRadius: BorderRadius.circular(4),
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppTheme.gold.withAlpha(220),
+                                    Color(0xFFE8C56A),
+                                    AppTheme.wine.withAlpha(180),
+                                  ],
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withAlpha(220),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(30),
+                                    blurRadius: 14,
+                                    offset: Offset(0, 5),
+                                  ),
+                                  BoxShadow(
+                                    color: AppTheme.wine
+                                        .withAlpha(promoSelected ? 60 : 32),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
                               ),
+                            ),
+                            Transform(
                               alignment: Alignment.center,
-                              child: Text(
-                                '%',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.w900,
+                              transform: Matrix4.identity()
+                                ..setEntry(3, 2, 0.0018)
+                                ..rotateY(angle),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
                                   color: promoSelected
                                       ? AppTheme.wine
                                       : Colors.white,
                                 ),
+                                child: Transform(
+                                  alignment: Alignment.center,
+                                  // Keep the back face text readable after the flip.
+                                  transform: Matrix4.rotationY(
+                                    showOffer ? math.pi : 0,
+                                  ),
+                                  child: _promoFace(
+                                    offerSide: showOffer,
+                                    selected: promoSelected,
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ],
+                            if (!showOffer)
+                              Positioned(
+                                top: 2,
+                                right: 3,
+                                child: Transform.rotate(
+                                  angle: 0.35,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: BoxDecoration(
+                                      color: promoSelected
+                                          ? AppTheme.gold
+                                          : const Color(0xFFE8A0B0),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      '%',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w900,
+                                        color: promoSelected
+                                            ? AppTheme.wine
+                                            : Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

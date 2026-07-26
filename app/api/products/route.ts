@@ -95,6 +95,10 @@ export async function GET(request: NextRequest) {
           {
             headers: {
               'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+              // Netlify must vary cache on filter query params.
+              'Netlify-CDN-Cache-Control':
+                'public, s-maxage=10, stale-while-revalidate=30',
+              'Netlify-Vary': 'query=categoryId|category|search|ids|limit|view|wholesale|b2b',
             },
           }
         )
@@ -145,6 +149,11 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
+          // Without query vary, Netlify serves the first products response for
+          // every categoryId (all header tabs looked identical).
+          'Netlify-CDN-Cache-Control':
+            'public, s-maxage=10, stale-while-revalidate=30',
+          'Netlify-Vary': 'query=categoryId|category|search|ids|limit|view|wholesale|b2b',
         },
       }
     )

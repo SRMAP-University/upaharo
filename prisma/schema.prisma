@@ -483,6 +483,7 @@ model AppSettings {
   homepageShowCategorySections Boolean @default(true)
   homepageShowOccasionTabs    Boolean  @default(true)
   homepageShowRecommendations Boolean  @default(true)
+  homepageShowValueDeals      Boolean  @default(true)
   homepageRecommendationMode  String   @default("LATEST")
   homepageRecommendationTitle String?
   /// Mobile brand primary (buttons / accents), hex `#RRGGBB`.

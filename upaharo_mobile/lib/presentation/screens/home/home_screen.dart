@@ -27,6 +27,45 @@ import '../../widgets/progressive_network_image.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/value_deals_sky_background.dart';
 
+/// Soft wash tint for a home header category (header + page background).
+Color categoryWashColor(String name) {
+  final key = name.toLowerCase();
+  if (key.contains('birthday')) return const Color(0xFFF3C4D4);
+  if (key.contains('annivers')) return const Color(0xFFE4C7E8);
+  if (key.contains('flower') || key.contains('bouquet')) {
+    return const Color(0xFFC9E4D2);
+  }
+  if (key.contains('cake') || key.contains('dessert') || key.contains('bento')) {
+    return const Color(0xFFF5D5C0);
+  }
+  if (key.contains('father') || key.contains('dad')) {
+    return const Color(0xFFC5D8F0);
+  }
+  if (key.contains('mother') || key.contains('mom')) {
+    return const Color(0xFFF0C9D8);
+  }
+  if (key.contains('personal') || key.contains('custom')) {
+    return const Color(0xFFD7CFF0);
+  }
+  if (key.contains('gift') || key.contains('hamper')) {
+    return const Color(0xFFE8D4B8);
+  }
+  if (key.contains('plant')) return const Color(0xFFC8E0C4);
+  if (key.contains('chocol')) return const Color(0xFFE6D0BE);
+  if (key.contains('party') || key.contains('event')) {
+    return const Color(0xFFF0D4B8);
+  }
+  const palette = <Color>[
+    Color(0xFFE8D5E0),
+    Color(0xFFD5E3F0),
+    Color(0xFFE5E0D0),
+    Color(0xFFD8E8DE),
+    Color(0xFFE8D8D0),
+    Color(0xFFDDD5E8),
+  ];
+  return palette[name.hashCode.abs() % palette.length];
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.showBottomNav = true});
 
@@ -36,9 +75,17 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedTab = 0;
   Color? _bannerWash;
+
+  /// Currently painted header wash (lerps when banner/category changes).
+  Color? _displayWash;
+  Color? _washTarget;
+  late final AnimationController _washCtrl;
+  late final CurvedAnimation _washCurve;
+  ColorTween? _washTween;
 
   bool _sameColor(Color? a, Color? b) {
     if (identical(a, b)) return true;
@@ -46,28 +93,106 @@ class _HomeScreenState extends State<HomeScreen> {
     return a.toARGB32() == b.toARGB32();
   }
 
+  Color _washOrDefault(Color? color) => color ?? AppTheme.headerWash;
+
+  void _animateWashTo(Color? next) {
+    if (_sameColor(_washTarget, next) && _washCtrl.isCompleted) return;
+    final begin = _displayWash ?? _washOrDefault(_washTarget);
+    final end = _washOrDefault(next);
+    _washTarget = next;
+    if (_sameColor(begin, end)) {
+      _displayWash = end;
+      return;
+    }
+    _washTween = ColorTween(begin: begin, end: end);
+    _washCtrl.forward(from: 0);
+  }
+
   void _onBannerWashChanged(Color? color) {
+    // Banner only lives on the All tab — ignore wash updates elsewhere.
+    if (_selectedTab != 0) return;
     if (_sameColor(_bannerWash, color)) return;
     // Never setState synchronously from a child's build/didUpdateWidget.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _sameColor(_bannerWash, color)) return;
+      if (!mounted || _selectedTab != 0 || _sameColor(_bannerWash, color)) {
+        return;
+      }
       setState(() => _bannerWash = color);
+      _animateWashTo(color);
     });
+  }
+
+  Future<void> _onSelectTab(int index, List<Category> categories) async {
+    if (index == _selectedTab) return;
+
+    setState(() {
+      _selectedTab = index;
+      if (index == 0) {
+        _bannerWash = null;
+      }
+    });
+
+    if (index == 0) {
+      _animateWashTo(_bannerWash);
+      // All uses the mixed home feed — reload if a stale cakes-only cache stuck.
+      final catalog = context.read<CatalogProvider>();
+      if (catalog.homeLooksNarrow || catalog.products.isEmpty) {
+        await catalog.load(force: true);
+      }
+      if (!mounted || _selectedTab != 0) return;
+      setState(() {});
+      return;
+    }
+
+    if (index <= categories.length) {
+      _animateWashTo(categoryWashColor(categories[index - 1].name));
+    }
+
+    if (index <= 0 || index > categories.length) return;
+    final cat = categories[index - 1];
+    // Force refresh so a previously cached Netlify "same for all" list is replaced.
+    await context
+        .read<CatalogProvider>()
+        .loadProductsForCategory(cat, force: true);
+    if (!mounted || _selectedTab != index) return;
+    setState(() {});
   }
 
   @override
   void initState() {
     super.initState();
+    _displayWash = AppTheme.headerWash;
+    _washCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+    );
+    _washCurve = CurvedAnimation(
+      parent: _washCtrl,
+      curve: Curves.easeInOutCubic,
+    )..addListener(() {
+        final value = _washTween?.evaluate(_washCurve);
+        if (value == null || _sameColor(_displayWash, value)) return;
+        setState(() => _displayWash = value);
+      });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<CatalogProvider>().load();
+      // Force a fresh home feed so a stale 4-item cakes cache cannot win.
+      context.read<CatalogProvider>().load(force: true);
       // Always refresh admin coupons / banners so newly added items appear.
       context.read<CouponProvider>().load(force: true);
       context.read<BannerProvider>().load(force: true);
     });
   }
 
+  @override
+  void dispose() {
+    _washCurve.dispose();
+    _washCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _refresh() async {
+    context.read<CatalogProvider>().clearCategoryProductCache();
     await Future.wait([
       context.read<SettingsProvider>().load(force: true),
       context.read<CatalogProvider>().load(force: true),
@@ -164,7 +289,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final coupons = context.watch<CouponProvider>();
     final banners = context.watch<BannerProvider>();
     final appSettings = context.watch<SettingsProvider>().settings;
-
     return Scaffold(
       extendBody: true,
       backgroundColor: AppTheme.cream,
@@ -215,13 +339,17 @@ class _HomeScreenState extends State<HomeScreen> {
                         : null,
                     categories: data.categories,
                     selectedTab: _selectedTab,
-                    bannerWash: _bannerWash,
-                    showPromo: appSettings.homepageShowBanner,
+                    // All → banner wash; category tabs → header-only tint that
+                    // fades down into cream (same as before).
+                    bannerWash: _displayWash,
+                    // Banner only on All — category tabs are product-only.
+                    showPromo:
+                        appSettings.homepageShowBanner && _selectedTab == 0,
                     coupons: coupons.coupons,
                     banners: banners.banners,
                     promoProducts: products.take(5).toList(),
                     announcement: appSettings.announcementText,
-                    onSelectTab: (i) => setState(() => _selectedTab = i),
+                    onSelectTab: (i) => _onSelectTab(i, data.categories),
                     onSearchTap: _openSearch,
                     onAiTap: _openAiChat,
                     onOrdersTap: _openOrders,
@@ -239,7 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   products: products,
                   groups: groups,
                   settings: appSettings,
-                  showSpinBanner:
+                  showSpinBanner: _selectedTab == 0 &&
                       context.watch<PromoSpinProvider>().showHomeBanner,
                 ),
                 SliverToBoxAdapter(
@@ -274,7 +402,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required AppSettings settings,
     required bool showSpinBanner,
   }) {
-    if (products.isEmpty) {
+    if (products.isEmpty && _selectedTab == 0) {
       return [
         const SliverToBoxAdapter(
           child: Padding(
@@ -285,22 +413,58 @@ class _HomeScreenState extends State<HomeScreen> {
       ];
     }
 
-    // Category tab: still show variety, but scoped products
-    List<Product> pool = products;
-    if (_selectedTab > 0 && _selectedTab <= data.categories.length) {
-      final cat = data.categories[_selectedTab - 1];
-      final key = _normalizeKey(cat.name);
-      final scoped = groups[key] ?? [];
-      if (scoped.isNotEmpty) pool = scoped;
+    // Category tab: products for that category only (fetched by categoryId).
+    // Never fall back to the full home list — that made every tab look like Cakes.
+    final categoryScoped =
+        _selectedTab > 0 && _selectedTab <= data.categories.length;
+    Category? activeCategory;
+    var categoryLoading = false;
+    List<Product> pool;
+    if (categoryScoped) {
+      activeCategory = data.categories[_selectedTab - 1];
+      final catalog = context.watch<CatalogProvider>();
+      categoryLoading = catalog.isCategoryLoading(activeCategory.id);
+      final cached = catalog.cachedProductsForCategory(activeCategory.id);
+      if (cached != null) {
+        pool = cached;
+      } else {
+        // Do not fall back to grouped home products — that flashes the wrong
+        // category, then gets replaced by a bad CDN payload (often 4 cakes).
+        pool = const [];
+        categoryLoading = true;
+      }
+    } else {
+      pool = products;
     }
 
-    final discounted = products.where((p) => (p.discount ?? 0) > 0).toList()
-      ..sort((a, b) => (b.discount ?? 0).compareTo(a.discount ?? 0));
-    final deals = discounted.isNotEmpty ? discounted : pool;
+    if (categoryScoped && pool.isEmpty) {
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 48, 24, 40),
+            child: Center(
+              child: categoryLoading
+                  ? const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(strokeWidth: 2.4),
+                    )
+                  : Text(
+                      'No products in ${activeCategory?.name ?? 'this category'} yet',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.charcoal.withAlpha(170),
+                      ),
+                    ),
+            ),
+          ),
+        ),
+      ];
+    }
 
-    final showTopCategories = settings.homepageShowTopCategories;
-
-    // Deduped catalog for the plain product grid after Quick picks.
+    // Deduped list for grids.
     final gridProducts = <Product>[];
     final seenIds = <String>{};
     for (final p in pool) {
@@ -309,6 +473,55 @@ class _HomeScreenState extends State<HomeScreen> {
       seenIds.add(id);
       gridProducts.add(p);
     }
+
+    // Category tabs: simple product grid only (no homepage Value Deals collage).
+    if (categoryScoped) {
+      final title = activeCategory?.name ?? 'Products';
+      return [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.ink,
+              ),
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 0.68,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                final product = gridProducts[index];
+                return _PlainHomeProductTile(
+                  product: product,
+                  onTap: () => _openProduct(product, peers: gridProducts),
+                );
+              },
+              childCount: gridProducts.length,
+            ),
+          ),
+        ),
+      ];
+    }
+
+    final discounted = pool.where((p) => (p.discount ?? 0) > 0).toList()
+      ..sort((a, b) => (b.discount ?? 0).compareTo(a.discount ?? 0));
+    final deals = discounted.isNotEmpty ? discounted : pool;
+
+    // Quick picks / top categories strip is home-only.
+    final showTopCategories = settings.homepageShowTopCategories;
+    final showValueDeals = settings.homepageShowValueDeals;
 
     final dealPeers = <Product>[];
     final dealSeen = <String>{};
@@ -382,15 +595,16 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
 
       // 1 — Value Deals
-      SliverToBoxAdapter(
-        child: _Section1DealScroll(
-          title: 'Value',
-          accentTitle: 'DEALS',
-          products: dealPeers,
-          onSeeAll: () => _openProducts(title: 'Deals'),
-          onTap: (p) => _openProduct(p, peers: dealPeers),
+      if (showValueDeals)
+        SliverToBoxAdapter(
+          child: _Section1DealScroll(
+            title: 'Value',
+            accentTitle: 'DEALS',
+            products: dealPeers,
+            onSeeAll: () => _openProducts(title: 'Deals'),
+            onTap: (p) => _openProduct(p, peers: dealPeers),
+          ),
         ),
-      ),
 
       // 2 — Quick picks
       if (showTopCategories)
@@ -653,7 +867,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final headerChip =
         Color.lerp(headerTint, AppTheme.wine, 0.35) ?? headerTint;
     final pageBg = AppTheme.cream;
-    final wash = bannerWash ?? headerTint;
+    final washTarget = bannerWash ?? headerTint;
     // Active category chip follows banner wash so it visibly updates with admin tint.
     final selectedChipBg = bannerWash != null
         ? Color.lerp(bannerWash, Colors.white, 0.55) ?? headerChip
@@ -671,18 +885,19 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // Header-only wash: strong at top, fades into cream (not full page).
+            // Color is already lerped by HomeScreen when banner/category changes.
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Color.lerp(headerTintDeep, wash, 0.45) ?? headerTintDeep,
-                    Color.lerp(headerTintMid, wash, 0.5) ?? headerTintMid,
-                    Color.lerp(headerTint, wash, 0.55) ?? headerTint,
-                    // Fade to page background behind the banner so wash
-                    // doesn't peek through rounded banner corners.
-                    Color.lerp(wash, pageBg, 0.75) ?? pageBg,
+                    Color.lerp(headerTintDeep, washTarget, 0.45) ??
+                        headerTintDeep,
+                    Color.lerp(headerTintMid, washTarget, 0.5) ?? headerTintMid,
+                    Color.lerp(headerTint, washTarget, 0.55) ?? headerTint,
+                    Color.lerp(washTarget, pageBg, 0.75) ?? pageBg,
                     pageBg,
                     pageBg,
                   ],

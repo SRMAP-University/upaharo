@@ -56,6 +56,10 @@ function settingsPayload(body: Record<string, unknown>) {
       body?.homepageShowRecommendations,
       DEFAULT_APP_SETTINGS.homepageShowRecommendations
     ),
+    homepageShowValueDeals: toBool(
+      body?.homepageShowValueDeals,
+      DEFAULT_APP_SETTINGS.homepageShowValueDeals
+    ),
     homepageRecommendationMode:
       String(body?.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode).trim(),
     homepageRecommendationTitle:

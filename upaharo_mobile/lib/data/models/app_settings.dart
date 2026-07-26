@@ -15,6 +15,7 @@ class AppSettings {
   final bool homepageShowCategorySections;
   final bool homepageShowOccasionTabs;
   final bool homepageShowRecommendations;
+  final bool homepageShowValueDeals;
   final String homepageRecommendationMode;
   final String homepageRecommendationTitle;
   final String brandPrimary;
@@ -39,6 +40,7 @@ class AppSettings {
     this.homepageShowCategorySections = true,
     this.homepageShowOccasionTabs = true,
     this.homepageShowRecommendations = true,
+    this.homepageShowValueDeals = true,
     this.homepageRecommendationMode = 'LATEST',
     this.homepageRecommendationTitle = 'Latest Arrivals',
     this.brandPrimary = '#8B5A2B',
@@ -65,6 +67,7 @@ class AppSettings {
       homepageShowCategorySections: json['homepageShowCategorySections'] as bool? ?? true,
       homepageShowOccasionTabs: json['homepageShowOccasionTabs'] as bool? ?? true,
       homepageShowRecommendations: json['homepageShowRecommendations'] as bool? ?? true,
+      homepageShowValueDeals: json['homepageShowValueDeals'] as bool? ?? true,
       homepageRecommendationMode: json['homepageRecommendationMode'] as String? ?? 'LATEST',
       homepageRecommendationTitle: json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
       brandPrimary: json['brandPrimary'] as String? ?? '#8B5A2B',
@@ -91,6 +94,7 @@ class AppSettings {
         'homepageShowCategorySections': homepageShowCategorySections,
         'homepageShowOccasionTabs': homepageShowOccasionTabs,
         'homepageShowRecommendations': homepageShowRecommendations,
+        'homepageShowValueDeals': homepageShowValueDeals,
         'homepageRecommendationMode': homepageRecommendationMode,
         'homepageRecommendationTitle': homepageRecommendationTitle,
         'brandPrimary': brandPrimary,

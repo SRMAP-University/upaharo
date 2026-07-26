@@ -29,6 +29,12 @@ class DioClient {
     dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Keep base URL current — singleton Dio can outlive hot-reload
+          // const changes (e.g. Netlify → Vercel switch).
+          if (options.baseUrl != ApiEndpoints.baseUrl) {
+            options.baseUrl = ApiEndpoints.baseUrl;
+            _dio.options.baseUrl = ApiEndpoints.baseUrl;
+          }
           final token = await TokenStorage.readToken();
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';

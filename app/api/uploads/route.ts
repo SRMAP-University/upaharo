@@ -167,7 +167,14 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': object.ContentType || 'application/octet-stream',
+        // Browser can cache per full URL (includes ?key=).
         'Cache-Control': object.CacheControl || 'public, max-age=31536000, immutable',
+        // Netlify CDN cache key MUST vary on `key` or every product image
+        // collapses to whichever upload was cached first.
+        'Netlify-CDN-Cache-Control': 'public, max-age=31536000, durable',
+        'Netlify-Vary': 'query=key',
+        'Netlify-Cache-Tag': `upload,upload-${key.replace(/[^a-zA-Z0-9._-]/g, '_')}`,
+        Vary: 'Accept',
         ...(object.ETag ? { ETag: object.ETag } : {}),
       },
     })

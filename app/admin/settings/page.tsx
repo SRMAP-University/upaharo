@@ -19,6 +19,7 @@ type SettingsForm = {
   homepageShowCategorySections: boolean
   homepageShowOccasionTabs: boolean
   homepageShowRecommendations: boolean
+  homepageShowValueDeals: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   brandPrimary: string
@@ -44,6 +45,7 @@ const EMPTY_FORM: SettingsForm = {
   homepageShowCategorySections: true,
   homepageShowOccasionTabs: true,
   homepageShowRecommendations: true,
+  homepageShowValueDeals: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',
   brandPrimary: '#8B5A2B',
@@ -128,6 +130,7 @@ export default function AdminSettingsPage() {
         homepageShowCategorySections: Boolean(data.homepageShowCategorySections ?? true),
         homepageShowOccasionTabs: Boolean(data.homepageShowOccasionTabs ?? true),
         homepageShowRecommendations: Boolean(data.homepageShowRecommendations ?? true),
+        homepageShowValueDeals: Boolean(data.homepageShowValueDeals ?? true),
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
         brandPrimary: String(data.brandPrimary || EMPTY_FORM.brandPrimary).toUpperCase(),
@@ -310,6 +313,18 @@ export default function AdminSettingsPage() {
                 className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
               />
               Show recommended products section
+            </label>
+
+            <label className="flex items-center gap-3 text-sm text-ink/70">
+              <input
+                type="checkbox"
+                checked={formData.homepageShowValueDeals}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, homepageShowValueDeals: e.target.checked }))
+                }
+                className="h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
+              />
+              Show Value Deals section (mobile home)
             </label>
 
             <div>

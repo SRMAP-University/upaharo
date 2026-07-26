@@ -19,6 +19,7 @@ export type PublicAppSettings = {
   homepageShowCategorySections: boolean
   homepageShowOccasionTabs: boolean
   homepageShowRecommendations: boolean
+  homepageShowValueDeals: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   brandPrimary: string
@@ -44,6 +45,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   homepageShowCategorySections: true,
   homepageShowOccasionTabs: true,
   homepageShowRecommendations: true,
+  homepageShowValueDeals: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: 'Latest Arrivals',
   brandPrimary: '#8B5A2B',
@@ -96,6 +98,8 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
         homepageShowOccasionTabs: settings.homepageShowOccasionTabs ?? DEFAULT_APP_SETTINGS.homepageShowOccasionTabs,
         homepageShowRecommendations:
           settings.homepageShowRecommendations ?? DEFAULT_APP_SETTINGS.homepageShowRecommendations,
+        homepageShowValueDeals:
+          settings.homepageShowValueDeals ?? DEFAULT_APP_SETTINGS.homepageShowValueDeals,
         homepageRecommendationMode:
           settings.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode,
         homepageRecommendationTitle:

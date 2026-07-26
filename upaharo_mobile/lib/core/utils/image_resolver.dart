@@ -30,15 +30,20 @@ class ImageResolver {
   ];
 
   static String resolve(String? rawUrl) {
-    final url = String.fromEnvironment(
-      'BASE_URL',
-      defaultValue: ApiEndpoints.baseUrl,
-    );
-
+    final base = ApiEndpoints.baseUrl;
     final imageUrl = (rawUrl ?? '').trim();
     if (imageUrl.isEmpty) return '';
     if (imageUrl.startsWith('/api/uploads')) {
-      return '$url$imageUrl';
+      return '$base$imageUrl';
+    }
+    // Rewrite apex/www/netlify upload URLs onto the working API host.
+    if (imageUrl.contains('/api/uploads?') &&
+        (imageUrl.contains('upaharo.com') || imageUrl.contains('netlify.app'))) {
+      final uri = Uri.tryParse(imageUrl);
+      final key = uri?.queryParameters['key'];
+      if (key != null && key.isNotEmpty) {
+        return '$base/api/uploads?key=${Uri.encodeComponent(key)}';
+      }
     }
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return imageUrl;
@@ -120,18 +125,16 @@ class ImageResolver {
       return trimmed;
     }
 
-    // Same-origin uploads (and other Upaharo assets) via Next.js optimizer.
+    // Same-origin uploads via Next.js optimizer on the asset's own host.
+    // Do not rewrite onto apex/www while Netlify CDN mishandles upload cache keys.
     if (host.contains('upaharo.com') ||
-        trimmed.contains('/api/uploads') ||
+        host.contains('vercel.app') ||
         host == 'localhost' ||
         host == '127.0.0.1') {
-      final base = String.fromEnvironment(
-        'BASE_URL',
-        defaultValue: ApiEndpoints.baseUrl,
-      );
+      final origin = '${uri.scheme}://${uri.host}';
       final w = _nearestNextWidth(width);
       final q = quality.clamp(1, 100);
-      return '$base/_next/image?url=${Uri.encodeComponent(trimmed)}&w=$w&q=$q';
+      return '$origin/_next/image?url=${Uri.encodeComponent(trimmed)}&w=$w&q=$q';
     }
 
     return trimmed;
