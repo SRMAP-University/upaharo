@@ -32,6 +32,10 @@ class Order {
   final double discount;
   final double couponDiscount;
   final String? couponCode;
+  final double walletDiscount;
+  final double cashbackAmount;
+  /// NONE | PENDING | CREDITED | VOIDED
+  final String cashbackStatus;
   final double total;
   final PaymentMethod paymentMethod;
   final PaymentStatus paymentStatus;
@@ -64,6 +68,9 @@ class Order {
     this.discount = 0,
     this.couponDiscount = 0,
     this.couponCode,
+    this.walletDiscount = 0,
+    this.cashbackAmount = 0,
+    this.cashbackStatus = 'NONE',
     this.total = 0,
     this.paymentMethod = PaymentMethod.cash,
     this.paymentStatus = PaymentStatus.pending,
@@ -108,6 +115,9 @@ class Order {
       couponCode: json['coupon'] is Map
           ? (json['coupon'] as Map)['code'] as String?
           : json['couponCode'] as String?,
+      walletDiscount: (json['walletDiscount'] as num?)?.toDouble() ?? 0,
+      cashbackAmount: (json['cashbackAmount'] as num?)?.toDouble() ?? 0,
+      cashbackStatus: json['cashbackStatus'] as String? ?? 'NONE',
       total: (json['total'] as num?)?.toDouble() ?? 0,
       paymentMethod: _parsePaymentMethod(rawPaymentMethod),
       paymentStatus: _parsePaymentStatus(rawPaymentStatus),
@@ -143,6 +153,9 @@ class Order {
         'discount': discount,
         'couponDiscount': couponDiscount,
         if (couponCode != null) 'couponCode': couponCode,
+        'walletDiscount': walletDiscount,
+        'cashbackAmount': cashbackAmount,
+        'cashbackStatus': cashbackStatus,
         'total': total,
         'paymentMethod': paymentMethod.name.toUpperCase(),
         'paymentStatus': paymentStatus.name.toUpperCase(),

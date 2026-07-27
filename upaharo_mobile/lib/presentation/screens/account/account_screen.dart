@@ -5,6 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../../core/utils/price_formatter.dart';
+import '../../../data/models/wallet.dart';
+import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -23,13 +26,27 @@ class _AccountScreenState extends State<AccountScreen> {
   static const _termsUrl = 'https://www.upaharo.com/terms';
   static const _deleteInfoUrl = 'https://www.upaharo.com/account-deletion';
 
+  final _walletRepo = const WalletRepository();
+
   String _versionLabel = '…';
   bool _deleting = false;
+  WalletSummary _wallet = WalletSummary.empty;
 
   @override
   void initState() {
     super.initState();
     _loadVersion();
+    _loadWallet();
+  }
+
+  Future<void> _loadWallet() async {
+    try {
+      final wallet = await _walletRepo.getWallet(limit: 1);
+      if (!mounted) return;
+      setState(() => _wallet = wallet);
+    } catch (_) {
+      // Wallet is optional chrome here; leave it hidden on failure.
+    }
   }
 
   Future<void> _loadVersion() async {
@@ -156,6 +173,18 @@ class _AccountScreenState extends State<AccountScreen> {
               Navigator.pushNamed(context, AppRoutes.orders);
             },
           ),
+          if (loggedIn && _wallet.enabled)
+            _tile(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Wallet',
+              subtitle: _wallet.pendingCashback > 0
+                  ? '${PriceFormatter.format(_wallet.balance)} · ${PriceFormatter.format(_wallet.pendingCashback)} pending'
+                  : '${PriceFormatter.format(_wallet.balance)} available',
+              onTap: () async {
+                await Navigator.pushNamed(context, AppRoutes.wallet);
+                await _loadWallet();
+              },
+            ),
           _tile(
             icon: Icons.location_on_outlined,
             title: 'Delivery location',

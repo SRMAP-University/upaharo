@@ -22,6 +22,7 @@ import 'presentation/screens/order/orders_screen.dart';
 import 'presentation/screens/product/product_detail_screen.dart';
 import 'presentation/screens/product/product_list_screen.dart';
 import 'presentation/screens/search/search_screen.dart';
+import 'presentation/screens/wallet/wallet_screen.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
 
 class UpaharoApp extends StatelessWidget {
@@ -55,6 +56,7 @@ class UpaharoApp extends StatelessWidget {
         AppRoutes.orders: (_) => const OrdersScreen(),
         AppRoutes.orderDetail: (_) => const OrderDetailScreen(),
         AppRoutes.account: (_) => const AccountScreen(),
+        AppRoutes.wallet: (_) => const WalletScreen(),
         AppRoutes.helpSupport: (_) => const HelpSupportScreen(),
         AppRoutes.about: (_) => const AboutScreen(),
         AppRoutes.aiChat: (_) => const AiChatScreen(),

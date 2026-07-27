@@ -734,9 +734,26 @@ class _BillCard extends StatelessWidget {
               order.couponCode != null ? 'Coupon (${order.couponCode})' : 'Discount',
               -(order.couponDiscount > 0 ? order.couponDiscount : order.discount),
             ),
+          if (order.walletDiscount > 0) _row('Wallet', -order.walletDiscount),
           if (order.tax > 0) _row('Tax', order.tax),
           const Divider(),
           _row('Total', order.total, bold: true),
+          if (order.cashbackAmount > 0 && order.cashbackStatus != 'VOIDED') ...[
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                order.cashbackStatus == 'CREDITED'
+                    ? '${PriceFormatter.format(order.cashbackAmount)} cashback added to your wallet'
+                    : '${PriceFormatter.format(order.cashbackAmount)} cashback pending until delivery',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2E7D32),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,

@@ -191,14 +191,16 @@ class CartProvider extends ChangeNotifier {
     required double deliveryFee,
     double giftWrapPrice = 0,
     double couponDiscount = 0,
+    double walletAmount = 0,
     String? couponCode,
     double? addressLatitude,
     double? addressLongitude,
     double? total,
     String paymentMethod = 'CASH',
   }) {
-    final computedTotal =
-        total ?? (totalPrice + giftWrapPrice + deliveryFee - couponDiscount).clamp(0, double.infinity);
+    final computedTotal = total ??
+        (totalPrice + giftWrapPrice + deliveryFee - couponDiscount - walletAmount)
+            .clamp(0, double.infinity);
     return {
       'items': _items
           .map((item) => {
@@ -218,6 +220,7 @@ class CartProvider extends ChangeNotifier {
       'deliveryFee': deliveryFee,
       'tax': 0,
       'total': computedTotal,
+      if (walletAmount > 0) 'walletAmount': walletAmount,
       if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim().toUpperCase(),
       ..._giftOptions.toJson(),
     }..removeWhere((key, value) => value == null);

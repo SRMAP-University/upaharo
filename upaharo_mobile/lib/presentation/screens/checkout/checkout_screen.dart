@@ -13,10 +13,12 @@ import '../../../data/models/gift_recipient.dart';
 import '../../../data/models/gift_wrap.dart';
 import '../../../data/models/occasion.dart';
 import '../../../data/models/order.dart';
+import '../../../data/models/wallet.dart';
 import '../../../data/repositories/address_repository.dart';
 import '../../../data/repositories/coupon_repository.dart';
 import '../../../data/repositories/gift_repository.dart';
 import '../../../data/repositories/order_repository.dart';
+import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
@@ -26,6 +28,28 @@ import '../../providers/settings_provider.dart';
 import '../../widgets/explore_coupons_section.dart';
 import '../../widgets/support_info_card.dart';
 import 'order_success_screen.dart';
+
+/// Money breakdown for the current cart, kept in one place so the summary and
+/// the order payload can never disagree.
+class _CheckoutTotals {
+  const _CheckoutTotals({
+    required this.wrapPrice,
+    required this.deliveryFee,
+    required this.totalBeforeWallet,
+    required this.maxWalletSpend,
+    required this.walletApplied,
+    required this.total,
+    required this.cashback,
+  });
+
+  final double wrapPrice;
+  final double deliveryFee;
+  final double totalBeforeWallet;
+  final double maxWalletSpend;
+  final double walletApplied;
+  final double total;
+  final double cashback;
+}
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -39,6 +63,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _giftRepo = const GiftRepository();
   final _orderRepo = const OrderRepository();
   final _couponRepo = const CouponRepository();
+  final _walletRepo = const WalletRepository();
 
   bool _booting = true;
   bool _placing = false;
@@ -64,6 +89,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double _couponDiscount = 0;
   String? _couponMessage;
   String _paymentMethod = 'CASH';
+
+  WalletSummary _wallet = WalletSummary.empty;
+  bool _useWallet = false;
 
   @override
   void initState() {
@@ -173,6 +201,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         _giftRepo.getGiftWraps(),
         _giftRepo.getOccasions(),
         _giftRepo.getRecipients().catchError((_) => <GiftRecipient>[]),
+        _walletRepo.getWallet(limit: 1),
       ]);
 
       if (!mounted) return;
@@ -181,6 +210,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _giftWraps = (results[1] as List<GiftWrap>).where((w) => w.isActive).toList();
       _occasions = (results[2] as List<Occasion>).where((o) => o.isActive).toList();
       _recipients = results[3] as List<GiftRecipient>;
+      _wallet = results[4] as WalletSummary;
 
       // Prefer default / first saved address
       final defaultAddr = _addresses.cast<Address?>().firstWhere(
@@ -303,6 +333,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
   }
 
+  _CheckoutTotals _computeTotals(CartProvider cart) {
+    final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0.0) : 0.0;
+    final deliveryFee = cart.deliveryFeeFor(giftWrapPrice: wrapPrice);
+    final totalBeforeWallet =
+        (cart.totalPrice + wrapPrice + deliveryFee - _couponDiscount)
+            .clamp(0.0, double.infinity);
+    final maxWalletSpend = _wallet.maxSpendFor(totalBeforeWallet);
+    final walletApplied = _useWallet ? maxWalletSpend : 0.0;
+    final total = (totalBeforeWallet - walletApplied).clamp(0.0, double.infinity);
+
+    return _CheckoutTotals(
+      wrapPrice: wrapPrice,
+      deliveryFee: deliveryFee,
+      totalBeforeWallet: totalBeforeWallet,
+      maxWalletSpend: maxWalletSpend,
+      walletApplied: walletApplied,
+      total: total,
+      cashback: _wallet.cashbackFor(total),
+    );
+  }
+
   Future<void> _placeOrder() async {
     final cart = context.read<CartProvider>();
     final address = _selectedAddress;
@@ -327,20 +378,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     _syncGiftToCart();
 
-    final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0.0) : 0.0;
-    final deliveryFee = cart.deliveryFeeFor(giftWrapPrice: wrapPrice);
-    final total =
-        (cart.totalPrice + wrapPrice + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
+    final totals = _computeTotals(cart);
 
     final payload = cart.toCheckoutPayload(
       addressId: address.id,
-      deliveryFee: deliveryFee,
-      giftWrapPrice: wrapPrice,
+      deliveryFee: totals.deliveryFee,
+      giftWrapPrice: totals.wrapPrice,
       couponDiscount: _couponDiscount,
+      walletAmount: totals.walletApplied,
       couponCode: _appliedCouponCode,
       addressLatitude: address.latitude,
       addressLongitude: address.longitude,
-      total: total,
+      total: totals.total,
       paymentMethod: _paymentMethod,
     );
 
@@ -423,10 +472,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final settings = context.watch<SettingsProvider>().settings;
-    final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0) : 0.0;
-    final deliveryFee = cart.deliveryFeeFor(giftWrapPrice: wrapPrice);
-    final total =
-        (cart.totalPrice + wrapPrice + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
+    final totals = _computeTotals(cart);
+    final wrapPrice = totals.wrapPrice;
+    final deliveryFee = totals.deliveryFee;
+    final total = totals.total;
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
@@ -703,7 +752,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           'Coupon${_appliedCouponCode != null ? ' ($_appliedCouponCode)' : ''}',
                           -_couponDiscount,
                         ),
+                      if (totals.walletApplied > 0)
+                        _totalRow('Wallet', -totals.walletApplied),
+                      if (_wallet.enabled && totals.maxWalletSpend > 0)
+                        _walletToggle(totals),
                       _totalRow('Total', total, bold: true),
+                      if (totals.cashback > 0) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'You’ll get ${PriceFormatter.format(totals.cashback)} cashback in your wallet after delivery',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ],
                       if (_couponDiscount > 0) ...[
                         const SizedBox(height: 6),
                         Text(
@@ -733,6 +797,55 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _walletToggle(_CheckoutTotals totals) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => setState(() => _useWallet = !_useWallet),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppTheme.creamDeep,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  value: _useWallet,
+                  onChanged: (value) => setState(() => _useWallet = value ?? false),
+                  activeColor: AppTheme.wine,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Use wallet balance',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${PriceFormatter.format(_wallet.balance)} available · up to ${PriceFormatter.format(totals.maxWalletSpend)} here',
+                      style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
