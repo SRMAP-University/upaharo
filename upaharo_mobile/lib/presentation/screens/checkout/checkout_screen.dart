@@ -40,6 +40,7 @@ class _CheckoutTotals {
     required this.walletApplied,
     required this.total,
     required this.cashback,
+    required this.goodsTotal,
   });
 
   final double wrapPrice;
@@ -49,6 +50,7 @@ class _CheckoutTotals {
   final double walletApplied;
   final double total;
   final double cashback;
+  final double goodsTotal;
 }
 
 class CheckoutScreen extends StatefulWidget {
@@ -335,10 +337,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   _CheckoutTotals _computeTotals(CartProvider cart) {
     final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0.0) : 0.0;
-    final deliveryFee = cart.deliveryFeeFor(giftWrapPrice: wrapPrice);
+    final goodsTotal = cart.totalPrice + wrapPrice;
+    // Prefer admin delivery rules from the wallet payload (same source as the API).
+    final deliveryFee = _wallet.deliveryFeeFor(goodsTotal);
     final totalBeforeWallet =
-        (cart.totalPrice + wrapPrice + deliveryFee - _couponDiscount)
-            .clamp(0.0, double.infinity);
+        (goodsTotal + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
     final maxWalletSpend = _wallet.maxSpendFor(totalBeforeWallet);
     final walletApplied = _useWallet ? maxWalletSpend : 0.0;
     final total = (totalBeforeWallet - walletApplied).clamp(0.0, double.infinity);
@@ -351,6 +354,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       walletApplied: walletApplied,
       total: total,
       cashback: _wallet.cashbackFor(total),
+      goodsTotal: goodsTotal,
     );
   }
 
@@ -368,6 +372,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     if (_isGift && (_recipientId == null || _recipientId!.isEmpty)) {
       setState(() => _error = 'Please select a gift recipient');
+      return;
+    }
+
+    final preview = _computeTotals(cart);
+    if (_wallet.checkoutMinOrderAmount > 0 &&
+        preview.goodsTotal + 0.001 < _wallet.checkoutMinOrderAmount) {
+      setState(
+        () => _error =
+            'Minimum order amount is ${PriceFormatter.format(_wallet.checkoutMinOrderAmount)}',
+      );
       return;
     }
 
@@ -739,7 +753,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const Divider(),
                       _totalRow('Subtotal', cart.totalPrice),
                       if (wrapPrice > 0) _totalRow('Gift wrap', wrapPrice),
-                      _waivedFeeRow('Delivery', CartProvider.standardDeliveryFee),
+                      if (totals.deliveryFee <= 0)
+                        _waivedFeeRow(
+                          'Delivery',
+                          _wallet.deliveryFeeAmount > 0
+                              ? _wallet.deliveryFeeAmount
+                              : CartProvider.standardDeliveryFee,
+                        )
+                      else
+                        _totalRow('Delivery', totals.deliveryFee),
                       _waivedFeeRow('Tax (5%)', cart.totalPrice * 0.05),
                       _waivedFeeRow('Handling charges', 300),
                       _waivedFeeRow('Packaging', 100),
@@ -775,6 +797,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ),
                       ],
+                      if (_wallet.checkoutMinOrderAmount > 0 &&
+                          totals.goodsTotal < _wallet.checkoutMinOrderAmount) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add more items — minimum order is ${PriceFormatter.format(_wallet.checkoutMinOrderAmount)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFFC62828),
+                          ),
+                        ),
+                      ],
                       if (settings.deliveryEstimate.trim().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
@@ -789,7 +823,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 _bottomBar(
                   total: total,
-                  enabled: !_placing && cart.items.isNotEmpty && _selectedAddressId != null,
+                  enabled: !_placing &&
+                      cart.items.isNotEmpty &&
+                      _selectedAddressId != null &&
+                      !(_wallet.checkoutMinOrderAmount > 0 &&
+                          totals.goodsTotal < _wallet.checkoutMinOrderAmount),
                 ),
               ],
             ),

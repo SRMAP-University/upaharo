@@ -93,6 +93,30 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
           100
         ),
         walletMaxAmountPerOrder: normalizeOptionalAmount(settings.walletMaxAmountPerOrder),
+        checkoutMinPayable: clampFloat(
+          settings.checkoutMinPayable,
+          DEFAULT_APP_SETTINGS.checkoutMinPayable,
+          0,
+          1_000_000
+        ),
+        checkoutMinOrderAmount: clampFloat(
+          settings.checkoutMinOrderAmount,
+          DEFAULT_APP_SETTINGS.checkoutMinOrderAmount,
+          0,
+          1_000_000
+        ),
+        freeDeliveryMinAmount: clampFloat(
+          settings.freeDeliveryMinAmount,
+          DEFAULT_APP_SETTINGS.freeDeliveryMinAmount,
+          0,
+          1_000_000
+        ),
+        deliveryFeeAmount: clampFloat(
+          settings.deliveryFeeAmount,
+          DEFAULT_APP_SETTINGS.deliveryFeeAmount,
+          0,
+          1_000_000
+        ),
       }
     })
   } catch (error) {

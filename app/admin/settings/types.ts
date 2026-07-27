@@ -50,6 +50,10 @@ export type SettingsForm = {
   walletMaxPercentPerOrder: number
   /** Blank means "no cap". */
   walletMaxAmountPerOrder: string
+  checkoutMinPayable: number
+  checkoutMinOrderAmount: number
+  freeDeliveryMinAmount: number
+  deliveryFeeAmount: number
 }
 
 export const EMPTY_FORM: SettingsForm = {
@@ -99,6 +103,10 @@ export const EMPTY_FORM: SettingsForm = {
   cashbackMaxAmount: '',
   walletMaxPercentPerOrder: 100,
   walletMaxAmountPerOrder: '',
+  checkoutMinPayable: 0,
+  checkoutMinOrderAmount: 0,
+  freeDeliveryMinAmount: 199,
+  deliveryFeeAmount: 40,
 }
 
 export const INPUT_CLASS =

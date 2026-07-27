@@ -13,7 +13,7 @@ import BottomNav from '@/components/BottomNav'
 import SkeletonLoader from '@/components/SkeletonLoader'
 import { SessionSync } from '@/components/SessionSync'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
-import { computeCashback, computeMaxWalletSpend, type WalletRules } from '@/lib/wallet-rules'
+import { computeCashback, computeDeliveryFee, computeMaxWalletSpend, type WalletRules } from '@/lib/wallet-rules'
 
 interface GiftWrap {
   id: string
@@ -47,6 +47,9 @@ interface AppSettings {
 type WalletInfo = WalletRules & {
   balance: number
   pendingCashback: number
+  checkoutMinOrderAmount: number
+  freeDeliveryMinAmount: number
+  deliveryFeeAmount: number
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -144,14 +147,23 @@ export default function CheckoutPage() {
   
   const subtotal = getTotalPrice()
   const giftWrapPrice = giftOptions.giftWrapId ? (giftWraps.find(w => w.id === giftOptions.giftWrapId)?.price || 0) : 0
-  const deliveryFee = 0
-  const deliveryFeeDisplay = 40
+  const goodsTotal = subtotal + giftWrapPrice
+  const freeDeliveryMinAmount = wallet?.freeDeliveryMinAmount ?? 199
+  const deliveryFeeAmount = wallet?.deliveryFeeAmount ?? 40
+  const deliveryFee = wallet
+    ? computeDeliveryFee(goodsTotal, {
+        freeDeliveryMinAmount,
+        deliveryFeeAmount,
+      })
+    : goodsTotal >= 199
+      ? 0
+      : 40
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
   const taxDisplay = Math.round(subtotal * 0.05 * 100) / 100
   const handlingFeeDisplay = 300
   const packagingFeeDisplay = 100
-  const totalBeforeWallet = Math.max(0, subtotal + giftWrapPrice + deliveryFee - couponDiscount)
+  const totalBeforeWallet = Math.max(0, goodsTotal + deliveryFee - couponDiscount)
   const maxWalletSpend = wallet
     ? computeMaxWalletSpend(totalBeforeWallet, wallet.balance, wallet)
     : 0
@@ -159,6 +171,8 @@ export default function CheckoutPage() {
   const total = Math.max(0, totalBeforeWallet - walletApplied)
   const cashbackPreview = wallet ? computeCashback(total, wallet) : 0
   const walletAvailable = Boolean(wallet?.walletEnabled && wallet.balance > 0 && maxWalletSpend > 0)
+  const minOrderAmount = wallet?.checkoutMinOrderAmount ?? 0
+  const belowMinOrder = minOrderAmount > 0 && goodsTotal < minOrderAmount
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const isSelectedAddressServiceable = selectedAddress
     ? isKathmanduValleyLocation({
@@ -291,6 +305,10 @@ export default function CheckoutPage() {
         walletMaxPercentPerOrder: Number(data.walletMaxPercentPerOrder) || 0,
         walletMaxAmountPerOrder:
           data.walletMaxAmountPerOrder == null ? null : Number(data.walletMaxAmountPerOrder),
+        checkoutMinPayable: Number(data.checkoutMinPayable) || 0,
+        checkoutMinOrderAmount: Number(data.checkoutMinOrderAmount) || 0,
+        freeDeliveryMinAmount: Number(data.freeDeliveryMinAmount) || 199,
+        deliveryFeeAmount: Number(data.deliveryFeeAmount) || 40,
       })
     } catch (error) {
       console.error('Error fetching wallet:', error)
@@ -416,6 +434,11 @@ export default function CheckoutPage() {
 
     if (giftOptions.isGift && !giftOptions.recipientId) {
       alert('Please select a gift recipient')
+      return
+    }
+
+    if (belowMinOrder) {
+      alert(`Minimum order amount is Rs ${minOrderAmount}`)
       return
     }
 
@@ -972,7 +995,14 @@ export default function CheckoutPage() {
                     <span>+{formatPrice(giftWrapPrice)}</span>
                   </div>
                 )}
-                <WaivedFeeRow label="Delivery" amount={deliveryFeeDisplay} />
+                {deliveryFee === 0 ? (
+                  <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
+                ) : (
+                  <div className="flex justify-between text-ink/60">
+                    <span>Delivery</span>
+                    <span>{formatPrice(deliveryFee)}</span>
+                  </div>
+                )}
                 <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
                 <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
                 <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
@@ -1065,11 +1095,21 @@ export default function CheckoutPage() {
                 {appSettings.deliveryNote ? <p>{appSettings.deliveryNote}</p> : null}
               </div>
 
+              {belowMinOrder && (
+                <p className="mb-3 text-sm text-red-600">
+                  Add more items — minimum order is {formatPriceNoDecimals(minOrderAmount)}.
+                </p>
+              )}
+
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handlePlaceOrder}
-                disabled={isLoading || (giftOptions.isGift && !giftOptions.recipientId)}
+                disabled={
+                  isLoading ||
+                  belowMinOrder ||
+                  (giftOptions.isGift && !giftOptions.recipientId)
+                }
                 className="w-full bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-wine-deep"
               >
                 {isLoading ? (
@@ -1108,7 +1148,14 @@ export default function CheckoutPage() {
                       <span>+{formatPrice(giftWrapPrice)}</span>
                     </div>
                   )}
-                  <WaivedFeeRow label="Delivery" amount={deliveryFeeDisplay} />
+                  {deliveryFee === 0 ? (
+                    <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
+                  ) : (
+                    <div className="flex justify-between text-ink/60">
+                      <span>Delivery</span>
+                      <span>{formatPrice(deliveryFee)}</span>
+                    </div>
+                  )}
                   <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
                   <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
                   <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
@@ -1191,7 +1238,11 @@ export default function CheckoutPage() {
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={handlePlaceOrder}
-                    disabled={isLoading || (giftOptions.isGift && !giftOptions.recipientId)}
+                    disabled={
+                  isLoading ||
+                  belowMinOrder ||
+                  (giftOptions.isGift && !giftOptions.recipientId)
+                }
                     className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:bg-wine-deep"
                   >
                     {isLoading ? (

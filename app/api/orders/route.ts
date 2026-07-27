@@ -13,8 +13,10 @@ import {
 } from '@/lib/order-payment-lifecycle'
 import {
   computeCashback,
+  computeDeliveryFee,
   computeMaxWalletSpend,
   createPendingCashback,
+  getDeliveryRules,
   getWalletBalance,
   getWalletRules,
   redeemWallet,
@@ -158,7 +160,6 @@ export async function POST(request: NextRequest) {
     const orderNumber = generateOrderNumber()
 
     const resolvedSubtotal = Number(subtotal) || 0
-    const resolvedDeliveryFee = Number(deliveryFee) || 0
     const resolvedTax = 0
 
     let couponId: string | undefined
@@ -189,10 +190,28 @@ export async function POST(request: NextRequest) {
       giftWrapFee = wrap?.price ?? 0
     }
 
+    const deliveryRules = await getDeliveryRules()
+    const goodsTotal = resolvedSubtotal + giftWrapFee
+
+    if (
+      deliveryRules.checkoutMinOrderAmount > 0 &&
+      goodsTotal + 0.001 < deliveryRules.checkoutMinOrderAmount
+    ) {
+      return NextResponse.json(
+        {
+          error: `Minimum order amount is Rs ${deliveryRules.checkoutMinOrderAmount}`,
+        },
+        { status: 400 }
+      )
+    }
+
+    // Server-authoritative delivery fee from admin settings.
+    const resolvedDeliveryFee = computeDeliveryFee(goodsTotal, deliveryRules)
+
     // Server-authoritative total (includes gift wrap when selected).
     const totalBeforeWallet = Math.max(
       0,
-      resolvedSubtotal + resolvedDeliveryFee + giftWrapFee - couponDiscount
+      goodsTotal + resolvedDeliveryFee - couponDiscount
     )
 
     // Wallet spend is always re-capped here; the client value is only a request.

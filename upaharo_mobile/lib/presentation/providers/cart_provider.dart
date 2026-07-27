@@ -177,12 +177,15 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Website rule: delivery is always free at checkout (shown as waived Rs. 40).
+  /// Delivery fee comes from admin settings on the wallet/settings payload.
+  /// Prefer [WalletSummary.deliveryFeeFor] at checkout; this keeps a safe
+  /// fallback when wallet rules are not loaded yet.
   static const double freeDeliveryThreshold = 199;
   static const double standardDeliveryFee = 40;
 
   double deliveryFeeFor({double giftWrapPrice = 0}) {
-    return 0;
+    final base = totalPrice + giftWrapPrice;
+    return base >= freeDeliveryThreshold ? 0 : standardDeliveryFee;
   }
 
   Map<String, dynamic> toCheckoutPayload({

@@ -15,6 +15,16 @@ export async function getWalletRules(): Promise<WalletRules> {
     cashbackMaxAmount: settings.cashbackMaxAmount,
     walletMaxPercentPerOrder: settings.walletMaxPercentPerOrder,
     walletMaxAmountPerOrder: settings.walletMaxAmountPerOrder,
+    checkoutMinPayable: settings.checkoutMinPayable,
+  }
+}
+
+export async function getDeliveryRules() {
+  const settings = await getAppSettings()
+  return {
+    freeDeliveryMinAmount: settings.freeDeliveryMinAmount,
+    deliveryFeeAmount: settings.deliveryFeeAmount,
+    checkoutMinOrderAmount: settings.checkoutMinOrderAmount,
   }
 }
 
@@ -261,11 +271,15 @@ export type WalletSummary = {
   cashbackMaxAmount: number | null
   walletMaxPercentPerOrder: number
   walletMaxAmountPerOrder: number | null
+  checkoutMinPayable: number
+  checkoutMinOrderAmount: number
+  freeDeliveryMinAmount: number
+  deliveryFeeAmount: number
 }
 
 export async function getWalletSummary(userId: string): Promise<WalletSummary> {
-  const [rules, balance, pending] = await Promise.all([
-    getWalletRules(),
+  const [settings, balance, pending] = await Promise.all([
+    getAppSettings(),
     getWalletBalance(userId),
     prisma.walletTransaction.aggregate({
       where: { userId, status: WalletTxStatus.PENDING },
@@ -274,12 +288,16 @@ export async function getWalletSummary(userId: string): Promise<WalletSummary> {
   ])
 
   return {
-    enabled: rules.walletEnabled,
+    enabled: settings.walletEnabled,
     balance,
     pendingCashback: roundMoney(pending._sum.amount ?? 0),
-    cashbackPercent: rules.cashbackPercent,
-    cashbackMaxAmount: rules.cashbackMaxAmount,
-    walletMaxPercentPerOrder: rules.walletMaxPercentPerOrder,
-    walletMaxAmountPerOrder: rules.walletMaxAmountPerOrder,
+    cashbackPercent: settings.cashbackPercent,
+    cashbackMaxAmount: settings.cashbackMaxAmount,
+    walletMaxPercentPerOrder: settings.walletMaxPercentPerOrder,
+    walletMaxAmountPerOrder: settings.walletMaxAmountPerOrder,
+    checkoutMinPayable: settings.checkoutMinPayable,
+    checkoutMinOrderAmount: settings.checkoutMinOrderAmount,
+    freeDeliveryMinAmount: settings.freeDeliveryMinAmount,
+    deliveryFeeAmount: settings.deliveryFeeAmount,
   }
 }

@@ -88,6 +88,30 @@ function walletFields(body: Record<string, unknown>) {
       100
     ),
     walletMaxAmountPerOrder: normalizeOptionalAmount(body?.walletMaxAmountPerOrder),
+    checkoutMinPayable: clampFloat(
+      body?.checkoutMinPayable,
+      DEFAULT_APP_SETTINGS.checkoutMinPayable,
+      0,
+      1_000_000
+    ),
+    checkoutMinOrderAmount: clampFloat(
+      body?.checkoutMinOrderAmount,
+      DEFAULT_APP_SETTINGS.checkoutMinOrderAmount,
+      0,
+      1_000_000
+    ),
+    freeDeliveryMinAmount: clampFloat(
+      body?.freeDeliveryMinAmount,
+      DEFAULT_APP_SETTINGS.freeDeliveryMinAmount,
+      0,
+      1_000_000
+    ),
+    deliveryFeeAmount: clampFloat(
+      body?.deliveryFeeAmount,
+      DEFAULT_APP_SETTINGS.deliveryFeeAmount,
+      0,
+      1_000_000
+    ),
   }
 }
 

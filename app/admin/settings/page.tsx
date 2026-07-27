@@ -231,6 +231,30 @@ export default function AdminSettingsPage() {
         ),
         walletMaxAmountPerOrder:
           data.walletMaxAmountPerOrder == null ? '' : String(data.walletMaxAmountPerOrder),
+        checkoutMinPayable: clampFloat(
+          data.checkoutMinPayable,
+          EMPTY_FORM.checkoutMinPayable,
+          0,
+          1_000_000
+        ),
+        checkoutMinOrderAmount: clampFloat(
+          data.checkoutMinOrderAmount,
+          EMPTY_FORM.checkoutMinOrderAmount,
+          0,
+          1_000_000
+        ),
+        freeDeliveryMinAmount: clampFloat(
+          data.freeDeliveryMinAmount,
+          EMPTY_FORM.freeDeliveryMinAmount,
+          0,
+          1_000_000
+        ),
+        deliveryFeeAmount: clampFloat(
+          data.deliveryFeeAmount,
+          EMPTY_FORM.deliveryFeeAmount,
+          0,
+          1_000_000
+        ),
       })
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -610,6 +634,26 @@ export default function AdminSettingsPage() {
                   onChange={(value) => set('walletMaxAmountPerOrder', value)}
                   placeholder="No cap"
                 />
+                <TextField
+                  label="Minimum payable after wallet (Rs)"
+                  type="number"
+                  step="1"
+                  value={String(formData.checkoutMinPayable)}
+                  onChange={(value) =>
+                    set('checkoutMinPayable', clampFloat(value, 0, 0, 1_000_000))
+                  }
+                  placeholder="0"
+                />
+                <TextField
+                  label="Minimum order amount (Rs)"
+                  type="number"
+                  step="1"
+                  value={String(formData.checkoutMinOrderAmount)}
+                  onChange={(value) =>
+                    set('checkoutMinOrderAmount', clampFloat(value, 0, 0, 1_000_000))
+                  }
+                  placeholder="0 = no minimum"
+                />
               </div>
 
               <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
@@ -625,14 +669,51 @@ export default function AdminSettingsPage() {
                     {formData.walletMaxAmountPerOrder
                       ? ` (and never more than Rs ${formData.walletMaxAmountPerOrder})`
                       : ''}
-                    , limited by their available balance — not a % of the wallet
-                    itself.
+                    {formData.checkoutMinPayable > 0
+                      ? `, leaving at least Rs ${formData.checkoutMinPayable} to pay`
+                      : ''}
+                    .
                   </>
                 ) : (
                   'The wallet is currently switched off for all customers.'
                 )}
               </p>
             </div>
+          </section>
+
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Delivery fees</h2>
+            <p className="mt-1 text-sm text-ink/55">
+              Free delivery kicks in once items + gift wrap reach the threshold. Below that,
+              the delivery fee is charged.
+            </p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <TextField
+                label="Free delivery above (Rs)"
+                type="number"
+                step="1"
+                value={String(formData.freeDeliveryMinAmount)}
+                onChange={(value) =>
+                  set('freeDeliveryMinAmount', clampFloat(value, 199, 0, 1_000_000))
+                }
+              />
+              <TextField
+                label="Delivery fee when below threshold (Rs)"
+                type="number"
+                step="1"
+                value={String(formData.deliveryFeeAmount)}
+                onChange={(value) =>
+                  set('deliveryFeeAmount', clampFloat(value, 40, 0, 1_000_000))
+                }
+              />
+            </div>
+            <p className="mt-4 rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+              Goods total ≥ Rs {formData.freeDeliveryMinAmount} → free delivery. Otherwise
+              Rs {formData.deliveryFeeAmount} delivery fee.
+              {formData.checkoutMinOrderAmount > 0
+                ? ` Checkout also requires a minimum order of Rs ${formData.checkoutMinOrderAmount}.`
+                : ''}
+            </p>
           </section>
 
           <section className="rounded-[22px] border border-wine/10 bg-white p-6">

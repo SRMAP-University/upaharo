@@ -8,6 +8,10 @@ class WalletSummary {
     required this.walletMaxPercentPerOrder,
     this.cashbackMaxAmount,
     this.walletMaxAmountPerOrder,
+    this.checkoutMinPayable = 0,
+    this.checkoutMinOrderAmount = 0,
+    this.freeDeliveryMinAmount = 199,
+    this.deliveryFeeAmount = 40,
     this.transactions = const [],
   });
 
@@ -18,6 +22,10 @@ class WalletSummary {
   final double walletMaxPercentPerOrder;
   final double? cashbackMaxAmount;
   final double? walletMaxAmountPerOrder;
+  final double checkoutMinPayable;
+  final double checkoutMinOrderAmount;
+  final double freeDeliveryMinAmount;
+  final double deliveryFeeAmount;
   final List<WalletTransaction> transactions;
 
   static const empty = WalletSummary(
@@ -40,6 +48,12 @@ class WalletSummary {
       cashbackMaxAmount: (json['cashbackMaxAmount'] as num?)?.toDouble(),
       walletMaxAmountPerOrder:
           (json['walletMaxAmountPerOrder'] as num?)?.toDouble(),
+      checkoutMinPayable: (json['checkoutMinPayable'] as num?)?.toDouble() ?? 0,
+      checkoutMinOrderAmount:
+          (json['checkoutMinOrderAmount'] as num?)?.toDouble() ?? 0,
+      freeDeliveryMinAmount:
+          (json['freeDeliveryMinAmount'] as num?)?.toDouble() ?? 199,
+      deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
       transactions: rawTransactions
           .whereType<Map>()
           .map((e) => WalletTransaction.fromJson(Map<String, dynamic>.from(e)))
@@ -58,16 +72,27 @@ class WalletSummary {
     return _round(cashback);
   }
 
+  /// Delivery fee from admin rules for a goods total of [goodsTotal]
+  /// (items + gift wrap).
+  double deliveryFeeFor(double goodsTotal) {
+    if (deliveryFeeAmount <= 0) return 0;
+    final goods = goodsTotal < 0 ? 0.0 : goodsTotal;
+    if (goods >= freeDeliveryMinAmount) return 0;
+    return _round(deliveryFeeAmount);
+  }
+
   /// Most that can come out of the wallet for an order.
   /// Cap is [walletMaxPercentPerOrder]% of the order total, then limited by
-  /// available balance — never a % of the wallet itself.
+  /// available balance and [checkoutMinPayable] — never a % of the wallet itself.
   double maxSpendFor(double orderTotal) {
     if (!enabled) return 0;
     final total = orderTotal < 0 ? 0.0 : orderTotal;
     final percentOfOrder = total * walletMaxPercentPerOrder / 100;
+    final leaveMinimum = total - (checkoutMinPayable < 0 ? 0.0 : checkoutMinPayable);
     var cap = balance < 0 ? 0.0 : balance;
     if (percentOfOrder < cap) cap = percentOfOrder;
     if (total < cap) cap = total;
+    if (leaveMinimum < cap) cap = leaveMinimum < 0 ? 0.0 : leaveMinimum;
     final absoluteCap = walletMaxAmountPerOrder;
     if (absoluteCap != null && absoluteCap < cap) cap = absoluteCap;
     return _round(cap < 0 ? 0 : cap);

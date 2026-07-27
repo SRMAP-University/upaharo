@@ -81,6 +81,14 @@ export type PublicAppSettings = {
   cashbackMaxAmount: number | null
   walletMaxPercentPerOrder: number
   walletMaxAmountPerOrder: number | null
+  /** Remaining total after wallet cannot go below this (Rs). */
+  checkoutMinPayable: number
+  /** Minimum goods total (items + wrap) to place an order. 0 = no floor. */
+  checkoutMinOrderAmount: number
+  /** Free delivery when goods total is at or above this (Rs). */
+  freeDeliveryMinAmount: number
+  /** Delivery fee when below the free-delivery threshold (Rs). */
+  deliveryFeeAmount: number
 }
 
 export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
@@ -130,6 +138,10 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   cashbackMaxAmount: null,
   walletMaxPercentPerOrder: 100,
   walletMaxAmountPerOrder: null,
+  checkoutMinPayable: 0,
+  checkoutMinOrderAmount: 0,
+  freeDeliveryMinAmount: 199,
+  deliveryFeeAmount: 40,
 }
 
 const HEX_COLOR_RE = /^#([0-9A-Fa-f]{6})$/

@@ -598,6 +598,14 @@ model AppSettings {
   walletMaxPercentPerOrder     Float    @default(100)
   /// Optional cap on wallet spend per order, in rupees.
   walletMaxAmountPerOrder      Float?
+  /// Lowest amount that must still be paid after wallet is applied (stops total at ₹0).
+  checkoutMinPayable           Float    @default(0)
+  /// Minimum goods total (items + gift wrap) required to place an order. 0 = no minimum.
+  checkoutMinOrderAmount       Float    @default(0)
+  /// Orders at or above this goods total get free delivery.
+  freeDeliveryMinAmount        Float    @default(199)
+  /// Delivery fee charged when the goods total is below freeDeliveryMinAmount.
+  deliveryFeeAmount            Float    @default(40)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 }
