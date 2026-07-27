@@ -3,29 +3,64 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+
+function formatRupee(amount: number) {
+  return `₹${Math.ceil(amount).toLocaleString('en-IN')}`
+}
 
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
-  const { getTotalItems } = useCartStore()
+  const items = useCartStore((s) => s.items)
+  const getTotalItems = useCartStore((s) => s.getTotalItems)
+  const getTotalPrice = useCartStore((s) => s.getTotalPrice)
   const { user } = useUserStore()
   const [cartCount, setCartCount] = useState(0)
+  const [cartTotal, setCartTotal] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(true)
+  const [showDeliveryHint, setShowDeliveryHint] = useState(false)
+  const [freeDeliveryMin, setFreeDeliveryMin] = useState(199)
+  const [deliveryFee, setDeliveryFee] = useState(40)
   const lastScrollYRef = useRef(0)
 
   useEffect(() => {
     setMounted(true)
     setCartCount(getTotalItems())
-  }, [getTotalItems])
+    setCartTotal(getTotalPrice())
+  }, [getTotalItems, getTotalPrice, items])
 
   useEffect(() => {
-    if (mounted) {
-      setCartCount(getTotalItems())
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch('/api/settings', { cache: 'no-store' })
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (cancelled) return
+        setFreeDeliveryMin(Number(data.freeDeliveryMinAmount) || 199)
+        setDeliveryFee(Number(data.deliveryFeeAmount) || 40)
+      } catch {
+        // keep defaults
+      }
+    })()
+    return () => {
+      cancelled = true
     }
-  }, [getTotalItems, mounted])
+  }, [])
+
+  useEffect(() => {
+    if (cartCount <= 0 || deliveryFee <= 0) {
+      setShowDeliveryHint(false)
+      return
+    }
+    const id = window.setInterval(() => {
+      setShowDeliveryHint((v) => !v)
+    }, 2800)
+    return () => window.clearInterval(id)
+  }, [cartCount, deliveryFee])
 
   useEffect(() => {
     let ticking = false
@@ -55,11 +90,31 @@ export default function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  const remaining = Math.max(0, freeDeliveryMin - cartTotal)
+  const unlocked = remaining <= 0
+  const showProgress = deliveryFee > 0 && cartCount > 0
+  const progress =
+    freeDeliveryMin <= 0 ? 1 : Math.min(1, Math.max(0, cartTotal / freeDeliveryMin))
+
+  const primaryLine =
+    unlocked && showProgress
+      ? 'Free delivery unlocked'
+      : showProgress && showDeliveryHint
+        ? `Add ${formatRupee(remaining)} more`
+        : `${cartCount} ${cartCount === 1 ? 'item' : 'items'}`
+
+  const secondaryLine =
+    unlocked && showProgress
+      ? 'on this order'
+      : showProgress && showDeliveryHint
+        ? 'to unlock free delivery'
+        : formatRupee(cartTotal)
+
   const navItems = [
     {
       icon: (active: boolean) => (
         <svg className="w-5 h-5" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? 0 : 1.5} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125.504 1.125-1.125V9.75M8.25 21h8.25" />
         </svg>
       ),
       label: 'Home',
@@ -115,6 +170,46 @@ export default function BottomNav() {
     }
   ]
 
+  const freeDeliveryChip = showProgress && (
+    <button
+      type="button"
+      onClick={() => router.push('/cart')}
+      className="relative w-full overflow-hidden rounded-full bg-wine text-left text-white shadow-[0_12px_28px_-16px_rgba(43,29,34,0.55)]"
+    >
+      <motion.div
+        className={`absolute inset-y-0 left-0 ${unlocked ? 'bg-emerald-700/40' : 'bg-white/20'}`}
+        initial={false}
+        animate={{ width: `${progress * 100}%` }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      />
+      <div className="relative flex items-center gap-2 px-3.5 py-2.5">
+        <div className="min-w-0 flex-1">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={primaryLine}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35 }}
+            >
+              <p className="truncate text-[11.5px] font-extrabold leading-tight">{primaryLine}</p>
+              <p className="truncate text-[10px] font-semibold leading-tight text-white/85">
+                {secondaryLine}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
+          {unlocked ? (
+            <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875h.375a3 3 0 116 0h3a.75.75 0 00.75-.75V15z" />
+          ) : (
+            <path d="M2.25 3a.75.75 0 000 1.5h.797l.774 7.742A2.25 2.25 0 005.81 14.25h9.13a2.25 2.25 0 002.0-1.508l1.93-5.792A.75.75 0 0018.12 6H4.66l-.3-3H2.25zm4.5 15a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm10.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+          )}
+        </svg>
+      </div>
+    </button>
+  )
+
   return (
     <>
       {/* Mobile */}
@@ -122,22 +217,36 @@ export default function BottomNav() {
         initial={{ y: 0 }}
         animate={{ y: visible ? 0 : '100%' }}
         transition={{ duration: 0.25, ease: 'easeInOut' }}
-        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-wine/10 z-50 lg:hidden safe-area-bottom"
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden safe-area-bottom"
       >
-        <div className="grid grid-cols-5 h-14">
-          {navItems.map((item) => (
-            <motion.button
-              key={item.path}
-              onClick={() => router.push(item.path)}
-              whileTap={{ scale: 0.9 }}
-              className={`flex flex-col items-center justify-center gap-0.5 ${
-                item.active ? 'text-wine' : 'text-ink/40'
-              }`}
+        <AnimatePresence>
+          {mounted && showProgress && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              className="px-3 pb-2"
             >
-              {item.icon(item.active)}
-              <span className="text-[10px]">{item.label}</span>
-            </motion.button>
-          ))}
+              {freeDeliveryChip}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="border-t border-wine/10 bg-white/95 backdrop-blur-sm">
+          <div className="grid h-14 grid-cols-5">
+            {navItems.map((item) => (
+              <motion.button
+                key={item.path}
+                onClick={() => router.push(item.path)}
+                whileTap={{ scale: 0.9 }}
+                className={`flex flex-col items-center justify-center gap-0.5 ${
+                  item.active ? 'text-wine' : 'text-ink/40'
+                }`}
+              >
+                {item.icon(item.active)}
+                <span className="text-[10px]">{item.label}</span>
+              </motion.button>
+            ))}
+          </div>
         </div>
       </motion.div>
 
@@ -148,21 +257,24 @@ export default function BottomNav() {
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="fixed bottom-6 left-1/2 z-50 hidden lg:block"
       >
-        <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
-          <div className="flex items-center gap-4">
-            {navItems.map((item) => (
-              <motion.button
-                key={`${item.path}-desktop`}
-                onClick={() => router.push(item.path)}
-                whileTap={{ scale: 0.9 }}
-                className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                  item.active ? 'text-wine bg-rose-soft' : 'text-ink/55 hover:text-ink'
-                }`}
-              >
-                {item.icon(item.active)}
-                <span className="hidden xl:block">{item.label}</span>
-              </motion.button>
-            ))}
+        <div className="flex w-[min(420px,90vw)] flex-col gap-2">
+          {mounted && showProgress && freeDeliveryChip}
+          <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
+            <div className="flex items-center gap-4">
+              {navItems.map((item) => (
+                <motion.button
+                  key={`${item.path}-desktop`}
+                  onClick={() => router.push(item.path)}
+                  whileTap={{ scale: 0.9 }}
+                  className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                    item.active ? 'text-wine bg-rose-soft' : 'text-ink/55 hover:text-ink'
+                  }`}
+                >
+                  {item.icon(item.active)}
+                  <span className="hidden xl:block">{item.label}</span>
+                </motion.button>
+              ))}
+            </div>
           </div>
         </div>
       </motion.div>

@@ -83,6 +83,8 @@ class AppSettings {
   final String navHomeLabel;
   final String navCategoriesLabel;
   final String navTopPicksLabel;
+  final double freeDeliveryMinAmount;
+  final double deliveryFeeAmount;
 
   const AppSettings({
     this.siteName = 'Upaharo',
@@ -126,6 +128,8 @@ class AppSettings {
     this.navHomeLabel = 'Home',
     this.navCategoriesLabel = 'Categories',
     this.navTopPicksLabel = 'Top picks',
+    this.freeDeliveryMinAmount = 199,
+    this.deliveryFeeAmount = 40,
   });
 
   /// Ordered, de-duplicated sections; unknown ids are dropped and any section
@@ -203,6 +207,9 @@ class AppSettings {
       navHomeLabel: json['navHomeLabel'] as String? ?? 'Home',
       navCategoriesLabel: json['navCategoriesLabel'] as String? ?? 'Categories',
       navTopPicksLabel: json['navTopPicksLabel'] as String? ?? 'Top picks',
+      freeDeliveryMinAmount:
+          (json['freeDeliveryMinAmount'] as num?)?.toDouble() ?? 199,
+      deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
     );
   }
 
@@ -256,5 +263,7 @@ class AppSettings {
         'navHomeLabel': navHomeLabel,
         'navCategoriesLabel': navCategoriesLabel,
         'navTopPicksLabel': navTopPicksLabel,
+        'freeDeliveryMinAmount': freeDeliveryMinAmount,
+        'deliveryFeeAmount': deliveryFeeAmount,
       };
 }
