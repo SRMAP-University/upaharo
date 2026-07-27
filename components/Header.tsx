@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
 import { useLocationStore } from '@/lib/store/location'
+import { formatPriceNoDecimals } from '@/lib/utils'
 import LocationModal from './LocationModal'
 
 type BeforeInstallPromptEvent = Event & {
@@ -18,6 +19,8 @@ export default function Header() {
   const [mounted, setMounted] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallButton, setShowInstallButton] = useState(false)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [walletEnabled, setWalletEnabled] = useState(false)
   
   const totalItems = useCartStore((state) => state.getTotalItems())
   const user = useUserStore((state) => state.user)
@@ -40,6 +43,29 @@ export default function Header() {
       return () => window.removeEventListener('beforeinstallprompt', handler)
     }
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setWalletBalance(null)
+      setWalletEnabled(false)
+      return
+    }
+
+    let cancelled = false
+    void fetch('/api/wallet?limit=1', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        setWalletEnabled(Boolean(data.enabled))
+        setWalletBalance(Number(data.balance) || 0)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return
@@ -109,6 +135,27 @@ export default function Header() {
             >
               Business
             </a>
+
+            {/* Wallet balance — shown when the programme is on and the user is logged in */}
+            {mounted && user && walletEnabled && walletBalance != null && (
+              <Link
+                href="/profile"
+                className="shrink-0"
+                title="Wallet balance"
+              >
+                <motion.div
+                  whileTap={{ scale: 0.95 }}
+                  className="flex items-center gap-1.5 rounded-full border border-wine/15 bg-white/80 px-2.5 py-1.5 hover:border-wine/35 hover:bg-white transition-colors"
+                >
+                  <svg className="w-4 h-4 text-wine shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5m0 0h-5a2 2 0 010-4h5m0 4a2 2 0 100-4" />
+                  </svg>
+                  <span className="text-xs font-semibold text-wine whitespace-nowrap">
+                    {formatPriceNoDecimals(walletBalance)}
+                  </span>
+                </motion.div>
+              </Link>
+            )}
 
             {/* Cart */}
             <Link href="/cart" className="hidden lg:block">

@@ -10,6 +10,8 @@ import '../../../data/models/category.dart';
 import '../../../data/models/coupon.dart';
 import '../../../data/models/product.dart';
 import '../../../data/models/app_settings.dart';
+import '../../../data/models/wallet.dart';
+import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/banner_provider.dart';
 import '../../providers/cart_provider.dart';
@@ -48,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen>
   late final AnimationController _washCtrl;
   late final CurvedAnimation _washCurve;
   ColorTween? _washTween;
+  final _walletRepo = const WalletRepository();
+  WalletSummary _wallet = WalletSummary.empty;
+  String? _walletUserId;
 
   bool _sameColor(Color? a, Color? b) {
     if (identical(a, b)) return true;
@@ -143,7 +148,28 @@ class _HomeScreenState extends State<HomeScreen>
       // Always refresh admin coupons / banners so newly added items appear.
       context.read<CouponProvider>().load(force: true);
       context.read<BannerProvider>().load(force: true);
+      _loadWallet();
     });
+  }
+
+  Future<void> _loadWallet() async {
+    final auth = context.read<AuthProvider>();
+    final userId = auth.user?.id;
+    if (!auth.isAuthenticated || userId == null) {
+      _walletUserId = null;
+      if (_wallet.enabled || _wallet.balance > 0) {
+        setState(() => _wallet = WalletSummary.empty);
+      }
+      return;
+    }
+    try {
+      final wallet = await _walletRepo.getWallet(limit: 1);
+      if (!mounted) return;
+      _walletUserId = userId;
+      setState(() => _wallet = wallet);
+    } catch (_) {
+      // Header chip is optional — leave previous / empty state.
+    }
   }
 
   @override
@@ -161,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen>
       context.read<CouponProvider>().load(force: true),
       context.read<BannerProvider>().load(force: true),
       context.read<PromoSpinProvider>().refresh(),
+      _loadWallet(),
     ]);
   }
 
@@ -198,6 +225,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openAccount() {
     Navigator.pushNamed(context, AppRoutes.account);
+  }
+
+  Future<void> _openWallet() async {
+    await Navigator.pushNamed(context, AppRoutes.wallet);
+    if (mounted) await _loadWallet();
   }
 
   void _openAiChat() {
@@ -272,6 +304,12 @@ class _HomeScreenState extends State<HomeScreen>
           final topInset = MediaQuery.paddingOf(context).top;
           final location = context.watch<LocationProvider>().location;
           final user = context.watch<AuthProvider>().user;
+          final userId = user?.id;
+          if (userId != _walletUserId) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _loadWallet();
+            });
+          }
 
           return RefreshIndicator(
             color: AppTheme.wine,
@@ -299,6 +337,7 @@ class _HomeScreenState extends State<HomeScreen>
                     profileInitial: (user?.name.trim().isNotEmpty ?? false)
                         ? user!.name.trim()[0].toUpperCase()
                         : null,
+                    walletBalance: _wallet.enabled ? _wallet.balance : null,
                     categories: data.categories,
                     selectedTab: _selectedTab,
                     // All → banner wash; category tabs → header-only tint that
@@ -318,6 +357,7 @@ class _HomeScreenState extends State<HomeScreen>
                     onWishlistTap: _openCart,
                     onLocationTap: () => Navigator.pushNamed(context, AppRoutes.location),
                     onProfileTap: _openAccount,
+                    onWalletTap: _openWallet,
                     onBannerTap: _openBannerLink,
                     onProductTap: _openProduct,
                     onShopAll: () => _openProducts(title: 'All gifts'),
@@ -754,6 +794,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.deliveryEstimate,
     required this.locationLabel,
     required this.profileInitial,
+    this.walletBalance,
     required this.categories,
     required this.selectedTab,
     this.bannerWash,
@@ -769,6 +810,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onWishlistTap,
     required this.onLocationTap,
     required this.onProfileTap,
+    this.onWalletTap,
     required this.onBannerTap,
     required this.onProductTap,
     required this.onShopAll,
@@ -779,6 +821,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final String deliveryEstimate;
   final String locationLabel;
   final String? profileInitial;
+  /// Null when the wallet programme is off or the user is logged out.
+  final double? walletBalance;
   final List<Category> categories;
   final int selectedTab;
   final Color? bannerWash;
@@ -794,6 +838,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onWishlistTap;
   final VoidCallback onLocationTap;
   final VoidCallback onProfileTap;
+  final VoidCallback? onWalletTap;
   final ValueChanged<String?> onBannerTap;
   final ValueChanged<Product> onProductTap;
   final VoidCallback onShopAll;
@@ -975,6 +1020,42 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                               ),
                             ),
                             const SizedBox(width: 8),
+                            if (walletBalance != null) ...[
+                              GestureDetector(
+                                onTap: onWalletTap,
+                                child: Container(
+                                  height: 28,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppTheme.wine.withAlpha(40),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        size: 14,
+                                        color: AppTheme.wine,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        PriceFormatter.format(walletBalance!),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppTheme.wine,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             GestureDetector(
                               onTap: onProfileTap,
                               child: CircleAvatar(
@@ -1215,6 +1296,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         deliveryEstimate != oldDelegate.deliveryEstimate ||
         locationLabel != oldDelegate.locationLabel ||
         profileInitial != oldDelegate.profileInitial ||
+        walletBalance != oldDelegate.walletBalance ||
         selectedTab != oldDelegate.selectedTab ||
         bannerWash != oldDelegate.bannerWash ||
         showPromo != oldDelegate.showPromo ||
