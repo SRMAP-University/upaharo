@@ -58,13 +58,15 @@ class WalletSummary {
     return _round(cashback);
   }
 
-  /// Most that can come out of the wallet for an order of [orderTotal].
+  /// Most that can come out of the wallet for an order.
+  /// Cap is [walletMaxPercentPerOrder]% of the order total, then limited by
+  /// available balance — never a % of the wallet itself.
   double maxSpendFor(double orderTotal) {
     if (!enabled) return 0;
     final total = orderTotal < 0 ? 0.0 : orderTotal;
+    final percentOfOrder = total * walletMaxPercentPerOrder / 100;
     var cap = balance < 0 ? 0.0 : balance;
-    final byPercent = total * walletMaxPercentPerOrder / 100;
-    if (byPercent < cap) cap = byPercent;
+    if (percentOfOrder < cap) cap = percentOfOrder;
     if (total < cap) cap = total;
     final absoluteCap = walletMaxAmountPerOrder;
     if (absoluteCap != null && absoluteCap < cap) cap = absoluteCap;

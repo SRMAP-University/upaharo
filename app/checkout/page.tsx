@@ -60,11 +60,13 @@ const DEFAULT_SETTINGS: AppSettings = {
 function WalletToggle({
   balance,
   maxSpend,
+  orderPercent,
   checked,
   onChange,
 }: {
   balance: number
   maxSpend: number
+  orderPercent: number
   checked: boolean
   onChange: (checked: boolean) => void
 }) {
@@ -79,10 +81,25 @@ function WalletToggle({
       <span className="text-sm text-ink/80">
         <span className="font-semibold text-ink">Use wallet balance</span>
         <span className="mt-0.5 block text-xs text-ink/50">
-          {formatPrice(balance)} available · up to {formatPrice(maxSpend)} on this order
+          {formatPrice(balance)} available · up to {orderPercent}% of this order (
+          {formatPrice(maxSpend)})
         </span>
       </span>
     </label>
+  )
+}
+
+/** Display-only waived fee: original amount struck through, then FREE. */
+function WaivedFeeRow({ label, amount }: { label: string; amount: number }) {
+  if (amount <= 0) return null
+  return (
+    <div className="flex justify-between text-ink/60">
+      <span>{label}</span>
+      <span className="flex items-center gap-2">
+        <span className="line-through text-ink/40">{formatPrice(amount)}</span>
+        <span className="text-green-600 font-semibold">FREE</span>
+      </span>
+    </div>
   )
 }
 
@@ -127,9 +144,13 @@ export default function CheckoutPage() {
   
   const subtotal = getTotalPrice()
   const giftWrapPrice = giftOptions.giftWrapId ? (giftWraps.find(w => w.id === giftOptions.giftWrapId)?.price || 0) : 0
-  const deliveryFee = (subtotal + giftWrapPrice) > 199 ? 0 : 40
+  const deliveryFee = 0
+  const deliveryFeeDisplay = 40
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
+  const taxDisplay = Math.round(subtotal * 0.05 * 100) / 100
+  const handlingFeeDisplay = 300
+  const packagingFeeDisplay = 100
   const totalBeforeWallet = Math.max(0, subtotal + giftWrapPrice + deliveryFee - couponDiscount)
   const maxWalletSpend = wallet
     ? computeMaxWalletSpend(totalBeforeWallet, wallet.balance, wallet)
@@ -951,12 +972,10 @@ export default function CheckoutPage() {
                     <span>+{formatPrice(giftWrapPrice)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-ink/60">
-                  <span>Delivery</span>
-                  <span className={deliveryFee === 0 ? 'text-green-600 font-semibold' : ''}>
-                    {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
-                  </span>
-                </div>
+                <WaivedFeeRow label="Delivery" amount={deliveryFeeDisplay} />
+                <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
+                <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
+                <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
                 {couponDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Coupon ({appliedCoupon?.code})</span>
@@ -1006,6 +1025,7 @@ export default function CheckoutPage() {
                 <WalletToggle
                   balance={wallet?.balance ?? 0}
                   maxSpend={maxWalletSpend}
+                  orderPercent={wallet?.walletMaxPercentPerOrder ?? 0}
                   checked={useWalletBalance}
                   onChange={setUseWalletBalance}
                 />
@@ -1088,12 +1108,10 @@ export default function CheckoutPage() {
                       <span>+{formatPrice(giftWrapPrice)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-ink/60">
-                    <span>Delivery</span>
-                    <span className={deliveryFee === 0 ? 'text-green-600 font-semibold' : ''}>
-                      {deliveryFee === 0 ? 'FREE' : formatPrice(deliveryFee)}
-                    </span>
-                  </div>
+                  <WaivedFeeRow label="Delivery" amount={deliveryFeeDisplay} />
+                  <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
+                  <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
+                  <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
                   {couponDiscount > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Coupon ({appliedCoupon?.code})</span>
@@ -1112,6 +1130,7 @@ export default function CheckoutPage() {
                       <WalletToggle
                         balance={wallet?.balance ?? 0}
                         maxSpend={maxWalletSpend}
+                        orderPercent={wallet?.walletMaxPercentPerOrder ?? 0}
                         checked={useWalletBalance}
                         onChange={setUseWalletBalance}
                       />

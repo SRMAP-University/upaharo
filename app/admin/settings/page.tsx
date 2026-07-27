@@ -594,12 +594,12 @@ export default function AdminSettingsPage() {
                   placeholder="No cap"
                 />
                 <RangeField
-                  label="Order payable from wallet"
+                  label="Max % of order total payable from wallet"
                   value={formData.walletMaxPercentPerOrder}
                   min={0}
                   max={100}
                   step={5}
-                  display={`${formData.walletMaxPercentPerOrder}%`}
+                  display={`${formData.walletMaxPercentPerOrder}% of order`}
                   onChange={(value) => set('walletMaxPercentPerOrder', value)}
                 />
                 <TextField
@@ -619,11 +619,14 @@ export default function AdminSettingsPage() {
                     {formData.cashbackMaxAmount
                       ? ` (up to Rs ${formData.cashbackMaxAmount})`
                       : ''}{' '}
-                    after delivery, and can pay up to {formData.walletMaxPercentPerOrder}%
+                    after delivery. At checkout they can pay up to{' '}
+                    {formData.walletMaxPercentPerOrder}% of the order total from
+                    their wallet
                     {formData.walletMaxAmountPerOrder
-                      ? ` (max Rs ${formData.walletMaxAmountPerOrder})`
-                      : ''}{' '}
-                    of an order from their wallet.
+                      ? ` (and never more than Rs ${formData.walletMaxAmountPerOrder})`
+                      : ''}
+                    , limited by their available balance — not a % of the wallet
+                    itself.
                   </>
                 ) : (
                   'The wallet is currently switched off for all customers.'

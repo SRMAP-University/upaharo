@@ -33,7 +33,9 @@ export function computeCashback(cashPaidAmount: number, rules: WalletRules): num
   return roundMoney(Math.max(0, cashback))
 }
 
-/** Largest wallet amount spendable on an order of `orderTotal`, given `balance`. */
+/** Largest wallet amount spendable on an order.
+ * Cap is a % of the order total (not of the wallet balance), then limited by
+ * available balance and any absolute ₹ max. */
 export function computeMaxWalletSpend(
   orderTotal: number,
   balance: number,
@@ -41,7 +43,8 @@ export function computeMaxWalletSpend(
 ): number {
   if (!rules.walletEnabled) return 0
   const total = Math.max(0, orderTotal)
-  const caps = [Math.max(0, balance), (total * rules.walletMaxPercentPerOrder) / 100, total]
+  const percentOfOrder = (total * rules.walletMaxPercentPerOrder) / 100
+  const caps = [Math.max(0, balance), percentOfOrder, total]
   if (rules.walletMaxAmountPerOrder != null) {
     caps.push(rules.walletMaxAmountPerOrder)
   }

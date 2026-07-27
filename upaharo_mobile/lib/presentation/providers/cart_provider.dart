@@ -177,13 +177,12 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Website rule: free delivery when products + wrap > Rs. 199, else Rs. 40.
+  /// Website rule: delivery is always free at checkout (shown as waived Rs. 40).
   static const double freeDeliveryThreshold = 199;
   static const double standardDeliveryFee = 40;
 
   double deliveryFeeFor({double giftWrapPrice = 0}) {
-    final base = totalPrice + giftWrapPrice;
-    return base > freeDeliveryThreshold ? 0 : standardDeliveryFee;
+    return 0;
   }
 
   Map<String, dynamic> toCheckoutPayload({

@@ -474,7 +474,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final settings = context.watch<SettingsProvider>().settings;
     final totals = _computeTotals(cart);
     final wrapPrice = totals.wrapPrice;
-    final deliveryFee = totals.deliveryFee;
     final total = totals.total;
 
     return Scaffold(
@@ -740,13 +739,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const Divider(),
                       _totalRow('Subtotal', cart.totalPrice),
                       if (wrapPrice > 0) _totalRow('Gift wrap', wrapPrice),
-                      _totalRow(
-                        'Delivery',
-                        deliveryFee,
-                        trailing: deliveryFee == 0
-                            ? const Text('FREE', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w800))
-                            : null,
-                      ),
+                      _waivedFeeRow('Delivery', CartProvider.standardDeliveryFee),
+                      _waivedFeeRow('Tax (5%)', cart.totalPrice * 0.05),
+                      _waivedFeeRow('Handling charges', 300),
+                      _waivedFeeRow('Packaging', 100),
                       if (_couponDiscount > 0)
                         _totalRow(
                           'Coupon${_appliedCouponCode != null ? ' ($_appliedCouponCode)' : ''}',
@@ -836,7 +832,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${PriceFormatter.format(_wallet.balance)} available · up to ${PriceFormatter.format(totals.maxWalletSpend)} here',
+                      '${PriceFormatter.format(_wallet.balance)} available · up to ${_formatPercent(_wallet.walletMaxPercentPerOrder)}% of this order (${PriceFormatter.format(totals.maxWalletSpend)})',
                       style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                     ),
                   ],
@@ -988,6 +984,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  String _formatPercent(double value) {
+    if (value == value.roundToDouble()) return value.toStringAsFixed(0);
+    return value.toStringAsFixed(1);
+  }
+
+  Widget _waivedFeeRow(String label, double amount) {
+    if (amount <= 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+          const Spacer(),
+          Text(
+            PriceFormatter.format(amount),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.charcoal.withAlpha(140),
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'FREE',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF2E7D32),
+            ),
+          ),
+        ],
       ),
     );
   }
