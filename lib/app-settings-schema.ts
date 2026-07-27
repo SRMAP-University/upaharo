@@ -76,6 +76,11 @@ export type PublicAppSettings = {
   navHomeLabel: string
   navCategoriesLabel: string
   navTopPicksLabel: string
+  walletEnabled: boolean
+  cashbackPercent: number
+  cashbackMaxAmount: number | null
+  walletMaxPercentPerOrder: number
+  walletMaxAmountPerOrder: number | null
 }
 
 export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
@@ -120,6 +125,11 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   navHomeLabel: 'Home',
   navCategoriesLabel: 'Categories',
   navTopPicksLabel: 'Top picks',
+  walletEnabled: false,
+  cashbackPercent: 0,
+  cashbackMaxAmount: null,
+  walletMaxPercentPerOrder: 100,
+  walletMaxAmountPerOrder: null,
 }
 
 const HEX_COLOR_RE = /^#([0-9A-Fa-f]{6})$/
@@ -146,6 +156,17 @@ export function clampFloat(value: unknown, fallback: number, min: number, max: n
   if (!Number.isFinite(parsed)) return fallback
   const clamped = Math.min(max, Math.max(min, parsed))
   return Math.round(clamped * 100) / 100
+}
+
+/**
+ * Optional money cap: blank/absent means "no cap" (null). Negative or
+ * unparseable input also collapses to null so a bad value never blocks orders.
+ */
+export function normalizeOptionalAmount(value: unknown, max = 1_000_000): number | null {
+  if (value === '' || value === null || value === undefined) return null
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed) || parsed < 0) return null
+  return Math.round(Math.min(parsed, max) * 100) / 100
 }
 
 export function normalizeDensity(value: unknown, fallback: string): string {

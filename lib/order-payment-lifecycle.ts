@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { redis, REDIS_CHANNELS } from '@/lib/redis'
+import { refundRedeem, voidPendingCashback } from '@/lib/wallet'
 
 /** True when an ONLINE order is still waiting on Stripe (not yet a real order). */
 export function isAwaitingOnlinePayment(order: {
@@ -94,5 +95,25 @@ export async function abandonUnpaidOnlineOrder(orderId: string): Promise<{
     },
   })
 
+  await releaseOrderWallet(order.id)
+
   return { abandoned: true, orderId: order.id }
+}
+
+/**
+ * Give back any wallet hold and drop pending cashback for an order that will
+ * never be fulfilled. Safe to call more than once.
+ */
+export async function releaseOrderWallet(orderId: string): Promise<void> {
+  try {
+    await refundRedeem(orderId)
+  } catch (err) {
+    console.error('Failed to refund wallet for order', orderId, err)
+  }
+
+  try {
+    await voidPendingCashback(orderId)
+  } catch (err) {
+    console.error('Failed to void pending cashback for order', orderId, err)
+  }
 }

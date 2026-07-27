@@ -11,6 +11,15 @@ import {
   abandonUnpaidOnlineOrder,
   activateOrderFulfillment,
 } from '@/lib/order-payment-lifecycle'
+import {
+  computeCashback,
+  computeMaxWalletSpend,
+  createPendingCashback,
+  getWalletBalance,
+  getWalletRules,
+  redeemWallet,
+  roundMoney,
+} from '@/lib/wallet'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,6 +46,7 @@ export async function POST(request: NextRequest) {
       senderName,
       showSenderName,
       couponCode,
+      walletAmount,
     } = body
 
     if (paymentMethod !== 'CASH' && paymentMethod !== 'ONLINE') {
@@ -180,10 +190,25 @@ export async function POST(request: NextRequest) {
     }
 
     // Server-authoritative total (includes gift wrap when selected).
-    const resolvedTotal = Math.max(
+    const totalBeforeWallet = Math.max(
       0,
       resolvedSubtotal + resolvedDeliveryFee + giftWrapFee - couponDiscount
     )
+
+    // Wallet spend is always re-capped here; the client value is only a request.
+    const walletRules = await getWalletRules()
+    const requestedWallet = Math.max(0, Number(walletAmount) || 0)
+    let walletDiscount = 0
+    if (walletRules.walletEnabled && requestedWallet > 0) {
+      const balance = await getWalletBalance(userId)
+      walletDiscount = Math.min(
+        roundMoney(requestedWallet),
+        computeMaxWalletSpend(totalBeforeWallet, balance, walletRules)
+      )
+    }
+
+    const resolvedTotal = roundMoney(Math.max(0, totalBeforeWallet - walletDiscount))
+    const cashbackAmount = computeCashback(resolvedTotal, walletRules)
 
     const order = await prisma.$transaction(async (tx) => {
       const created = await tx.order.create({
@@ -197,6 +222,9 @@ export async function POST(request: NextRequest) {
           discount: couponDiscount,
           couponDiscount,
           couponId,
+          walletDiscount,
+          cashbackAmount,
+          cashbackStatus: cashbackAmount > 0 ? 'PENDING' : 'NONE',
           total: resolvedTotal,
           paymentMethod,
           estimatedTime: 0,
@@ -239,8 +267,42 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      if (cashbackAmount > 0) {
+        await createPendingCashback({
+          userId,
+          orderId: created.id,
+          amount: cashbackAmount,
+          tx,
+        })
+      }
+
+      // Debit immediately so two concurrent checkouts can't spend the same
+      // balance. Abandoned online payments refund it via abandonUnpaidOnlineOrder.
+      if (walletDiscount > 0) {
+        await redeemWallet({ userId, orderId: created.id, amount: walletDiscount, tx })
+      }
+
       return created
     })
+
+    // Wallet covered the whole bill, so there is nothing for Stripe to charge.
+    if (paymentMethod === 'ONLINE' && resolvedTotal <= 0) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: 'COMPLETED' },
+      })
+      await activateOrderFulfillment({
+        id: order.id,
+        userId: order.userId,
+        orderNumber: order.orderNumber,
+        couponId: couponId ?? null,
+      })
+
+      return NextResponse.json(
+        { order: { ...order, paymentStatus: 'COMPLETED' } },
+        { status: 201 }
+      )
+    }
 
     if (paymentMethod === 'ONLINE') {
       try {

@@ -150,6 +150,13 @@ class ApiEndpoints {
   /// GET/POST /api/promo/spin - roulette status + claim daily prize
   static const String promoSpin = '/api/promo/spin';
 
+  /// Wallet balance, cashback rules and recent ledger entries.
+  /// Query params: limit=N
+  /// GET -> { enabled, balance, pendingCashback, cashbackPercent,
+  ///          cashbackMaxAmount, walletMaxPercentPerOrder,
+  ///          walletMaxAmountPerOrder, transactions: [...] }
+  static const String wallet = '/api/wallet';
+
   /// List or create orders for the authenticated user.
   /// GET -> { orders: List of Order }
   /// Body: { items, addressId, addressLatitude, addressLongitude, paymentMethod, subtotal, deliveryFee, total,

@@ -7,6 +7,8 @@ import {
   notifyPaymentUpdate,
   statusTimestampFields,
 } from '@/lib/notifications'
+import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
+import { creditPendingCashback } from '@/lib/wallet'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -124,6 +126,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
       },
     })
+
+    if (nextStatus && nextStatus !== existing.status) {
+      if (nextStatus === 'DELIVERED') {
+        try {
+          await creditPendingCashback(existing.id)
+        } catch (err) {
+          console.error('Failed to credit cashback on delivery:', err)
+        }
+      } else if (nextStatus === 'CANCELLED') {
+        await releaseOrderWallet(existing.id)
+      }
+    }
 
     void (async () => {
       try {

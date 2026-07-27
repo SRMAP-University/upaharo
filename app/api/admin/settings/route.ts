@@ -7,6 +7,7 @@ import {
   normalizeDensity,
   normalizeHexColor,
   normalizeHomeSections,
+  normalizeOptionalAmount,
 } from '@/lib/app-settings'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
@@ -75,6 +76,21 @@ function navigationFields(body: Record<string, unknown>) {
   }
 }
 
+function walletFields(body: Record<string, unknown>) {
+  return {
+    walletEnabled: toBool(body?.walletEnabled, DEFAULT_APP_SETTINGS.walletEnabled),
+    cashbackPercent: clampFloat(body?.cashbackPercent, DEFAULT_APP_SETTINGS.cashbackPercent, 0, 100),
+    cashbackMaxAmount: normalizeOptionalAmount(body?.cashbackMaxAmount),
+    walletMaxPercentPerOrder: clampFloat(
+      body?.walletMaxPercentPerOrder,
+      DEFAULT_APP_SETTINGS.walletMaxPercentPerOrder,
+      0,
+      100
+    ),
+    walletMaxAmountPerOrder: normalizeOptionalAmount(body?.walletMaxAmountPerOrder),
+  }
+}
+
 function settingsPayload(body: Record<string, unknown>) {
   return {
     siteName: String(body?.siteName || DEFAULT_APP_SETTINGS.siteName).trim(),
@@ -121,6 +137,7 @@ function settingsPayload(body: Record<string, unknown>) {
     ...appearanceFields(body),
     ...productCardFields(body),
     ...navigationFields(body),
+    ...walletFields(body),
   }
 }
 

@@ -42,6 +42,22 @@ interface Order {
   items: any[]
 }
 
+interface WalletTransaction {
+  id: string
+  type: string
+  amount: number
+  status: string
+  note?: string | null
+  createdAt: string
+}
+
+interface WalletState {
+  enabled: boolean
+  balance: number
+  pendingCashback: number
+  transactions: WalletTransaction[]
+}
+
 interface SavedAddress {
   id: string
   label: string
@@ -59,6 +75,7 @@ export default function ProfilePage() {
   const { deliveryAddress } = useLocationStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [addresses, setAddresses] = useState<SavedAddress[]>([])
+  const [wallet, setWallet] = useState<WalletState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'addresses'>('overview')
 
@@ -92,6 +109,19 @@ export default function ProfilePage() {
       if (addressesRes.ok) {
         const addressesData = await addressesRes.json()
         setAddresses(addressesData.addresses || [])
+      }
+
+      const walletRes = await fetch('/api/wallet', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (walletRes.ok) {
+        const walletData = await walletRes.json()
+        setWallet({
+          enabled: Boolean(walletData.enabled),
+          balance: Number(walletData.balance) || 0,
+          pendingCashback: Number(walletData.pendingCashback) || 0,
+          transactions: walletData.transactions || [],
+        })
       }
     } catch (error) {
       console.error('Error fetching user data:', error)
@@ -265,6 +295,66 @@ export default function ProfilePage() {
                   exit={{ opacity: 0, x: 20 }}
                   className="px-4 py-4 space-y-6"
                 >
+                  {wallet?.enabled && (
+                    <div>
+                      <h3 className="text-xs font-semibold text-ink/55 uppercase tracking-wider mb-3">
+                        Wallet
+                      </h3>
+                      <div className="overflow-hidden rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+                        <div className="flex items-end justify-between gap-4 px-4 py-4 border-b border-wine/10">
+                          <div>
+                            <p className="text-[11px] text-ink/45 uppercase tracking-wide font-medium">
+                              Available balance
+                            </p>
+                            <p className="font-display text-3xl font-semibold text-wine mt-1">
+                              {formatPriceNoDecimals(wallet.balance)}
+                            </p>
+                          </div>
+                          {wallet.pendingCashback > 0 && (
+                            <p className="text-sm text-ink/55 pb-1">
+                              {formatPriceNoDecimals(wallet.pendingCashback)} pending
+                            </p>
+                          )}
+                        </div>
+
+                        {wallet.transactions.length === 0 ? (
+                          <p className="px-4 py-4 text-sm text-ink/55">
+                            Cashback from your orders will show up here after delivery.
+                          </p>
+                        ) : (
+                          wallet.transactions.slice(0, 6).map((tx) => (
+                            <div
+                              key={tx.id}
+                              className="flex items-center justify-between gap-3 px-4 py-3 border-b border-wine/10 last:border-b-0"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-ink truncate">
+                                  {tx.note || tx.type.replace(/_/g, ' ').toLowerCase()}
+                                </p>
+                                <p className="text-[11px] text-ink/45 mt-0.5">
+                                  {formatDate(tx.createdAt)}
+                                  {tx.status === 'PENDING' ? ' · pending' : ''}
+                                </p>
+                              </div>
+                              <span
+                                className={`text-sm font-semibold flex-shrink-0 ${
+                                  tx.status === 'PENDING'
+                                    ? 'text-ink/45'
+                                    : tx.amount >= 0
+                                      ? 'text-green-700'
+                                      : 'text-ink/70'
+                                }`}
+                              >
+                                {tx.amount >= 0 ? '+' : '-'}
+                                {formatPriceNoDecimals(Math.abs(tx.amount))}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Profile Info - Minimal */}
                   <div>
                     <h3 className="text-xs font-semibold text-ink/55 uppercase tracking-wider mb-3">👤 Personal Information</h3>

@@ -220,6 +220,17 @@ export default function AdminSettingsPage() {
         navHomeLabel: String(data.navHomeLabel || EMPTY_FORM.navHomeLabel),
         navCategoriesLabel: String(data.navCategoriesLabel || EMPTY_FORM.navCategoriesLabel),
         navTopPicksLabel: String(data.navTopPicksLabel || EMPTY_FORM.navTopPicksLabel),
+        walletEnabled: Boolean(data.walletEnabled ?? false),
+        cashbackPercent: clampFloat(data.cashbackPercent, EMPTY_FORM.cashbackPercent, 0, 100),
+        cashbackMaxAmount: data.cashbackMaxAmount == null ? '' : String(data.cashbackMaxAmount),
+        walletMaxPercentPerOrder: clampFloat(
+          data.walletMaxPercentPerOrder,
+          EMPTY_FORM.walletMaxPercentPerOrder,
+          0,
+          100
+        ),
+        walletMaxAmountPerOrder:
+          data.walletMaxAmountPerOrder == null ? '' : String(data.walletMaxAmountPerOrder),
       })
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -546,6 +557,78 @@ export default function AdminSettingsPage() {
                   onChange={(checked) => set('showPromoTab', checked)}
                 />
               </div>
+            </div>
+          </section>
+
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <h2 className="font-display text-lg font-semibold text-ink">Wallet and cashback</h2>
+            <p className="mt-1 text-sm text-ink/55">
+              Cashback shows as pending when an order is placed and lands in the wallet once it is
+              delivered. Cashback is calculated on the amount paid without the wallet.
+            </p>
+
+            <div className="mt-5 space-y-5">
+              <Toggle
+                label="Enable the customer wallet"
+                hint="Turning this off hides the wallet at checkout and stops new cashback."
+                checked={formData.walletEnabled}
+                onChange={(checked) => set('walletEnabled', checked)}
+              />
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <RangeField
+                  label="Cashback earned per order"
+                  value={formData.cashbackPercent}
+                  min={0}
+                  max={50}
+                  step={0.5}
+                  display={`${formData.cashbackPercent}%`}
+                  onChange={(value) => set('cashbackPercent', value)}
+                />
+                <TextField
+                  label="Max cashback per order (Rs)"
+                  type="number"
+                  step="1"
+                  value={formData.cashbackMaxAmount}
+                  onChange={(value) => set('cashbackMaxAmount', value)}
+                  placeholder="No cap"
+                />
+                <RangeField
+                  label="Order payable from wallet"
+                  value={formData.walletMaxPercentPerOrder}
+                  min={0}
+                  max={100}
+                  step={5}
+                  display={`${formData.walletMaxPercentPerOrder}%`}
+                  onChange={(value) => set('walletMaxPercentPerOrder', value)}
+                />
+                <TextField
+                  label="Max wallet spend per order (Rs)"
+                  type="number"
+                  step="1"
+                  value={formData.walletMaxAmountPerOrder}
+                  onChange={(value) => set('walletMaxAmountPerOrder', value)}
+                  placeholder="No cap"
+                />
+              </div>
+
+              <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+                {formData.walletEnabled ? (
+                  <>
+                    Customers earn {formData.cashbackPercent}%
+                    {formData.cashbackMaxAmount
+                      ? ` (up to Rs ${formData.cashbackMaxAmount})`
+                      : ''}{' '}
+                    after delivery, and can pay up to {formData.walletMaxPercentPerOrder}%
+                    {formData.walletMaxAmountPerOrder
+                      ? ` (max Rs ${formData.walletMaxAmountPerOrder})`
+                      : ''}{' '}
+                    of an order from their wallet.
+                  </>
+                ) : (
+                  'The wallet is currently switched off for all customers.'
+                )}
+              </p>
             </div>
           </section>
 

@@ -5,6 +5,7 @@ import {
   normalizeDensity,
   normalizeHexColor,
   normalizeHomeSections,
+  normalizeOptionalAmount,
   type PublicAppSettings,
 } from '@/lib/app-settings-schema'
 import { prisma } from '@/lib/prisma'
@@ -82,6 +83,16 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
         navHomeLabel: settings.navHomeLabel || DEFAULT_APP_SETTINGS.navHomeLabel,
         navCategoriesLabel: settings.navCategoriesLabel || DEFAULT_APP_SETTINGS.navCategoriesLabel,
         navTopPicksLabel: settings.navTopPicksLabel || DEFAULT_APP_SETTINGS.navTopPicksLabel,
+        walletEnabled: settings.walletEnabled ?? DEFAULT_APP_SETTINGS.walletEnabled,
+        cashbackPercent: clampFloat(settings.cashbackPercent, DEFAULT_APP_SETTINGS.cashbackPercent, 0, 100),
+        cashbackMaxAmount: normalizeOptionalAmount(settings.cashbackMaxAmount),
+        walletMaxPercentPerOrder: clampFloat(
+          settings.walletMaxPercentPerOrder,
+          DEFAULT_APP_SETTINGS.walletMaxPercentPerOrder,
+          0,
+          100
+        ),
+        walletMaxAmountPerOrder: normalizeOptionalAmount(settings.walletMaxAmountPerOrder),
       }
     })
   } catch (error) {

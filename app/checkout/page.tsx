@@ -13,6 +13,7 @@ import BottomNav from '@/components/BottomNav'
 import SkeletonLoader from '@/components/SkeletonLoader'
 import { SessionSync } from '@/components/SessionSync'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
+import { computeCashback, computeMaxWalletSpend, type WalletRules } from '@/lib/wallet-rules'
 
 interface GiftWrap {
   id: string
@@ -43,12 +44,46 @@ interface AppSettings {
   deliveryNote: string
 }
 
+type WalletInfo = WalletRules & {
+  balance: number
+  pendingCashback: number
+}
+
 const DEFAULT_SETTINGS: AppSettings = {
   supportPhone: '',
   supportEmail: '',
   supportHours: '9:00 AM - 9:00 PM',
   deliveryEstimate: 'Estimated delivery: 20-30 minutes',
   deliveryNote: 'Delivery timings may vary based on address and order volume.',
+}
+
+function WalletToggle({
+  balance,
+  maxSpend,
+  checked,
+  onChange,
+}: {
+  balance: number
+  maxSpend: number
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return (
+    <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-xl border border-wine/15 bg-cream-deep px-3 py-2.5">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 rounded border-wine/30 text-wine focus:ring-wine/30"
+      />
+      <span className="text-sm text-ink/80">
+        <span className="font-semibold text-ink">Use wallet balance</span>
+        <span className="mt-0.5 block text-xs text-ink/50">
+          {formatPrice(balance)} available · up to {formatPrice(maxSpend)} on this order
+        </span>
+      </span>
+    </label>
+  )
 }
 
 export default function CheckoutPage() {
@@ -75,6 +110,8 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
   const [couponError, setCouponError] = useState('')
   const [couponLoading, setCouponLoading] = useState(false)
+  const [wallet, setWallet] = useState<WalletInfo | null>(null)
+  const [useWalletBalance, setUseWalletBalance] = useState(false)
   const [newAddress, setNewAddress] = useState({
     label: 'Home',
     street: '',
@@ -93,7 +130,14 @@ export default function CheckoutPage() {
   const deliveryFee = (subtotal + giftWrapPrice) > 199 ? 0 : 40
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
-  const total = subtotal + giftWrapPrice + deliveryFee - couponDiscount
+  const totalBeforeWallet = Math.max(0, subtotal + giftWrapPrice + deliveryFee - couponDiscount)
+  const maxWalletSpend = wallet
+    ? computeMaxWalletSpend(totalBeforeWallet, wallet.balance, wallet)
+    : 0
+  const walletApplied = useWalletBalance ? maxWalletSpend : 0
+  const total = Math.max(0, totalBeforeWallet - walletApplied)
+  const cashbackPreview = wallet ? computeCashback(total, wallet) : 0
+  const walletAvailable = Boolean(wallet?.walletEnabled && wallet.balance > 0 && maxWalletSpend > 0)
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const isSelectedAddressServiceable = selectedAddress
     ? isKathmanduValleyLocation({
@@ -120,6 +164,7 @@ export default function CheckoutPage() {
     fetchGiftData()
     fetchAddresses()
     fetchAppSettings()
+    fetchWallet()
   }, [user, items, router, _hasHydrated, orderPlaced])
 
   useEffect(() => {
@@ -208,6 +253,26 @@ export default function CheckoutPage() {
       }
     } catch (error) {
       console.error('Error fetching app settings:', error)
+    }
+  }
+
+  const fetchWallet = async () => {
+    try {
+      const res = await fetch('/api/wallet?limit=1', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setWallet({
+        walletEnabled: Boolean(data.enabled),
+        balance: Number(data.balance) || 0,
+        pendingCashback: Number(data.pendingCashback) || 0,
+        cashbackPercent: Number(data.cashbackPercent) || 0,
+        cashbackMaxAmount: data.cashbackMaxAmount == null ? null : Number(data.cashbackMaxAmount),
+        walletMaxPercentPerOrder: Number(data.walletMaxPercentPerOrder) || 0,
+        walletMaxAmountPerOrder:
+          data.walletMaxAmountPerOrder == null ? null : Number(data.walletMaxAmountPerOrder),
+      })
+    } catch (error) {
+      console.error('Error fetching wallet:', error)
     }
   }
 
@@ -354,6 +419,7 @@ export default function CheckoutPage() {
           tax,
           total,
           couponCode: appliedCoupon?.code || undefined,
+          walletAmount: walletApplied,
           isGift: giftOptions.isGift,
           recipientId: giftOptions.recipientId,
           occasionId: giftOptions.occasionId,
@@ -897,6 +963,12 @@ export default function CheckoutPage() {
                     <span>-{formatPrice(couponDiscount)}</span>
                   </div>
                 )}
+                {walletApplied > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Wallet</span>
+                    <span>-{formatPrice(walletApplied)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Coupon input */}
@@ -930,10 +1002,25 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {walletAvailable && (
+                <WalletToggle
+                  balance={wallet?.balance ?? 0}
+                  maxSpend={maxWalletSpend}
+                  checked={useWalletBalance}
+                  onChange={setUseWalletBalance}
+                />
+              )}
+
               <div className="border-t border-wine/10 pt-3 flex justify-between text-xl font-semibold text-ink mb-4">
                 <span>Total</span>
                 <span className="text-wine">{formatPriceNoDecimals(total)}</span>
               </div>
+
+              {cashbackPreview > 0 && (
+                <p className="-mt-2 mb-4 text-sm text-green-700">
+                  Earn {formatPrice(cashbackPreview)} cashback once this order is delivered.
+                </p>
+              )}
 
               {giftOptions.isGift && selectedRecipient && (
                 <div className="bg-rose-soft border border-wine/10 rounded-xl p-3 mb-4 text-sm text-ink/80">
@@ -1012,6 +1099,29 @@ export default function CheckoutPage() {
                       <span>Coupon ({appliedCoupon?.code})</span>
                       <span>-{formatPrice(couponDiscount)}</span>
                     </div>
+                  )}
+                  {walletApplied > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Wallet</span>
+                      <span>-{formatPrice(walletApplied)}</span>
+                    </div>
+                  )}
+
+                  {walletAvailable && (
+                    <div className="pt-2">
+                      <WalletToggle
+                        balance={wallet?.balance ?? 0}
+                        maxSpend={maxWalletSpend}
+                        checked={useWalletBalance}
+                        onChange={setUseWalletBalance}
+                      />
+                    </div>
+                  )}
+
+                  {cashbackPreview > 0 && (
+                    <p className="text-xs text-green-700">
+                      Earn {formatPrice(cashbackPreview)} cashback after delivery.
+                    </p>
                   )}
 
                   {couponDiscount === 0 ? (

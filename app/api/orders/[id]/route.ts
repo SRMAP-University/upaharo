@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
+import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { resolveUserId } from '@/lib/request-auth'
 
 interface RouteParams {
@@ -124,6 +125,8 @@ export async function PATCH(
         occasion: true,
       },
     })
+
+    await releaseOrderWallet(id)
 
     return NextResponse.json({ order: updated })
   } catch (error) {

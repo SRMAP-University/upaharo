@@ -10,28 +10,30 @@ datasource db {
 }
 
 model User {
-  id                String             @id @default(cuid())
-  email             String             @unique
-  phone             String?            @unique
-  name              String
-  password          String?
-  role              UserRole           @default(CUSTOMER)
-  image             String?
-  emailVerified     DateTime?
-  addresses         Address[]
-  orders            Order[]
-  giftRecipients    GiftRecipient[]
-  seller            Seller?
-  accounts          Account[]
-  sessions          Session[]
-  coupons           Coupon[]
-  spinPlays         SpinPlay[]
-  productViewEvents ProductViewEvent[]
-  deviceTokens      DeviceToken[]
-  notifications     AppNotification[]
-  businessProfile   BusinessProfile?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  phone              String?             @unique
+  name               String
+  password           String?
+  role               UserRole            @default(CUSTOMER)
+  image              String?
+  emailVerified      DateTime?
+  addresses          Address[]
+  orders             Order[]
+  giftRecipients     GiftRecipient[]
+  seller             Seller?
+  accounts           Account[]
+  sessions           Session[]
+  coupons            Coupon[]
+  spinPlays          SpinPlay[]
+  productViewEvents  ProductViewEvent[]
+  deviceTokens       DeviceToken[]
+  notifications      AppNotification[]
+  businessProfile    BusinessProfile?
+  wallet             WalletAccount?
+  walletTransactions WalletTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 
   @@index([email])
   @@index([phone])
@@ -54,7 +56,7 @@ model DeviceToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
-  platform  String   // android | ios | web
+  platform  String // android | ios | web
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -121,42 +123,42 @@ model VerificationToken {
 }
 
 model Address {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label      String
-  street     String
-  apartment  String?
-  landmark   String?
-  city       String
-  state      String
-  pincode    String
-  latitude   Float
-  longitude  Float
-  isDefault  Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  orders     Order[]
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  street    String
+  apartment String?
+  landmark  String?
+  city      String
+  state     String
+  pincode   String
+  latitude  Float
+  longitude Float
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
 
   @@index([userId])
 }
 
 model Banner {
-  id        String   @id @default(cuid())
-  title     String
-  subtitle  String?
-  image     String
-  link      String?
+  id         String   @id @default(cuid())
+  title      String
+  subtitle   String?
+  image      String
+  link       String?
   /// Soft background tint for the app/home when this banner is active (hex, e.g. #FFE0E8).
-  bgColor   String?
+  bgColor    String?
   /// Up to 3 product IDs shown in the banner strip (takes priority over category).
   productIds String[] @default([])
   /// When set (and productIds empty), show up to 3 products from this category name.
-  category  String?
-  order     Int      @default(0)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  category   String?
+  order      Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([isActive])
   @@index([order])
@@ -196,52 +198,59 @@ model Product {
 }
 
 model Order {
-  id                String           @id @default(cuid())
-  orderNumber       String           @unique
-  userId            String
-  user              User             @relation(fields: [userId], references: [id])
-  items             OrderItem[]
-  status            OrderStatus      @default(PENDING)
-  addressId         String?
-  address           Address?         @relation(fields: [addressId], references: [id])
-  deliveryPartnerId String?
-  deliveryPartner   DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
-  subtotal          Float
-  deliveryFee       Float
-  tax               Float
-  discount          Float            @default(0)
-  couponDiscount    Float            @default(0)
-  couponId          String?
-  coupon            Coupon?          @relation(fields: [couponId], references: [id])
-  total             Float
-  paymentMethod     PaymentMethod
-  paymentStatus     PaymentStatus    @default(PENDING)
-  estimatedTime     Int
-  placedAt          DateTime         @default(now())
-  acceptedAt        DateTime?
-  preparingAt       DateTime?
-  outForDeliveryAt  DateTime?
-  deliveredAt       DateTime?
-  cancelledAt       DateTime?
+  id                   String           @id @default(cuid())
+  orderNumber          String           @unique
+  userId               String
+  user                 User             @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+  status               OrderStatus      @default(PENDING)
+  addressId            String?
+  address              Address?         @relation(fields: [addressId], references: [id])
+  deliveryPartnerId    String?
+  deliveryPartner      DeliveryPartner? @relation(fields: [deliveryPartnerId], references: [id])
+  subtotal             Float
+  deliveryFee          Float
+  tax                  Float
+  discount             Float            @default(0)
+  couponDiscount       Float            @default(0)
+  couponId             String?
+  coupon               Coupon?          @relation(fields: [couponId], references: [id])
+  /// Wallet balance applied to this order (already subtracted from `total`).
+  walletDiscount       Float            @default(0)
+  /// True once the wallet spend has actually been debited from the balance.
+  walletDebited        Boolean          @default(false)
+  /// Cashback earned by this order; credited to the wallet on delivery.
+  cashbackAmount       Float            @default(0)
+  cashbackStatus       CashbackStatus   @default(NONE)
+  total                Float
+  paymentMethod        PaymentMethod
+  paymentStatus        PaymentStatus    @default(PENDING)
+  estimatedTime        Int
+  placedAt             DateTime         @default(now())
+  acceptedAt           DateTime?
+  preparingAt          DateTime?
+  outForDeliveryAt     DateTime?
+  deliveredAt          DateTime?
+  cancelledAt          DateTime?
   /// Customer shares this code with the rider/admin to confirm delivery.
-  deliveryOtp       String?
+  deliveryOtp          String?
   deliveryOtpCreatedAt DateTime?
-  trackingUpdates   Json[]           @default([])
-  isGift            Boolean          @default(false)
+  trackingUpdates      Json[]           @default([])
+  isGift               Boolean          @default(false)
   /// Wholesale / B2B order (separate from retail storefront cart).
-  isWholesale       Boolean          @default(false)
-  businessName      String?
-  recipientId       String?
-  recipient         GiftRecipient?   @relation(fields: [recipientId], references: [id])
-  occasionId        String?
-  occasion          Occasion?        @relation(fields: [occasionId], references: [id])
-  giftWrapId        String?
-  giftWrap          GiftWrap?        @relation(fields: [giftWrapId], references: [id])
-  greetingMessage   String?
-  senderName        String?
-  showSenderName    Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  isWholesale          Boolean          @default(false)
+  businessName         String?
+  recipientId          String?
+  recipient            GiftRecipient?   @relation(fields: [recipientId], references: [id])
+  occasionId           String?
+  occasion             Occasion?        @relation(fields: [occasionId], references: [id])
+  giftWrapId           String?
+  giftWrap             GiftWrap?        @relation(fields: [giftWrapId], references: [id])
+  greetingMessage      String?
+  senderName           String?
+  showSenderName       Boolean          @default(true)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -249,6 +258,57 @@ model Order {
   @@index([couponId])
   @@index([isGift])
   @@index([isWholesale])
+}
+
+enum CashbackStatus {
+  NONE
+  PENDING
+  CREDITED
+  VOIDED
+}
+
+enum WalletTxType {
+  CASHBACK_PENDING
+  CASHBACK_CREDIT
+  CASHBACK_VOID
+  REDEEM
+  REDEEM_REFUND
+  ADJUST
+}
+
+enum WalletTxStatus {
+  PENDING
+  COMPLETED
+  VOIDED
+}
+
+/// Spendable wallet balance per customer. Ledger lives in `WalletTransaction`.
+model WalletAccount {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Append-only wallet ledger. `amount` is signed: positive credits, negative debits.
+model WalletTransaction {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId      String?
+  type         WalletTxType
+  amount       Float
+  /// Balance after this entry settled; null while a cashback is still PENDING.
+  balanceAfter Float?
+  status       WalletTxStatus @default(COMPLETED)
+  note         String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([orderId, type])
+  @@index([userId, createdAt])
+  @@index([orderId])
 }
 
 enum CouponType {
@@ -263,26 +323,26 @@ enum CouponApplicability {
 }
 
 model Coupon {
-  id                   String                @id @default(cuid())
-  code                 String                @unique
-  description          String?
-  type                 CouponType
-  value                Float
-  minOrderAmount       Float                 @default(0)
-  maxDiscount          Float?
-  usageLimit           Int?
-  usedCount            Int                   @default(0)
-  startAt              DateTime?
-  endAt                DateTime?
-  isActive             Boolean               @default(true)
-  applicability        CouponApplicability   @default(ALL)
-  applicableCategoryIds String[]             @default([])
-  applicableProductIds  String[]             @default([])
-  createdByUserId      String?
-  createdBy            User?                 @relation(fields: [createdByUserId], references: [id])
-  orders               Order[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id                    String              @id @default(cuid())
+  code                  String              @unique
+  description           String?
+  type                  CouponType
+  value                 Float
+  minOrderAmount        Float               @default(0)
+  maxDiscount           Float?
+  usageLimit            Int?
+  usedCount             Int                 @default(0)
+  startAt               DateTime?
+  endAt                 DateTime?
+  isActive              Boolean             @default(true)
+  applicability         CouponApplicability @default(ALL)
+  applicableCategoryIds String[]            @default([])
+  applicableProductIds  String[]            @default([])
+  createdByUserId       String?
+  createdBy             User?               @relation(fields: [createdByUserId], references: [id])
+  orders                Order[]
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   @@index([isActive])
   @@index([code])
@@ -291,12 +351,12 @@ model Coupon {
 
 /// One promo roulette play (limits spins + links awarded coupon).
 model SpinPlay {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  couponId  String?
-  percent   Int
-  playedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couponId String?
+  percent  Int
+  playedAt DateTime @default(now())
 
   @@index([userId, playedAt])
 }
@@ -470,66 +530,76 @@ model Occasion {
 }
 
 model AppSettings {
-  id                          String   @id @default("default")
-  siteName                    String   @default("Chapter Kurus")
-  supportPhone                String?
-  supportEmail                String?
-  supportHours                String?
-  supportMessage              String?
-  deliveryEstimate            String   @default("Estimated delivery: 20-30 minutes")
-  deliveryNote                String?
-  announcementText            String?
-  storeAddress                String?
-  mapLatitude                 Float    @default(27.7172)
-  mapLongitude                Float    @default(85.3240)
-  homepageShowBanner          Boolean  @default(true)
-  homepageShowTopCategories   Boolean  @default(true)
-  homepageShowCategorySections Boolean @default(true)
-  homepageShowOccasionTabs    Boolean  @default(true)
-  homepageShowRecommendations Boolean  @default(true)
-  homepageShowValueDeals      Boolean  @default(true)
-  homepageShowSpinBanner      Boolean  @default(true)
-  homepageRecommendationMode  String   @default("LATEST")
-  homepageRecommendationTitle String?
+  id                           String   @id @default("default")
+  siteName                     String   @default("Chapter Kurus")
+  supportPhone                 String?
+  supportEmail                 String?
+  supportHours                 String?
+  supportMessage               String?
+  deliveryEstimate             String   @default("Estimated delivery: 20-30 minutes")
+  deliveryNote                 String?
+  announcementText             String?
+  storeAddress                 String?
+  mapLatitude                  Float    @default(27.7172)
+  mapLongitude                 Float    @default(85.3240)
+  homepageShowBanner           Boolean  @default(true)
+  homepageShowTopCategories    Boolean  @default(true)
+  homepageShowCategorySections Boolean  @default(true)
+  homepageShowOccasionTabs     Boolean  @default(true)
+  homepageShowRecommendations  Boolean  @default(true)
+  homepageShowValueDeals       Boolean  @default(true)
+  homepageShowSpinBanner       Boolean  @default(true)
+  homepageRecommendationMode   String   @default("LATEST")
+  homepageRecommendationTitle  String?
   /// Ordered mobile home sections: `[{ id, title, subtitle, visible }]`.
-  homeSectionLayout           Json?
+  homeSectionLayout            Json?
   /// Mobile brand primary (buttons / accents), hex `#RRGGBB`.
-  brandPrimary                String   @default("#8B5A2B")
+  brandPrimary                 String   @default("#8B5A2B")
   /// Mobile brand secondary (gold accents), hex `#RRGGBB`.
-  brandSecondary              String   @default("#D4AF37")
+  brandSecondary               String   @default("#D4AF37")
   /// Home header soft wash fallback, hex `#RRGGBB`.
-  headerWash                  String   @default("#F7F0E8")
+  headerWash                   String   @default("#F7F0E8")
   /// Scaffold / page background, hex `#RRGGBB`.
-  pageBackground              String   @default("#FFFFFF")
+  pageBackground               String   @default("#FFFFFF")
   /// Primary text colour, hex `#RRGGBB`.
-  textInk                     String   @default("#1F1F1F")
+  textInk                      String   @default("#1F1F1F")
   /// Secondary / muted text colour, hex `#RRGGBB`.
-  textMuted                   String   @default("#3E3E3E")
+  textMuted                    String   @default("#3E3E3E")
   /// Chip + image placeholder fill, hex `#RRGGBB`.
-  surfaceSoft                 String   @default("#F4F4F5")
+  surfaceSoft                  String   @default("#F4F4F5")
   /// Card / tile surface, hex `#RRGGBB`.
-  cardBackground              String   @default("#FFFFFF")
+  cardBackground               String   @default("#FFFFFF")
   /// Card + input corner radius in logical pixels.
-  cornerRadius                Int      @default(12)
+  cornerRadius                 Int      @default(12)
   /// Button corner radius in logical pixels.
-  buttonRadius                Int      @default(30)
+  buttonRadius                 Int      @default(30)
   /// Spacing scale: COMPACT | COMFORTABLE | SPACIOUS.
-  uiDensity                   String   @default("COMFORTABLE")
+  uiDensity                    String   @default("COMFORTABLE")
   /// Product grid columns on home / category tabs.
-  productGridColumns          Int      @default(2)
+  productGridColumns           Int      @default(2)
   /// Product tile width-to-height ratio.
-  productCardAspectRatio      Float    @default(0.68)
-  productShowDiscountBadge    Boolean  @default(true)
-  productShowCategoryLabel    Boolean  @default(false)
+  productCardAspectRatio       Float    @default(0.68)
+  productShowDiscountBadge     Boolean  @default(true)
+  productShowCategoryLabel     Boolean  @default(false)
   /// Show the floating promo orb / Promo tab in the mobile bottom nav.
-  showPromoTab                Boolean  @default(true)
+  showPromoTab                 Boolean  @default(true)
   /// Promo orb flip text, e.g. `20% OFF`.
-  promoOrbLabel               String   @default("20% OFF")
-  navHomeLabel                String   @default("Home")
-  navCategoriesLabel          String   @default("Categories")
-  navTopPicksLabel            String   @default("Top picks")
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  promoOrbLabel                String   @default("20% OFF")
+  navHomeLabel                 String   @default("Home")
+  navCategoriesLabel           String   @default("Categories")
+  navTopPicksLabel             String   @default("Top picks")
+  /// Master switch for the customer wallet + cashback programme.
+  walletEnabled                Boolean  @default(false)
+  /// Cashback earned per order, as a percent of the amount paid without wallet.
+  cashbackPercent              Float    @default(0)
+  /// Optional cap on cashback earned per order, in rupees.
+  cashbackMaxAmount            Float?
+  /// Share of an order that may be paid from the wallet.
+  walletMaxPercentPerOrder     Float    @default(100)
+  /// Optional cap on wallet spend per order, in rupees.
+  walletMaxAmountPerOrder      Float?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 }
 
 model ProductViewEvent {

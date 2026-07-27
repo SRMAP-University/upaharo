@@ -43,6 +43,13 @@ export type SettingsForm = {
   navHomeLabel: string
   navCategoriesLabel: string
   navTopPicksLabel: string
+  walletEnabled: boolean
+  cashbackPercent: number
+  /** Blank means "no cap". */
+  cashbackMaxAmount: string
+  walletMaxPercentPerOrder: number
+  /** Blank means "no cap". */
+  walletMaxAmountPerOrder: string
 }
 
 export const EMPTY_FORM: SettingsForm = {
@@ -87,6 +94,11 @@ export const EMPTY_FORM: SettingsForm = {
   navHomeLabel: 'Home',
   navCategoriesLabel: 'Categories',
   navTopPicksLabel: 'Top picks',
+  walletEnabled: false,
+  cashbackPercent: 0,
+  cashbackMaxAmount: '',
+  walletMaxPercentPerOrder: 100,
+  walletMaxAmountPerOrder: '',
 }
 
 export const INPUT_CLASS =

@@ -7,6 +7,7 @@ import {
   abandonUnpaidOnlineOrder,
   activateOrderFulfillment,
 } from '@/lib/order-payment-lifecycle'
+import { createPendingCashback, redeemWallet } from '@/lib/wallet'
 
 type ApplyResult = {
   orderId: string
@@ -32,6 +33,10 @@ export async function applyStripeCheckoutSessionToOrder(params: {
       paymentStatus: true,
       status: true,
       couponId: true,
+      walletDiscount: true,
+      walletDebited: true,
+      cashbackAmount: true,
+      cashbackStatus: true,
     },
   })
 
@@ -129,6 +134,36 @@ export async function applyStripeCheckoutSessionToOrder(params: {
   })
 
   if (!wasAlreadyPaid) {
+    // An earlier abandon released the wallet hold and cashback; paying later
+    // has to put both back before the order goes to the kitchen.
+    if (order.walletDiscount > 0 && !order.walletDebited) {
+      try {
+        await redeemWallet({
+          userId: order.userId,
+          orderId: order.id,
+          amount: order.walletDiscount,
+        })
+      } catch (err) {
+        console.error('Could not re-apply wallet after late payment:', err)
+      }
+    }
+
+    if (order.cashbackAmount > 0 && order.cashbackStatus !== 'PENDING') {
+      try {
+        await createPendingCashback({
+          userId: order.userId,
+          orderId: order.id,
+          amount: order.cashbackAmount,
+        })
+        await prisma.order.update({
+          where: { id: order.id },
+          data: { cashbackStatus: 'PENDING' },
+        })
+      } catch (err) {
+        console.error('Could not restore pending cashback after late payment:', err)
+      }
+    }
+
     await activateOrderFulfillment({
       id: updatedOrder.id,
       userId: updatedOrder.userId,
