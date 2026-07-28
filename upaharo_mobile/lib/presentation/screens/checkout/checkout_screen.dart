@@ -98,11 +98,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   WalletSummary _wallet = WalletSummary.empty;
   bool _useWallet = false;
 
-  /// Set only when every cart item can be collected from the same point.
+  /// Set when at least one cart line shares a pickup pin.
   PickupLocation? _pickupLocation;
   bool _wantsPickup = false;
+  /// Cart lines that share [_pickupLocation] (may be a subset of the cart).
+  List<CartItem> _pickupProducts = const [];
+  /// Cart lines that must be delivered (no shared pickup pin).
+  List<CartItem> _deliveryOnlyProducts = const [];
 
-  bool get _isPickup => _pickupLocation != null && _wantsPickup;
+  bool get _hasPickupOption =>
+      _pickupLocation != null && _pickupProducts.isNotEmpty;
+
+  /// Mixed cart: some items pickupable, some delivery-only.
+  bool get _isMixed => _hasPickupOption && _deliveryOnlyProducts.isNotEmpty;
+
+  /// User chose to collect the pickupable items.
+  bool get _usingPickup => _hasPickupOption && _wantsPickup;
+
+  /// Split into two orders (pickup + delivery).
+  bool get _isSplit => _usingPickup && _isMixed;
+
+  /// Need a delivery address (full delivery, or delivery half of a split).
+  bool get _needsAddress => !_usingPickup || _isMixed;
+
+  bool get _isPickup => _usingPickup && !_isMixed;
+
+  /// Variant cart ids are `productId::vN` — pickup APIs need the base product id.
+  String _baseProductId(String cartItemId) => CartProvider.baseProductId(cartItemId);
 
   @override
   void initState() {
@@ -240,9 +262,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _senderController.text = gift.senderName ?? '';
       _showSenderName = gift.showSenderName;
 
-      _pickupLocation = await _pickupRepo.resolveForProducts(
-        cart.items.map((item) => item.id).toList(),
+      final cartItems = cart.items;
+      final pickup = await _pickupRepo.resolveForProducts(
+        cartItems.map((item) => _baseProductId(item.id)).toList(),
       );
+      _pickupLocation = pickup.location;
+      final pickupIds = pickup.pickupProductIds.toSet();
+      _pickupProducts = cartItems
+          .where((item) => pickupIds.contains(_baseProductId(item.id)))
+          .toList();
+      _deliveryOnlyProducts = cartItems
+          .where((item) => !pickupIds.contains(_baseProductId(item.id)))
+          .toList();
+      if (_pickupProducts.isEmpty) {
+        _pickupLocation = null;
+        _wantsPickup = false;
+      }
 
       // If no addresses, try to create one from saved location
       if (_addresses.isEmpty) {
@@ -350,9 +385,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   _CheckoutTotals _computeTotals(CartProvider cart) {
     final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0.0) : 0.0;
+    // Delivery fee applies only to items that will be delivered.
+    final deliveryGoods = _usingPickup
+        ? (_isMixed
+            ? _deliveryOnlyProducts.fold<double>(
+                  0,
+                  (sum, item) => sum + item.price * item.quantity,
+                ) +
+                wrapPrice
+            : 0.0)
+        : cart.totalPrice + wrapPrice;
     final goodsTotal = cart.totalPrice + wrapPrice;
-    // Prefer admin delivery rules from the wallet payload (same source as the API).
-    final deliveryFee = _isPickup ? 0.0 : _wallet.deliveryFeeFor(goodsTotal);
+    final deliveryFee =
+        deliveryGoods > 0 ? _wallet.deliveryFeeFor(deliveryGoods) : 0.0;
     final totalBeforeWallet =
         (goodsTotal + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
     final maxWalletSpend = _wallet.maxSpendFor(totalBeforeWallet);
@@ -379,7 +424,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => _error = 'Your cart is empty');
       return;
     }
-    if (!_isPickup && address == null) {
+    if (_needsAddress && address == null) {
       setState(() => _error = 'Please select a delivery address');
       return;
     }
@@ -407,28 +452,83 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     final totals = _computeTotals(cart);
 
-    final payload = cart.toCheckoutPayload(
-      addressId: address?.id,
-      fulfillmentType: _isPickup ? 'PICKUP' : 'DELIVERY',
-      deliveryFee: totals.deliveryFee,
-      giftWrapPrice: totals.wrapPrice,
-      couponDiscount: _couponDiscount,
-      walletAmount: totals.walletApplied,
-      couponCode: _appliedCouponCode,
-      addressLatitude: address?.latitude,
-      addressLongitude: address?.longitude,
-      total: totals.total,
-      paymentMethod: _paymentMethod,
-    );
-
     try {
       final ordersProvider = context.read<OrdersProvider>();
       final couponProvider = context.read<CouponProvider>();
-      final result = await _orderRepo.createOrderWithPayment(payload);
-      final order = result.order;
 
-      if (_paymentMethod == 'ONLINE') {
-        final paymentUrl = result.paymentUrl;
+      late final Order primaryOrder;
+      Order? secondaryOrder;
+      String? paymentUrl;
+      String? checkoutSessionId;
+
+      if (_isSplit) {
+        // 1) Pickup order for pickupable items (cash on pickup).
+        final pickupPayload = cart.toCheckoutPayload(
+          fulfillmentType: 'PICKUP',
+          deliveryFee: 0,
+          items: _pickupProducts,
+          includeGift: false,
+          paymentMethod: 'CASH',
+          total: _pickupProducts.fold<double>(
+            0,
+            (sum, item) => sum + item.price * item.quantity,
+          ),
+        );
+        final pickupResult = await _orderRepo.createOrderWithPayment(pickupPayload);
+
+        // 2) Delivery order for the rest — gift / coupon / wallet / online pay.
+        final deliverySubtotal = _deliveryOnlyProducts.fold<double>(
+          0,
+          (sum, item) => sum + item.price * item.quantity,
+        );
+        final deliveryTotal = (deliverySubtotal +
+                totals.wrapPrice +
+                totals.deliveryFee -
+                _couponDiscount -
+                totals.walletApplied)
+            .clamp(0.0, double.infinity);
+        final deliveryPayload = cart.toCheckoutPayload(
+          addressId: address?.id,
+          fulfillmentType: 'DELIVERY',
+          deliveryFee: totals.deliveryFee,
+          giftWrapPrice: totals.wrapPrice,
+          couponDiscount: _couponDiscount,
+          walletAmount: totals.walletApplied,
+          couponCode: _appliedCouponCode,
+          addressLatitude: address?.latitude,
+          addressLongitude: address?.longitude,
+          total: deliveryTotal,
+          paymentMethod: _paymentMethod,
+          items: _deliveryOnlyProducts,
+          includeGift: true,
+        );
+        final deliveryResult = await _orderRepo.createOrderWithPayment(deliveryPayload);
+
+        primaryOrder = deliveryResult.order;
+        secondaryOrder = pickupResult.order;
+        paymentUrl = deliveryResult.paymentUrl;
+        checkoutSessionId = deliveryResult.checkoutSessionId;
+      } else {
+        final payload = cart.toCheckoutPayload(
+          addressId: address?.id,
+          fulfillmentType: _usingPickup ? 'PICKUP' : 'DELIVERY',
+          deliveryFee: totals.deliveryFee,
+          giftWrapPrice: totals.wrapPrice,
+          couponDiscount: _couponDiscount,
+          walletAmount: totals.walletApplied,
+          couponCode: _appliedCouponCode,
+          addressLatitude: address?.latitude,
+          addressLongitude: address?.longitude,
+          total: totals.total,
+          paymentMethod: _paymentMethod,
+        );
+        final result = await _orderRepo.createOrderWithPayment(payload);
+        primaryOrder = result.order;
+        paymentUrl = result.paymentUrl;
+        checkoutSessionId = result.checkoutSessionId;
+      }
+
+      if (_paymentMethod == 'ONLINE' && (!_isSplit || primaryOrder.fulfillmentType != 'PICKUP')) {
         if (paymentUrl == null || paymentUrl.isEmpty) {
           throw const ApiException(
             message: 'Online payment URL was not returned. Please try again.',
@@ -444,8 +544,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
         if (!mounted) return;
         final paid = await _waitForStripePayment(
-          orderId: order.id,
-          sessionId: result.checkoutSessionId,
+          orderId: primaryOrder.id,
+          sessionId: checkoutSessionId,
         );
         if (!mounted) return;
 
@@ -460,10 +560,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         }
       }
 
-      final amountSaved = order.couponDiscount > 0
-          ? order.couponDiscount
-          : (_couponDiscount > 0 ? _couponDiscount : order.discount);
-      final couponCode = order.couponCode ?? _appliedCouponCode;
+      final amountSaved = primaryOrder.couponDiscount > 0
+          ? primaryOrder.couponDiscount
+          : (_couponDiscount > 0 ? _couponDiscount : primaryOrder.discount);
+      final couponCode = primaryOrder.couponCode ?? _appliedCouponCode;
+      final combinedTotal =
+          primaryOrder.total + (secondaryOrder?.total ?? 0);
       cart.clearCart();
       await couponProvider.clearApplied();
       await ordersProvider.refreshAfterPlaceOrder();
@@ -476,12 +578,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             route.settings.name == AppRoutes.home ||
             route.isFirst,
         arguments: OrderSuccessArgs(
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          total: order.total,
+          orderId: primaryOrder.id,
+          orderNumber: primaryOrder.orderNumber,
+          total: combinedTotal,
           amountSaved: amountSaved,
           couponCode: couponCode,
-          isGift: order.isGift,
+          isGift: primaryOrder.isGift,
+          secondaryOrderNumber: secondaryOrder?.orderNumber,
         ),
       );
     } on UnauthorizedException {
@@ -529,15 +632,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ],
 
-                      if (_pickupLocation != null) ...[
+                      if (_hasPickupOption) ...[
                         _fulfillmentSelector(),
+                        const SizedBox(height: 10),
+                        _pickupAvailableFor(_pickupProducts),
+                        if (_isMixed) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _usingPickup
+                                ? 'We’ll create two orders: pickup for these, delivery for the rest.'
+                                : 'Or choose Pickup to collect these and deliver the rest.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.charcoal.withAlpha(180),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 12),
                       ],
 
-                      if (_isPickup) ...[
+                      if (_usingPickup) ...[
                         _sectionTitle('Pickup location'),
                         _pickupCard(_pickupLocation!),
-                      ] else ...[
+                        if (_isMixed) ...[
+                          const SizedBox(height: 12),
+                          _sectionTitle('Deliver these'),
+                          _pickupAvailableFor(
+                            _deliveryOnlyProducts,
+                            title: 'Delivery required for',
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ],
+                      if (_needsAddress) ...[
                         _sectionTitle('Delivery address'),
                         if (_addresses.isEmpty)
                           _emptyAddressCard()
@@ -735,15 +862,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       _sectionTitle('Payment'),
                       _paymentOption(
                         value: 'CASH',
-                        title: _isPickup ? 'Cash on Pickup' : 'Cash on Delivery',
-                        subtitle: _isPickup ? 'Pay when you collect' : 'Pay when you receive',
+                        title: _isSplit
+                            ? 'Cash (pickup + delivery)'
+                            : (_isPickup ? 'Cash on Pickup' : 'Cash on Delivery'),
+                        subtitle: _isSplit
+                            ? 'Pay on collect for pickup items; pay on delivery for the rest'
+                            : (_isPickup ? 'Pay when you collect' : 'Pay when you receive'),
                         icon: Icons.payments_outlined,
                       ),
                       const SizedBox(height: 10),
                       _paymentOption(
                         value: 'ONLINE',
                         title: 'Pay Online',
-                        subtitle: 'Secure card payment with Stripe',
+                        subtitle: _isSplit
+                            ? 'Online for delivery order; cash on pickup for collect items'
+                            : 'Secure card payment with Stripe',
                         icon: Icons.credit_card_outlined,
                       ),
 
@@ -790,6 +923,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                             ),
                           ),
                         )
+                      else if (_isSplit) ...[
+                        _totalRow(
+                          'Pickup items',
+                          0,
+                          trailing: const Text(
+                            'FREE',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        ),
+                        if (totals.deliveryFee <= 0)
+                          _waivedFeeRow(
+                            'Delivery',
+                            _wallet.deliveryFeeAmount > 0
+                                ? _wallet.deliveryFeeAmount
+                                : CartProvider.standardDeliveryFee,
+                          )
+                        else
+                          _totalRow('Delivery', totals.deliveryFee),
+                      ]
                       else if (totals.deliveryFee <= 0)
                         _waivedFeeRow(
                           'Delivery',
@@ -862,7 +1018,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   total: total,
                   enabled: !_placing &&
                       cart.items.isNotEmpty &&
-                      (_isPickup || _selectedAddressId != null) &&
+                      (!_needsAddress || _selectedAddressId != null) &&
                       !(_wallet.checkoutMinOrderAmount > 0 &&
                           totals.goodsTotal < _wallet.checkoutMinOrderAmount),
                 ),
@@ -974,6 +1130,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _fulfillmentSelector() {
+    final pickupLabel = _isMixed ? 'Pickup + Deliver' : 'Pickup · Free';
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -983,8 +1140,110 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
       child: Row(
         children: [
-          _fulfillmentTab(label: 'Delivery', pickup: false),
-          _fulfillmentTab(label: 'Pickup · Free', pickup: true),
+          _fulfillmentTab(label: _isMixed ? 'Deliver all' : 'Delivery', pickup: false),
+          _fulfillmentTab(label: pickupLabel, pickup: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _pickupAvailableFor(List<CartItem> items, {String title = 'Pickup available for'}) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    // Single product: show image + name. Multiple: image row.
+    if (items.length == 1) {
+      final item = items.first;
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.wine.withAlpha(40)),
+        ),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: ProgressiveNetworkImage(
+                url: item.image,
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.charcoal,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.ink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.wine.withAlpha(40)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.charcoal,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 52,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: ProgressiveNetworkImage(
+                    url: item.image,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

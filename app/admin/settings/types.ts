@@ -21,6 +21,9 @@ export type SettingsForm = {
   homepageShowOccasionTabs: boolean
   homepageShowRecommendations: boolean
   homepageShowValueDeals: boolean
+  valueDealsProductIds: string[]
+  valueDealsPromoText: string
+  valueDealsUnlockAmount: number
   homepageShowSpinBanner: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
@@ -78,6 +81,9 @@ export const EMPTY_FORM: SettingsForm = {
   homepageShowOccasionTabs: true,
   homepageShowRecommendations: true,
   homepageShowValueDeals: true,
+  valueDealsProductIds: [],
+  valueDealsPromoText: 'Shop for {amount} to unlock deals',
+  valueDealsUnlockAmount: 199,
   homepageShowSpinBanner: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',

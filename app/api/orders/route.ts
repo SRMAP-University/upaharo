@@ -6,7 +6,7 @@ import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { validateCoupon } from '@/lib/coupon'
-import { resolvePickupForProductIds } from '@/lib/pickup'
+import { resolvePickupForProductIds, baseProductId } from '@/lib/pickup'
 import { createStripeCheckoutSession, isStripeConfigured } from '@/lib/stripe'
 import {
   abandonUnpaidOnlineOrder,
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     const productIds = items
-      .map((item: any) => String(item?.id || '').trim())
+      .map((item: any) => baseProductId(String(item?.id || '')))
       .filter(Boolean)
 
     const availableProducts = await prisma.product.findMany({
@@ -90,15 +90,15 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     })
 
-    if (availableProducts.length !== productIds.length) {
+    if (availableProducts.length !== new Set(productIds).size) {
       return NextResponse.json(
         { error: 'Some items are no longer available' },
         { status: 400 }
       )
     }
 
-    // Pickup is only offered when every item shares one collection point, so a
-    // client asking for it must be re-validated against the products.
+    // Pickup is only offered when every item in *this* order shares one pin.
+    // Mixed carts place a separate pickup order with only pickup-capable items.
     const pickup = isPickup ? await resolvePickupForProductIds(productIds) : null
     if (isPickup && (!pickup?.eligible || !pickup.location)) {
       return NextResponse.json(
@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
           showSenderName: isGift ? (showSenderName || false) : false,
           items: {
             create: items.map((item: any) => ({
-              productId: item.id,
+              productId: baseProductId(String(item?.id || '')),
               quantity: item.quantity,
               price: item.price,
             })),

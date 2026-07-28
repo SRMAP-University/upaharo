@@ -152,7 +152,7 @@ class ApiEndpoints {
 
   /// Whether the given cart can be collected instead of delivered.
   /// Query params: ids=prod_1,prod_2
-  /// GET -> { eligible, location: { latitude, longitude, address } | null }
+  /// GET -> { eligible, location, pickupProductIds: string[] }
   static const String pickup = '/api/pickup';
 
   /// Wallet balance, cashback rules and recent ledger entries.
@@ -201,6 +201,9 @@ class ApiEndpoints {
   /// Body: { messages: [{ role, content }] }
   /// Response: { role, content, products: [...] }
   static const String aiChat = '/api/ai/chat';
+
+  /// POST/GET -> AI product search { query } → { products, filters, interpretation, source }
+  static const String aiSearch = '/api/ai/search';
 
   /// In-app notification inbox.
   /// GET -> { notifications, unreadCount }

@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 
 import '../../config/theme.dart';
 import '../../data/models/product.dart';
+import '../../data/repositories/product_repository.dart';
 import '../providers/cart_provider.dart';
 import 'cart_fly_animator.dart';
+import 'variant_add_sheet.dart';
 
-/// Plus control that adds [product] to cart and flies a thumb to the mini cart.
-class AddToCartPlus extends StatelessWidget {
+/// Plus control: opens variant drawer when needed, otherwise adds immediately.
+class AddToCartPlus extends StatefulWidget {
   const AddToCartPlus({
     super.key,
     required this.product,
@@ -21,10 +23,54 @@ class AddToCartPlus extends StatelessWidget {
   final double iconSize;
   final VoidCallback? onAdded;
 
-  void _handleTap(BuildContext context) {
-    CartFlyAnimator.flyFromContext(context: context, imageUrl: product.image);
-    context.read<CartProvider>().addProduct(product);
-    onAdded?.call();
+  @override
+  State<AddToCartPlus> createState() => _AddToCartPlusState();
+}
+
+class _AddToCartPlusState extends State<AddToCartPlus> {
+  final _repo = const ProductRepository();
+  bool _busy = false;
+
+  Future<void> _handleTap() async {
+    if (_busy) return;
+
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = (box != null && box.hasSize && box.attached)
+        ? box.localToGlobal(Offset.zero)
+        : null;
+
+    Product resolved = widget.product;
+
+    // Card/list payloads often omit variants — fetch detail before deciding.
+    if (resolved.variants.isEmpty) {
+      setState(() => _busy = true);
+      try {
+        resolved = await _repo.getProductById(widget.product.id);
+      } catch (_) {
+        // Fall through and add the card product if detail fails.
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    }
+
+    if (!mounted) return;
+
+    if (resolved.variants.isNotEmpty) {
+      await showVariantAddSheet(
+        context,
+        product: resolved,
+        flyOrigin: origin,
+      );
+      widget.onAdded?.call();
+      return;
+    }
+
+    CartFlyAnimator.flyFromContext(
+      context: context,
+      imageUrl: resolved.image,
+    );
+    context.read<CartProvider>().addProduct(resolved);
+    widget.onAdded?.call();
   }
 
   @override
@@ -36,11 +82,23 @@ class AddToCartPlus extends StatelessWidget {
       shadowColor: Colors.black38,
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: () => _handleTap(context),
+        onTap: _busy ? null : _handleTap,
         child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(Icons.add_rounded, size: iconSize, color: Colors.white),
+          width: widget.size,
+          height: widget.size,
+          child: _busy
+              ? Padding(
+                  padding: EdgeInsets.all(widget.size * 0.28),
+                  child: const CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : Icon(
+                  Icons.add_rounded,
+                  size: widget.iconSize,
+                  color: Colors.white,
+                ),
         ),
       ),
     );

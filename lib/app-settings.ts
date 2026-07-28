@@ -6,6 +6,7 @@ import {
   normalizeHexColor,
   normalizeHomeSections,
   normalizeOptionalAmount,
+  normalizeValueDealsProductIds,
   type PublicAppSettings,
 } from '@/lib/app-settings-schema'
 import { prisma } from '@/lib/prisma'
@@ -61,6 +62,18 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
           settings.homepageShowRecommendations ?? DEFAULT_APP_SETTINGS.homepageShowRecommendations,
         homepageShowValueDeals:
           settings.homepageShowValueDeals ?? DEFAULT_APP_SETTINGS.homepageShowValueDeals,
+        valueDealsProductIds: normalizeValueDealsProductIds(
+          settings.valueDealsProductIds
+        ),
+        valueDealsPromoText:
+          String(settings.valueDealsPromoText || DEFAULT_APP_SETTINGS.valueDealsPromoText)
+            .trim() || DEFAULT_APP_SETTINGS.valueDealsPromoText,
+        valueDealsUnlockAmount: clampFloat(
+          settings.valueDealsUnlockAmount,
+          DEFAULT_APP_SETTINGS.valueDealsUnlockAmount,
+          0,
+          1_000_000
+        ),
         homepageShowSpinBanner:
           settings.homepageShowSpinBanner ?? DEFAULT_APP_SETTINGS.homepageShowSpinBanner,
         homepageRecommendationMode:

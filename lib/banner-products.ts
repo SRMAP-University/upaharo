@@ -10,6 +10,7 @@ export type BannerProductCard = {
   discount: number | null
   isAvailable: boolean
   miniDescription: string | null
+  variants: unknown[]
 }
 
 const productSelect = {
@@ -21,6 +22,7 @@ const productSelect = {
   discount: true,
   isAvailable: true,
   miniDescription: true,
+  variants: true,
 } as const
 
 function mapProduct(p: {
@@ -32,6 +34,7 @@ function mapProduct(p: {
   discount: number | null
   isAvailable: boolean
   miniDescription: string | null
+  variants?: unknown
 }): BannerProductCard {
   return {
     id: p.id,
@@ -42,6 +45,7 @@ function mapProduct(p: {
     discount: p.discount != null ? Number(p.discount) : null,
     isAvailable: p.isAvailable,
     miniDescription: p.miniDescription,
+    variants: Array.isArray(p.variants) ? p.variants : [],
   }
 }
 

@@ -61,6 +61,9 @@ class AppSettings {
   final bool homepageShowOccasionTabs;
   final bool homepageShowRecommendations;
   final bool homepageShowValueDeals;
+  final List<String> valueDealsProductIds;
+  final String valueDealsPromoText;
+  final double valueDealsUnlockAmount;
   final bool homepageShowSpinBanner;
   final String homepageRecommendationMode;
   final String homepageRecommendationTitle;
@@ -108,6 +111,9 @@ class AppSettings {
     this.homepageShowOccasionTabs = true,
     this.homepageShowRecommendations = true,
     this.homepageShowValueDeals = true,
+    this.valueDealsProductIds = const [],
+    this.valueDealsPromoText = 'Shop for {amount} to unlock deals',
+    this.valueDealsUnlockAmount = 199,
     this.homepageShowSpinBanner = true,
     this.homepageRecommendationMode = 'LATEST',
     this.homepageRecommendationTitle = 'Latest Arrivals',
@@ -190,6 +196,15 @@ class AppSettings {
       homepageShowOccasionTabs: json['homepageShowOccasionTabs'] as bool? ?? true,
       homepageShowRecommendations: json['homepageShowRecommendations'] as bool? ?? true,
       homepageShowValueDeals: json['homepageShowValueDeals'] as bool? ?? true,
+      valueDealsProductIds: (json['valueDealsProductIds'] as List<dynamic>?)
+              ?.map((e) => e.toString().trim())
+              .where((id) => id.isNotEmpty)
+              .toList() ??
+          const [],
+      valueDealsPromoText: json['valueDealsPromoText'] as String? ??
+          'Shop for {amount} to unlock deals',
+      valueDealsUnlockAmount:
+          (json['valueDealsUnlockAmount'] as num?)?.toDouble() ?? 199,
       homepageShowSpinBanner: json['homepageShowSpinBanner'] as bool? ?? true,
       homepageRecommendationMode: json['homepageRecommendationMode'] as String? ?? 'LATEST',
       homepageRecommendationTitle: json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
@@ -248,6 +263,9 @@ class AppSettings {
         'homepageShowOccasionTabs': homepageShowOccasionTabs,
         'homepageShowRecommendations': homepageShowRecommendations,
         'homepageShowValueDeals': homepageShowValueDeals,
+        'valueDealsProductIds': valueDealsProductIds,
+        'valueDealsPromoText': valueDealsPromoText,
+        'valueDealsUnlockAmount': valueDealsUnlockAmount,
         'homepageShowSpinBanner': homepageShowSpinBanner,
         'homepageRecommendationMode': homepageRecommendationMode,
         'homepageRecommendationTitle': homepageRecommendationTitle,

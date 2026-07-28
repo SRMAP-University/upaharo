@@ -39,6 +39,13 @@ export function pickupLocationOf(product: PickupProductFields): PickupLocation |
   return { latitude, longitude, address: address || null }
 }
 
+/** Strip variant cart ids like `productId::v0` down to the product id. */
+export function baseProductId(id: string) {
+  const raw = String(id || '').trim()
+  const sep = raw.indexOf('::')
+  return sep > 0 ? raw.slice(0, sep) : raw
+}
+
 /**
  * Pickup is offered only when every item can be collected from the exact same
  * pin, so an order never has to be split across two locations.
@@ -62,6 +69,43 @@ export function resolveSharedPickupLocation(
   }
 
   return shared
+}
+
+/**
+ * Among products that individually support pickup, pick the largest set that
+ * shares one pin (used for mixed carts: pickup some + deliver the rest).
+ */
+export function resolveLargestSharedPickupGroup(products: PickupProductFields[]): {
+  location: PickupLocation | null
+  productIds: string[]
+} {
+  const capable = products
+    .map((product) => ({ id: product.id, location: pickupLocationOf(product) }))
+    .filter((row): row is { id: string; location: PickupLocation } => row.location != null)
+
+  if (capable.length === 0) return { location: null, productIds: [] }
+
+  const groups = new Map<string, { location: PickupLocation; productIds: string[] }>()
+  for (const row of capable) {
+    const key = `${row.location.latitude.toFixed(5)},${row.location.longitude.toFixed(5)}`
+    const existing = groups.get(key)
+    if (existing) {
+      existing.productIds.push(row.id)
+    } else {
+      groups.set(key, { location: row.location, productIds: [row.id] })
+    }
+  }
+
+  let best: { location: PickupLocation | null; productIds: string[] } = {
+    location: null,
+    productIds: [],
+  }
+  for (const group of groups.values()) {
+    if (group.productIds.length > best.productIds.length) {
+      best = group
+    }
+  }
+  return best
 }
 
 /**
@@ -122,14 +166,22 @@ export async function loadPickupProducts(ids: string[]): Promise<PickupProductFi
 }
 
 export async function resolvePickupForProductIds(ids: string[]) {
-  const uniqueIds = Array.from(new Set(ids.map((id) => String(id || '').trim()).filter(Boolean)))
+  const uniqueIds = Array.from(
+    new Set(ids.map((id) => baseProductId(id)).filter(Boolean))
+  )
   const products = await loadPickupProducts(uniqueIds)
+  const group = resolveLargestSharedPickupGroup(products)
 
-  if (products.length !== uniqueIds.length) {
-    return { eligible: false as const, location: null }
+  // Whole cart is pickup-eligible only when every requested id is found and
+  // shares one pin. Otherwise clients may still split: pickup the group, deliver the rest.
+  const eligible =
+    products.length === uniqueIds.length &&
+    group.location != null &&
+    group.productIds.length === uniqueIds.length
+
+  return {
+    eligible,
+    location: group.location,
+    pickupProductIds: group.productIds,
   }
-
-  const location = resolveSharedPickupLocation(products)
-
-  return { eligible: Boolean(location), location }
 }

@@ -567,6 +567,12 @@ model AppSettings {
   homepageShowOccasionTabs     Boolean  @default(true)
   homepageShowRecommendations  Boolean  @default(true)
   homepageShowValueDeals       Boolean  @default(true)
+  /// Ordered product ids for the mobile Value Deals carousel. Empty = auto (discounted-first).
+  valueDealsProductIds         String[] @default([])
+  /// Header promo line, e.g. "Shop for ₹199 to unlock deals". Supports `{amount}`.
+  valueDealsPromoText          String   @default("Shop for {amount} to unlock deals")
+  /// Cart total needed to unlock Value Deals claims.
+  valueDealsUnlockAmount       Float    @default(199)
   homepageShowSpinBanner       Boolean  @default(true)
   homepageRecommendationMode   String   @default("LATEST")
   homepageRecommendationTitle  String?

@@ -15,6 +15,7 @@ class OrderSuccessArgs {
     this.amountSaved = 0,
     this.couponCode,
     this.isGift = false,
+    this.secondaryOrderNumber,
   });
 
   final String orderId;
@@ -23,6 +24,7 @@ class OrderSuccessArgs {
   final double amountSaved;
   final String? couponCode;
   final bool isGift;
+  final String? secondaryOrderNumber;
 
   factory OrderSuccessArgs.fromMap(Map<String, dynamic> map) {
     return OrderSuccessArgs(
@@ -32,6 +34,7 @@ class OrderSuccessArgs {
       amountSaved: (map['amountSaved'] as num?)?.toDouble() ?? 0,
       couponCode: map['couponCode'] as String?,
       isGift: map['isGift'] as bool? ?? false,
+      secondaryOrderNumber: map['secondaryOrderNumber'] as String?,
     );
   }
 }
@@ -161,7 +164,10 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     child: Column(
                       children: [
                         Text(
-                          'Order ${args.orderNumber}',
+                          args.secondaryOrderNumber != null &&
+                                  args.secondaryOrderNumber!.trim().isNotEmpty
+                              ? 'Orders ${args.orderNumber} · ${args.secondaryOrderNumber}'
+                              : 'Order ${args.orderNumber}',
                           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
                         ),
                         SizedBox(height: 6),

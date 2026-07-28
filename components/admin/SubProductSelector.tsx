@@ -17,13 +17,23 @@ type SubProductSelectorProps = {
   value: string[]
   onChange: (ids: string[]) => void
   excludeProductId?: string
+  title?: string
+  hint?: string
+  searchPlaceholder?: string
 }
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)))
 }
 
-export default function SubProductSelector({ value, onChange, excludeProductId }: SubProductSelectorProps) {
+export default function SubProductSelector({
+  value,
+  onChange,
+  excludeProductId,
+  title = 'Sub-products',
+  hint = 'Attach optional companion products like candles, toppers, or balloons.',
+  searchPlaceholder = 'Search products to attach as sub-product...',
+}: SubProductSelectorProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ProductOption[]>([])
   const [selectedProducts, setSelectedProducts] = useState<Record<string, ProductOption>>({})
@@ -97,15 +107,15 @@ export default function SubProductSelector({ value, onChange, excludeProductId }
   return (
     <div className="col-span-2 rounded-xl border border-wine/10 bg-cream/70 p-4 space-y-4">
       <div>
-        <h3 className="text-sm font-semibold text-ink">Sub-products</h3>
-        <p className="text-xs text-ink/55 mt-1">Attach optional companion products like candles, toppers, or balloons.</p>
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        <p className="text-xs text-ink/55 mt-1">{hint}</p>
       </div>
 
       <input
         type="text"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search products to attach as sub-product..."
+        placeholder={searchPlaceholder}
         className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
       />
 
@@ -128,7 +138,7 @@ export default function SubProductSelector({ value, onChange, excludeProductId }
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold text-ink/70">Selected sub-products</p>
+        <p className="text-xs font-semibold text-ink/70">Selected products ({selectedIds.length})</p>
         {selectedIds.length === 0 ? (
           <div className="rounded-xl border border-dashed border-wine/20 bg-white px-3 py-3 text-xs text-ink/55">
             No sub-products selected.

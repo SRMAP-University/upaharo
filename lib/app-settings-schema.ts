@@ -54,6 +54,9 @@ export type PublicAppSettings = {
   homepageShowOccasionTabs: boolean
   homepageShowRecommendations: boolean
   homepageShowValueDeals: boolean
+  valueDealsProductIds: string[]
+  valueDealsPromoText: string
+  valueDealsUnlockAmount: number
   homepageShowSpinBanner: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
@@ -113,6 +116,9 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   homepageShowOccasionTabs: true,
   homepageShowRecommendations: true,
   homepageShowValueDeals: true,
+  valueDealsProductIds: [],
+  valueDealsPromoText: 'Shop for {amount} to unlock deals',
+  valueDealsUnlockAmount: 199,
   homepageShowSpinBanner: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: 'Latest Arrivals',
@@ -219,4 +225,18 @@ export function normalizeHomeSections(raw: unknown): HomeSectionConfig[] {
     if (!seen.has(fallback.id)) ordered.push({ ...fallback })
   }
   return ordered
+}
+
+/** Deduped product ids for Value Deals; empty means “auto pick”. Cap at 40. */
+export function normalizeValueDealsProductIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const ids: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const id = item.trim()
+    if (!id || ids.includes(id)) continue
+    ids.push(id)
+    if (ids.length >= 40) break
+  }
+  return ids
 }

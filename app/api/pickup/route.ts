@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       .filter(Boolean)
 
     if (ids.length === 0) {
-      return NextResponse.json({ eligible: false, location: null })
+      return NextResponse.json({ eligible: false, location: null, pickupProductIds: [] })
     }
 
     const result = await resolvePickupForProductIds(ids)
@@ -21,6 +21,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result)
   } catch (error) {
     console.error('Error resolving pickup eligibility:', error)
-    return NextResponse.json({ eligible: false, location: null })
+    return NextResponse.json({ eligible: false, location: null, pickupProductIds: [] })
   }
 }

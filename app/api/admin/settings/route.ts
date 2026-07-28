@@ -8,6 +8,7 @@ import {
   normalizeHexColor,
   normalizeHomeSections,
   normalizeOptionalAmount,
+  normalizeValueDealsProductIds,
 } from '@/lib/app-settings'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
@@ -160,6 +161,17 @@ function settingsPayload(body: Record<string, unknown>) {
     homepageShowValueDeals: toBool(
       body?.homepageShowValueDeals,
       DEFAULT_APP_SETTINGS.homepageShowValueDeals
+    ),
+    valueDealsProductIds: normalizeValueDealsProductIds(body?.valueDealsProductIds),
+    valueDealsPromoText: toText(
+      body?.valueDealsPromoText,
+      DEFAULT_APP_SETTINGS.valueDealsPromoText
+    ).slice(0, 160),
+    valueDealsUnlockAmount: clampFloat(
+      body?.valueDealsUnlockAmount,
+      DEFAULT_APP_SETTINGS.valueDealsUnlockAmount,
+      0,
+      1_000_000
     ),
     homepageShowSpinBanner: toBool(
       body?.homepageShowSpinBanner,

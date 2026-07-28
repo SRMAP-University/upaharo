@@ -7,8 +7,10 @@ import {
   DEFAULT_HOME_SECTIONS,
   normalizeDensity,
   normalizeHomeSections,
+  normalizeValueDealsProductIds,
   UI_DENSITIES,
 } from '@/lib/app-settings-schema'
+import SubProductSelector from '@/components/admin/SubProductSelector'
 import { MobilePreview } from './mobile-preview'
 import { SectionLayoutEditor } from './section-layout-editor'
 import { CHECKBOX_CLASS, EMPTY_FORM, INPUT_CLASS, type SettingsForm } from './types'
@@ -203,6 +205,16 @@ export default function AdminSettingsPage() {
         homepageShowOccasionTabs: Boolean(data.homepageShowOccasionTabs ?? true),
         homepageShowRecommendations: Boolean(data.homepageShowRecommendations ?? true),
         homepageShowValueDeals: Boolean(data.homepageShowValueDeals ?? true),
+        valueDealsProductIds: normalizeValueDealsProductIds(data.valueDealsProductIds),
+        valueDealsPromoText: String(
+          data.valueDealsPromoText || EMPTY_FORM.valueDealsPromoText
+        ),
+        valueDealsUnlockAmount: clampFloat(
+          data.valueDealsUnlockAmount,
+          EMPTY_FORM.valueDealsUnlockAmount,
+          0,
+          1_000_000
+        ),
         homepageShowSpinBanner: Boolean(data.homepageShowSpinBanner ?? true),
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
@@ -510,6 +522,51 @@ export default function AdminSettingsPage() {
                 checked={formData.homepageShowSpinBanner}
                 onChange={(checked) => set('homepageShowSpinBanner', checked)}
               />
+
+              <div className="md:col-span-2 rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">Value Deals content</h4>
+                  <p className="mt-1 text-xs text-ink/55">
+                    Pick products, promo line, and unlock spend. Title/subtitle are edited in
+                    Home section order above (Value / DEALS). Leave products empty to auto-fill
+                    discounted items.
+                  </p>
+                </div>
+                <TextField
+                  label="Promo text (use {amount} for unlock threshold)"
+                  value={formData.valueDealsPromoText}
+                  onChange={(value) => set('valueDealsPromoText', value)}
+                  placeholder="Shop for {amount} to unlock deals"
+                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-ink/70">
+                    Unlock amount (Rs)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={formData.valueDealsUnlockAmount}
+                    onChange={(e) =>
+                      set(
+                        'valueDealsUnlockAmount',
+                        clampFloat(e.target.value, EMPTY_FORM.valueDealsUnlockAmount, 0, 1_000_000)
+                      )
+                    }
+                    className={INPUT_CLASS}
+                  />
+                  <p className="mt-1 text-xs text-ink/50">
+                    Progress bar unlocks when the cart reaches this total.
+                  </p>
+                </div>
+                <SubProductSelector
+                  value={formData.valueDealsProductIds}
+                  onChange={(ids) => set('valueDealsProductIds', ids)}
+                  title="Value Deals products"
+                  hint="Order matters — first selected shows first in the carousel. Max 40."
+                  searchPlaceholder="Search products to feature in Value Deals..."
+                />
+              </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-ink/70">

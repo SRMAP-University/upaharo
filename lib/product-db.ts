@@ -35,6 +35,7 @@ export const PRODUCT_CARD_SELECT = {
   price: true,
   wholesalePrice: true,
   image: true,
+  variants: true,
   isAvailable: true,
   isVeg: true,
   prepTime: true,

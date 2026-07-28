@@ -200,16 +200,26 @@ class CartProvider extends ChangeNotifier {
     double? addressLongitude,
     double? total,
     String paymentMethod = 'CASH',
+    List<CartItem>? items,
+    bool includeGift = true,
+    GiftOptions? giftOptions,
   }) {
+    final lines = items ?? _items;
     final isPickup = fulfillmentType.toUpperCase() == 'PICKUP';
+    final subtotal = lines.fold<double>(
+      0,
+      (sum, item) => sum + item.price * item.quantity,
+    );
     final resolvedDeliveryFee = isPickup ? 0.0 : deliveryFee;
+    final gift = includeGift ? (giftOptions ?? _giftOptions) : const GiftOptions();
+    final wrap = includeGift ? giftWrapPrice : 0.0;
     final computedTotal = total ??
-        (totalPrice + giftWrapPrice + resolvedDeliveryFee - couponDiscount - walletAmount)
+        (subtotal + wrap + resolvedDeliveryFee - couponDiscount - walletAmount)
             .clamp(0, double.infinity);
     return {
-      'items': _items
+      'items': lines
           .map((item) => {
-                'id': item.id,
+                'id': baseProductId(item.id),
                 'name': item.name,
                 'quantity': item.quantity,
                 'price': item.price,
@@ -222,14 +232,21 @@ class CartProvider extends ChangeNotifier {
       'addressLatitude': isPickup ? null : addressLatitude,
       'addressLongitude': isPickup ? null : addressLongitude,
       'paymentMethod': paymentMethod,
-      'subtotal': totalPrice,
+      'subtotal': subtotal,
       'deliveryFee': resolvedDeliveryFee,
       'tax': 0,
       'total': computedTotal,
       if (walletAmount > 0) 'walletAmount': walletAmount,
-      if (couponCode != null && couponCode.trim().isNotEmpty) 'couponCode': couponCode.trim().toUpperCase(),
-      ..._giftOptions.toJson(),
+      if (couponCode != null && couponCode.trim().isNotEmpty)
+        'couponCode': couponCode.trim().toUpperCase(),
+      ...gift.toJson(),
     }..removeWhere((key, value) => value == null);
+  }
+
+  /// Variant cart ids are `productId::vN`.
+  static String baseProductId(String cartItemId) {
+    final sep = cartItemId.indexOf('::');
+    return sep > 0 ? cartItemId.substring(0, sep) : cartItemId;
   }
 
   Future<void> _loadCart() async {
