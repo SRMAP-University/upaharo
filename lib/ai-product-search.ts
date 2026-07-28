@@ -128,7 +128,7 @@ Rules (NPR):
 
     return {
       products,
-      filters,
+      filters: filters ?? null,
       interpretation: formatInterpretation(filters),
       source: 'ai',
     }

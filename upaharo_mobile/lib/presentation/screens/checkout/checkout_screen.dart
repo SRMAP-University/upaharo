@@ -101,6 +101,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Set when at least one cart line shares a pickup pin.
   PickupLocation? _pickupLocation;
   bool _wantsPickup = false;
+  /// Base product ids eligible for the resolved pickup location.
+  Set<String> _pickupBaseIds = {};
   /// Cart lines that share [_pickupLocation] (may be a subset of the cart).
   List<CartItem> _pickupProducts = const [];
   /// Cart lines that must be delivered (no shared pickup pin).
@@ -108,6 +110,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   bool get _hasPickupOption =>
       _pickupLocation != null && _pickupProducts.isNotEmpty;
+
+  /// Keep pickup/delivery partitions aligned with live cart quantities.
+  void _syncPartitions(CartProvider cart) {
+    if (_pickupBaseIds.isEmpty) {
+      _pickupProducts = const [];
+      _deliveryOnlyProducts = List<CartItem>.from(cart.items);
+      return;
+    }
+    _pickupProducts = cart.items
+        .where((item) => _pickupBaseIds.contains(_baseProductId(item.id)))
+        .toList();
+    _deliveryOnlyProducts = cart.items
+        .where((item) => !_pickupBaseIds.contains(_baseProductId(item.id)))
+        .toList();
+    if (_pickupProducts.isEmpty) {
+      _wantsPickup = false;
+    }
+  }
+
+  void _updateItemQty(CartProvider cart, String id, int quantity) {
+    cart.updateQuantity(id, quantity);
+    if (!mounted) return;
+    setState(() => _syncPartitions(cart));
+    if (cart.items.isEmpty) {
+      Navigator.pushReplacementNamed(context, AppRoutes.cart);
+    }
+  }
 
   /// Mixed cart: some items pickupable, some delivery-only.
   bool get _isMixed => _hasPickupOption && _deliveryOnlyProducts.isNotEmpty;
@@ -267,13 +296,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         cartItems.map((item) => _baseProductId(item.id)).toList(),
       );
       _pickupLocation = pickup.location;
-      final pickupIds = pickup.pickupProductIds.toSet();
-      _pickupProducts = cartItems
-          .where((item) => pickupIds.contains(_baseProductId(item.id)))
-          .toList();
-      _deliveryOnlyProducts = cartItems
-          .where((item) => !pickupIds.contains(_baseProductId(item.id)))
-          .toList();
+      _pickupBaseIds = pickup.pickupProductIds.toSet();
+      _syncPartitions(cart);
       if (_pickupProducts.isEmpty) {
         _pickupLocation = null;
         _wantsPickup = false;
@@ -419,6 +443,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Future<void> _placeOrder() async {
     final cart = context.read<CartProvider>();
     final address = _selectedAddress;
+    _syncPartitions(cart);
 
     if (cart.items.isEmpty) {
       setState(() => _error = 'Your cart is empty');
