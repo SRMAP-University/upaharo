@@ -287,14 +287,14 @@ class _ProductSuggestionCard extends StatelessWidget {
                 product.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.ink),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.ink),
               ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 PriceFormatter.format(product.finalPrice),
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: AppTheme.wine),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.wine),
               ),
             ),
           ],

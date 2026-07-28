@@ -174,7 +174,7 @@ class _SearchScreenState extends State<SearchScreen> {
             'Try asking',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: AppTheme.ink,
             ),
           ),
@@ -314,7 +314,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   'AI search',
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: AppTheme.ink,
                   ),
                 ),

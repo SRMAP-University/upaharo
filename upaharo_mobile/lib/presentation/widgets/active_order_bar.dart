@@ -192,7 +192,7 @@ class _ActiveOrderCardState extends State<_ActiveOrderCard>
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 11.5,
                                   height: 1.1,
                                 ),

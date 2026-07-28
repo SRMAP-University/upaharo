@@ -665,7 +665,7 @@ class _BottomCartBar extends StatelessWidget {
                           const Text('Add to Cart • ', style: TextStyle(fontSize: 15)),
                           Text(
                             PriceFormatter.format(total),
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                           ),
                           if (hasCouponPrice) ...[
                             const SizedBox(width: 6),

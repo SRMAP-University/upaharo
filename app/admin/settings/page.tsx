@@ -4,13 +4,19 @@ import { useEffect, useState } from 'react'
 import {
   clampFloat,
   clampInt,
+  DEFAULT_DELIVERY_SLOTS,
   DEFAULT_HOME_SECTIONS,
+  MAX_SCHEDULE_DAY_COUNT,
+  MAX_SCHEDULE_DAYS_AHEAD,
+  normalizeDeliverySlots,
   normalizeDensity,
   normalizeHomeSections,
+  normalizeScheduleDays,
   normalizeValueDealsProductIds,
   UI_DENSITIES,
 } from '@/lib/app-settings-schema'
 import SubProductSelector from '@/components/admin/SubProductSelector'
+import { DeliverySlotsEditor } from './delivery-slots-editor'
 import { MobilePreview } from './mobile-preview'
 import { SectionLayoutEditor } from './section-layout-editor'
 import { CHECKBOX_CLASS, EMPTY_FORM, INPUT_CLASS, type SettingsForm } from './types'
@@ -128,6 +134,7 @@ function TextField({
   type = 'text',
   step,
   maxLength,
+  hint,
 }: {
   label: string
   value: string
@@ -136,6 +143,7 @@ function TextField({
   type?: string
   step?: string
   maxLength?: number
+  hint?: string
 }) {
   return (
     <div>
@@ -149,6 +157,7 @@ function TextField({
         placeholder={placeholder}
         className={INPUT_CLASS}
       />
+      {hint && <p className="mt-1 text-xs text-ink/45">{hint}</p>}
     </div>
   )
 }
@@ -199,6 +208,18 @@ export default function AdminSettingsPage() {
           EMPTY_FORM.homepageBannerProductHeight,
           72,
           180
+        ),
+        miniBannerColumns: clampInt(
+          data.miniBannerColumns,
+          EMPTY_FORM.miniBannerColumns,
+          1,
+          4
+        ),
+        miniBannerHeight: clampInt(
+          data.miniBannerHeight,
+          EMPTY_FORM.miniBannerHeight,
+          56,
+          240
         ),
         homepageShowTopCategories: Boolean(data.homepageShowTopCategories ?? true),
         homepageShowCategorySections: Boolean(data.homepageShowCategorySections ?? true),
@@ -279,6 +300,8 @@ export default function AdminSettingsPage() {
           0,
           1_000_000
         ),
+        deliverySlots: normalizeDeliverySlots(data.deliverySlots),
+        ...normalizeScheduleDays(data.scheduleDayCount, data.scheduleMaxDaysAhead),
       })
     } catch (error) {
       console.error('Failed to load settings:', error)
@@ -522,6 +545,42 @@ export default function AdminSettingsPage() {
                 checked={formData.homepageShowSpinBanner}
                 onChange={(checked) => set('homepageShowSpinBanner', checked)}
               />
+
+              <div className="md:col-span-2 rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-4">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">Mini banner row</h4>
+                  <p className="mt-1 text-xs text-ink/55">
+                    Sizing for the Featured row of small tiles. Add and edit the tiles
+                    themselves in{' '}
+                    <a href="/admin/mini-banners" className="text-wine underline">
+                      Mini Banners
+                    </a>
+                    . Rename or reorder the row in Home section order above.
+                  </p>
+                </div>
+                <RangeField
+                  label="Tiles per row"
+                  value={formData.miniBannerColumns}
+                  min={1}
+                  max={4}
+                  step={1}
+                  display={`${formData.miniBannerColumns} across`}
+                  onChange={(value) => set('miniBannerColumns', value)}
+                />
+                <RangeField
+                  label="Tile height"
+                  value={formData.miniBannerHeight}
+                  min={56}
+                  max={240}
+                  step={4}
+                  display={`${formData.miniBannerHeight}px`}
+                  onChange={(value) => set('miniBannerHeight', value)}
+                />
+                <p className="text-xs text-ink/45">
+                  Tile width is the screen split {formData.miniBannerColumns} ways. Extra
+                  active tiles stay reachable by scrolling the row sideways.
+                </p>
+              </div>
 
               <div className="md:col-span-2 rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-4">
                 <div>
@@ -800,6 +859,71 @@ export default function AdminSettingsPage() {
               {formData.checkoutMinOrderAmount > 0
                 ? ` Checkout also requires a minimum order of Rs ${formData.checkoutMinOrderAmount}.`
                 : ''}
+            </p>
+          </section>
+
+          <section className="rounded-[22px] border border-wine/10 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-display text-lg font-semibold text-ink">
+                  Scheduled delivery
+                </h2>
+                <p className="mt-1 text-sm text-ink/55">
+                  Windows customers can book at checkout, in Nepal time. Removing every
+                  window turns scheduling off and leaves only “Deliver now”.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => set('deliverySlots', DEFAULT_DELIVERY_SLOTS)}
+                className="rounded-xl border border-wine/20 px-3 py-1.5 text-xs font-medium text-wine hover:bg-wine/5"
+              >
+                Reset to default windows
+              </button>
+            </div>
+
+            <DeliverySlotsEditor
+              slots={formData.deliverySlots}
+              onChange={(slots) => set('deliverySlots', slots)}
+            />
+
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <TextField
+                label="Quick day chips (including today)"
+                type="number"
+                step="1"
+                value={String(formData.scheduleDayCount)}
+                onChange={(value) =>
+                  set('scheduleDayCount', clampInt(value, 3, 1, MAX_SCHEDULE_DAY_COUNT))
+                }
+                hint="One-tap days shown at checkout. Beyond these, customers pick a date."
+              />
+              <TextField
+                label="Furthest bookable date (days ahead)"
+                type="number"
+                step="1"
+                value={String(formData.scheduleMaxDaysAhead)}
+                onChange={(value) =>
+                  set(
+                    'scheduleMaxDaysAhead',
+                    clampInt(value, 30, 1, MAX_SCHEDULE_DAYS_AHEAD)
+                  )
+                }
+                hint="Upper limit for the custom date picker."
+              />
+            </div>
+            <p className="mt-4 rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+              {formData.deliverySlots.length === 0
+                ? 'Scheduling is off — checkout will only offer “Deliver now”.'
+                : `${formData.deliverySlots.length} window${
+                    formData.deliverySlots.length === 1 ? '' : 's'
+                  } per day. Checkout defaults to the next day, opens with ${
+                    formData.scheduleDayCount
+                  } day chip${
+                    formData.scheduleDayCount === 1 ? '' : 's'
+                  }, and allows custom dates up to ${
+                    Math.max(formData.scheduleDayCount, formData.scheduleMaxDaysAhead) - 1
+                  } days out. Windows that have already started are hidden automatically.`}
             </p>
           </section>
 

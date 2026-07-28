@@ -6,6 +6,7 @@ import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { validateCoupon } from '@/lib/coupon'
+import { getScheduleConfig, validateSchedule } from '@/lib/delivery-schedule'
 import { resolvePickupForProductIds, baseProductId } from '@/lib/pickup'
 import { createStripeCheckoutSession, isStripeConfigured } from '@/lib/stripe'
 import {
@@ -51,9 +52,19 @@ export async function POST(request: NextRequest) {
       couponCode,
       walletAmount,
       fulfillmentType,
+      scheduledFor,
     } = body
 
     const isPickup = String(fulfillmentType || '').toUpperCase() === 'PICKUP'
+
+    const schedule = validateSchedule({
+      scheduledFor,
+      isPickup,
+      config: await getScheduleConfig(),
+    })
+    if (!schedule.ok) {
+      return NextResponse.json({ error: schedule.error }, { status: 400 })
+    }
 
     if (paymentMethod !== 'CASH' && paymentMethod !== 'ONLINE') {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
@@ -267,6 +278,8 @@ export async function POST(request: NextRequest) {
           total: resolvedTotal,
           paymentMethod,
           estimatedTime: 0,
+          scheduledFor: schedule.scheduledFor,
+          deliverySlotLabel: schedule.deliverySlotLabel,
           isGift: isGift || false,
           recipientId: isGift ? recipientId : null,
           occasionId: isGift ? occasionId : null,

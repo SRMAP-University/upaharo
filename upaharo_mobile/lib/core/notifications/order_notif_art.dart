@@ -102,7 +102,7 @@ class OrderNotifArt {
       style: TextStyle(
         color: theme.color,
         fontSize: 15,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         letterSpacing: 0.8,
       ),
     );
@@ -123,7 +123,7 @@ class OrderNotifArt {
       style: TextStyle(
         color: theme.color.withValues(alpha: 0.9),
         fontSize: 16,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w500,
       ),
     );
 
@@ -136,7 +136,7 @@ class OrderNotifArt {
       style: TextStyle(
         color: const Color(0xFF1F1F1F),
         fontSize: 38,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         height: 1.05,
       ),
     );
@@ -237,7 +237,7 @@ class OrderNotifArt {
         style: TextStyle(
           color: theme.color,
           fontSize: 15,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
         ),
       );
       pillX += w + 10;

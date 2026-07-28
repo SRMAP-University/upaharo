@@ -61,7 +61,7 @@ class _AboutScreenState extends State<AboutScreen> {
                   settings.siteName,
                   style: TextStyle(
                     fontSize: 24,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: AppTheme.ink,
                   ),
                 ),
@@ -134,7 +134,7 @@ class _InfoTile extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: AppTheme.wine,
                   ),
                 ),

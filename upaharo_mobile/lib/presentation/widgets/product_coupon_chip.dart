@@ -74,7 +74,7 @@ class ProductCouponChip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: applied ? Colors.white : AppTheme.wine,
                 ),
               ),
@@ -247,7 +247,7 @@ class ProductCouponsSection extends StatelessWidget {
                   'All coupons',
                   style: TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: AppTheme.ink,
                   ),
                 ),
@@ -325,7 +325,7 @@ class ProductCouponsSection extends StatelessWidget {
                   'Coupons for this product',
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: AppTheme.ink,
                   ),
                 ),
@@ -418,7 +418,7 @@ class _CouponOfferTile extends StatelessWidget {
                 Text(
                   coupon.code,
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     fontSize: 13,
                     letterSpacing: 0.3,
                     color: AppTheme.ink.withAlpha(230),
@@ -450,7 +450,7 @@ class _CouponOfferTile extends StatelessWidget {
             ),
             child: Text(
               applied ? 'Applied' : 'Apply',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
             ),
           ),
         ],

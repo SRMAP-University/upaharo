@@ -1,3 +1,5 @@
+import '../../core/utils/delivery_slots.dart';
+
 /// One reorderable mobile home section, configured from the admin panel.
 class HomeSectionConfig {
   final String id;
@@ -37,6 +39,7 @@ const List<HomeSectionConfig> defaultHomeSections = [
     subtitle: 'Daily roulette · 5% to 30% off',
   ),
   HomeSectionConfig(id: 'valueDeals', title: 'Value', subtitle: 'DEALS'),
+  HomeSectionConfig(id: 'miniBanners', title: 'Featured'),
   HomeSectionConfig(id: 'quickPicks', title: 'Quick picks'),
   HomeSectionConfig(id: 'productGrid', title: 'All gifts'),
 ];
@@ -56,6 +59,10 @@ class AppSettings {
   final bool homepageShowBanner;
   final int homepageBannerHeight;
   final int homepageBannerProductHeight;
+
+  /// Mini banner tiles visible per row (1-4); sets each tile's width.
+  final int miniBannerColumns;
+  final int miniBannerHeight;
   final bool homepageShowTopCategories;
   final bool homepageShowCategorySections;
   final bool homepageShowOccasionTabs;
@@ -91,6 +98,11 @@ class AppSettings {
   final double freeDeliveryMinAmount;
   final double deliveryFeeAmount;
 
+  /// Bookable delivery windows. Empty means the admin turned scheduling off.
+  final List<DeliverySlot> deliverySlots;
+  final int scheduleDayCount;
+  final int scheduleMaxDaysAhead;
+
   const AppSettings({
     this.siteName = 'Upaharo',
     this.supportPhone = '',
@@ -106,6 +118,8 @@ class AppSettings {
     this.homepageShowBanner = true,
     this.homepageBannerHeight = 320,
     this.homepageBannerProductHeight = 112,
+    this.miniBannerColumns = 3,
+    this.miniBannerHeight = 96,
     this.homepageShowTopCategories = true,
     this.homepageShowCategorySections = true,
     this.homepageShowOccasionTabs = true,
@@ -140,10 +154,23 @@ class AppSettings {
     this.navTopPicksLabel = 'Top picks',
     this.freeDeliveryMinAmount = 199,
     this.deliveryFeeAmount = 40,
+    this.deliverySlots = defaultDeliverySlots,
+    this.scheduleDayCount = defaultScheduleDayCount,
+    this.scheduleMaxDaysAhead = defaultScheduleMaxDaysAhead,
   });
 
+  DeliverySchedule get deliverySchedule => DeliverySchedule(
+        slots: deliverySlots,
+        dayCount: scheduleDayCount,
+        maxDaysAhead: scheduleMaxDaysAhead < scheduleDayCount
+            ? scheduleDayCount
+            : scheduleMaxDaysAhead,
+      );
+
   /// Ordered, de-duplicated sections; unknown ids are dropped and any section
-  /// missing from the server payload is appended from [defaultHomeSections].
+  /// missing from the server payload is slotted in at its position in
+  /// [defaultHomeSections] rather than appended, so a stale layout cannot bury
+  /// a newly shipped section at the bottom of the feed.
   static List<HomeSectionConfig> _parseSections(dynamic raw) {
     if (raw is! List) return defaultHomeSections;
 
@@ -168,8 +195,10 @@ class AppSettings {
       );
     }
 
-    for (final fallback in defaultHomeSections) {
-      if (!seen.contains(fallback.id)) out.add(fallback);
+    for (var i = 0; i < defaultHomeSections.length; i++) {
+      final fallback = defaultHomeSections[i];
+      if (seen.contains(fallback.id)) continue;
+      out.insert(i < out.length ? i : out.length, fallback);
     }
     return out.isEmpty ? defaultHomeSections : out;
   }
@@ -191,6 +220,10 @@ class AppSettings {
       homepageBannerHeight: (json['homepageBannerHeight'] as num?)?.round() ?? 320,
       homepageBannerProductHeight:
           (json['homepageBannerProductHeight'] as num?)?.round() ?? 112,
+      miniBannerColumns:
+          ((json['miniBannerColumns'] as num?)?.round() ?? 3).clamp(1, 4),
+      miniBannerHeight:
+          ((json['miniBannerHeight'] as num?)?.round() ?? 96).clamp(56, 240),
       homepageShowTopCategories: json['homepageShowTopCategories'] as bool? ?? true,
       homepageShowCategorySections: json['homepageShowCategorySections'] as bool? ?? true,
       homepageShowOccasionTabs: json['homepageShowOccasionTabs'] as bool? ?? true,
@@ -232,6 +265,11 @@ class AppSettings {
       freeDeliveryMinAmount:
           (json['freeDeliveryMinAmount'] as num?)?.toDouble() ?? 199,
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
+      deliverySlots: DeliverySchedule.parseSlots(json['deliverySlots']),
+      scheduleDayCount:
+          (json['scheduleDayCount'] as num?)?.toInt() ?? defaultScheduleDayCount,
+      scheduleMaxDaysAhead: (json['scheduleMaxDaysAhead'] as num?)?.toInt() ??
+          defaultScheduleMaxDaysAhead,
     );
   }
 
@@ -258,6 +296,8 @@ class AppSettings {
         'homepageShowBanner': homepageShowBanner,
         'homepageBannerHeight': homepageBannerHeight,
         'homepageBannerProductHeight': homepageBannerProductHeight,
+        'miniBannerColumns': miniBannerColumns,
+        'miniBannerHeight': miniBannerHeight,
         'homepageShowTopCategories': homepageShowTopCategories,
         'homepageShowCategorySections': homepageShowCategorySections,
         'homepageShowOccasionTabs': homepageShowOccasionTabs,
@@ -292,5 +332,8 @@ class AppSettings {
         'navTopPicksLabel': navTopPicksLabel,
         'freeDeliveryMinAmount': freeDeliveryMinAmount,
         'deliveryFeeAmount': deliveryFeeAmount,
+        'deliverySlots': deliverySlots.map((e) => e.toJson()).toList(),
+        'scheduleDayCount': scheduleDayCount,
+        'scheduleMaxDaysAhead': scheduleMaxDaysAhead,
       };
 }

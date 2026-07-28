@@ -80,10 +80,107 @@ class AppTheme {
   }
 
   static ThemeData get lightTheme {
+    final base = ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+    );
+
+    /// Soft checkout-style type: smaller sizes, medium weights (not heavy bold).
+    final textTheme = base.textTheme
+        .copyWith(
+          displayLarge: base.textTheme.displayLarge?.copyWith(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            color: ink,
+            height: 1.2,
+          ),
+          displayMedium: base.textTheme.displayMedium?.copyWith(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: ink,
+            height: 1.25,
+          ),
+          displaySmall: base.textTheme.displaySmall?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: ink,
+            height: 1.25,
+          ),
+          headlineLarge: base.textTheme.headlineLarge?.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: ink,
+          ),
+          headlineMedium: base.textTheme.headlineMedium?.copyWith(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: ink,
+          ),
+          headlineSmall: base.textTheme.headlineSmall?.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: ink,
+          ),
+          titleLarge: base.textTheme.titleLarge?.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: ink,
+          ),
+          titleMedium: base.textTheme.titleMedium?.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: ink,
+          ),
+          titleSmall: base.textTheme.titleSmall?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: ink,
+          ),
+          bodyLarge: base.textTheme.bodyLarge?.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            color: ink,
+            height: 1.35,
+          ),
+          bodyMedium: base.textTheme.bodyMedium?.copyWith(
+            fontSize: 12,
+            fontWeight: FontWeight.w400,
+            color: charcoal,
+            height: 1.35,
+          ),
+          bodySmall: base.textTheme.bodySmall?.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+            color: charcoal,
+            height: 1.3,
+          ),
+          labelLarge: base.textTheme.labelLarge?.copyWith(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: ink,
+          ),
+          labelMedium: base.textTheme.labelMedium?.copyWith(
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            color: charcoal,
+          ),
+          labelSmall: base.textTheme.labelSmall?.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: charcoal,
+          ),
+        )
+        .apply(
+          bodyColor: ink,
+          displayColor: ink,
+        );
+
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: cream,
       pageTransitionsTheme: appPageTransitionsTheme,
+      textTheme: textTheme,
+      primaryTextTheme: textTheme,
       colorScheme: ColorScheme.light(
         primary: wine,
         onPrimary: Colors.white,
@@ -97,6 +194,16 @@ class AppTheme {
         foregroundColor: ink,
         elevation: 0,
         centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: ink,
+        ),
+        toolbarTextStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          color: ink,
+        ),
       ),
       cardTheme: CardThemeData(
         color: cardSurface,
@@ -114,6 +221,10 @@ class AppTheme {
           surfaceTintColor: Colors.transparent,
           shadowColor: wine.withValues(alpha: 0.25),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
@@ -124,15 +235,29 @@ class AppTheme {
           backgroundColor: wine,
           foregroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: wine),
+        style: TextButton.styleFrom(
+          foregroundColor: wine,
+          textStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: wine,
           side: BorderSide(color: wine),
+          textStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(buttonRadius),
           ),
@@ -142,6 +267,16 @@ class AppTheme {
         filled: true,
         fillColor: cardSurface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        labelStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          color: charcoal,
+        ),
+        hintStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          color: charcoal.withAlpha(160),
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(cornerRadius + 4),
           borderSide: const BorderSide(color: Colors.black12),
@@ -153,6 +288,25 @@ class AppTheme {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(cornerRadius + 4),
           borderSide: BorderSide(color: wine),
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        titleTextStyle: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+          color: ink,
+        ),
+        subtitleTextStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+          color: charcoal,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        labelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: ink,
         ),
       ),
       // Keep Scaffold's bottom slot invisible so the floating pill nav
@@ -169,6 +323,14 @@ class AppTheme {
         selectedItemColor: wine,
         unselectedItemColor: charcoal,
         type: BottomNavigationBarType.fixed,
+        selectedLabelStyle: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w400,
+        ),
       ),
     );
   }

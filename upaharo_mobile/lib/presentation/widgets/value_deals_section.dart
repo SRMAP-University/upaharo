@@ -115,7 +115,7 @@ class ValueDealsSection extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                           height: 1,
                           color: Color(0xFF2B2B2B),
                         ),
@@ -179,7 +179,7 @@ class ValueDealsSection extends StatelessWidget {
                   'View all items',
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -326,7 +326,7 @@ class _BrandMarkState extends State<_BrandMark>
           maxLines: 2,
           style: const TextStyle(
             color: Color(0xFFFFE566),
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             fontSize: 13,
             height: 1.05,
           ),
@@ -448,7 +448,7 @@ class _ValueDealProductCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 10,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: ValueDealsSection._mute,
                   ),
                 ),
@@ -464,7 +464,7 @@ class _ValueDealProductCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 12,
               height: 1.2,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               color: Color(0xFF2B2B2B),
             ),
           ),
@@ -513,7 +513,7 @@ class _ValueDealProductCard extends StatelessWidget {
                 PriceFormatter.format(sale),
                 style: const TextStyle(
                   fontSize: 15,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: Colors.black,
                   height: 1,
                 ),
@@ -622,7 +622,7 @@ class _SelectChipState extends State<_SelectChip> {
                   'Select',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: ValueDealsSection._selectBlue,
                   ),
                 ),

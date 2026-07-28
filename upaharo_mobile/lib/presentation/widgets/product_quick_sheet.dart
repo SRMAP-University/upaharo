@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,7 +10,11 @@ import '../../core/utils/image_resolver.dart';
 import '../../core/utils/price_formatter.dart';
 import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
+import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/wishlist_provider.dart';
+import 'cart_fly_animator.dart';
+import 'mini_cart_bar.dart';
 import 'progressive_network_image.dart';
 
 const double _kPeerStripHeight = 118;
@@ -17,6 +23,8 @@ const double _kSheetRadius = 24;
 const double _kInitialSheetSize = 0.86;
 const double _kMinSheetSize = 0.55;
 const double _kFullPageThreshold = 0.96;
+const Duration _kCartPreviewDuration = Duration(milliseconds: 2200);
+const Duration _kCartSwapDuration = Duration(milliseconds: 480);
 
 /// Opens a Blinkit-style product quick sheet with optional peer products.
 Future<void> showProductQuickSheet(
@@ -75,13 +83,15 @@ class ProductQuickSheet extends StatefulWidget {
 class _ProductQuickSheetState extends State<ProductQuickSheet> {
   final _sheetController = DraggableScrollableController();
   final _repo = const ProductRepository();
+  final _heroFlyKey = GlobalKey();
 
   late Product _current;
   late List<Product> _peers;
   Product? _detail;
   bool _loadingDetail = false;
   bool _isFullPage = false;
-  bool _showAddedToast = false;
+  bool _showCartPreview = false;
+  Timer? _cartPreviewTimer;
 
   int _selectedImageIndex = 0;
   int? _selectedVariantIndex;
@@ -98,6 +108,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
 
   @override
   void dispose() {
+    _cartPreviewTimer?.cancel();
     _sheetController.removeListener(_onSheetSizeChanged);
     _sheetController.dispose();
     super.dispose();
@@ -171,7 +182,7 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
     return variant?.price ?? product.finalPrice;
   }
 
-  void _addToCart(Product product) {
+  void _addToCart(Product product, {BuildContext? originContext}) {
     final variants = product.variants;
     final selectedVariant =
         _selectedVariantIndex != null && _selectedVariantIndex! < variants.length
@@ -182,19 +193,54 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
         .where((value) => value != null && value.isNotEmpty)
         .join(' / ');
 
+    final imageUrl =
+        ImageResolver.resolve(selectedVariant?.image ?? product.image);
+
     final item = CartItem(
       id: product.id,
       name: label.isNotEmpty ? '${product.name} ($label)' : product.name,
       price: selectedVariant?.price ?? product.finalPrice,
       quantity: _quantity,
-      image: ImageResolver.resolve(selectedVariant?.image ?? product.image),
+      image: imageUrl,
       isVeg: product.isVeg,
     );
 
+    // Add first so MiniCartBar can mount and report its fly target.
     context.read<CartProvider>().addItem(item);
-    setState(() => _showAddedToast = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _showAddedToast = false);
+
+    _cartPreviewTimer?.cancel();
+    setState(() => _showCartPreview = true);
+    _cartPreviewTimer = Timer(_kCartPreviewDuration, () {
+      if (mounted) setState(() => _showCartPreview = false);
+    });
+
+    final flyOrigin = originContext;
+    // Let the cart bar settle into view before the thumb flies.
+    Future<void>.delayed(const Duration(milliseconds: 140), () {
+      if (!mounted) return;
+
+      final heroBox =
+          _heroFlyKey.currentContext?.findRenderObject() as RenderBox?;
+      if (heroBox != null && heroBox.hasSize && heroBox.attached) {
+        final size = heroBox.size;
+        final origin = heroBox.localToGlobal(
+          Offset(size.width * 0.35, size.height * 0.35),
+        );
+        CartFlyAnimator.flyFrom(
+          context: context,
+          globalOrigin: origin,
+          originSize: const Size(48, 48),
+          imageUrl: imageUrl,
+        );
+        return;
+      }
+
+      final ctx = flyOrigin;
+      if (ctx != null && ctx.mounted) {
+        CartFlyAnimator.flyFromContext(context: ctx, imageUrl: imageUrl);
+      } else {
+        CartFlyAnimator.flyFromContext(context: context, imageUrl: imageUrl);
+      }
     });
   }
 
@@ -204,6 +250,37 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
       'Check out ${product.name} on Upaharo\n$url',
       subject: product.name,
     );
+  }
+
+  Future<void> _toggleWishlist(Product product) async {
+    if (!context.read<AuthProvider>().isAuthenticated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Sign in to save gifts for later'),
+          action: SnackBarAction(
+            label: 'Sign in',
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final saved = await context.read<WishlistProvider>().toggle(product);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(saved ? 'Saved to wishlist' : 'Removed from wishlist'),
+          duration: const Duration(milliseconds: 1400),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update your wishlist')),
+      );
+    }
   }
 
   List<String> _allImages(Product product) {
@@ -220,11 +297,14 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final bottomInset = media.padding.bottom;
-    final peerSpace = _isFullPage ? 0.0 : _kPeerStripHeight + bottomInset + 14;
+    // Keep reserved height stable so the sheet doesn't jump during the swap.
+    final peerSpace =
+        _isFullPage ? 0.0 : _kPeerStripHeight + bottomInset + 14;
     final sideInset = _isFullPage ? 0.0 : _kSideInset;
     final product = _display;
     final unitPrice = _effectivePrice(product);
     final cart = context.watch<CartProvider>();
+    final showPeers = !_showCartPreview && _peers.length > 1;
 
     return PopScope(
       canPop: !_isFullPage,
@@ -244,8 +324,8 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
               return false;
             },
             child: AnimatedPadding(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
+              duration: _kCartSwapDuration,
+              curve: Curves.easeInOutCubic,
               padding: EdgeInsets.fromLTRB(sideInset, 0, sideInset, peerSpace),
               child: DraggableScrollableSheet(
                 controller: _sheetController,
@@ -302,25 +382,35 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                     ),
                                     padding: const EdgeInsets.only(bottom: 96),
                                     children: [
-                                      _HeroGallery(
-                                        key: ValueKey(
-                                            '${product.id}_$_selectedVariantIndex'),
-                                        images: _allImages(product),
-                                        selectedIndex: _selectedImageIndex,
-                                        discount: product.discount,
-                                        topPad: _isFullPage
-                                            ? media.padding.top + 6
-                                            : 10,
-                                        cartCount: cart.totalItems,
-                                        showCart: _isFullPage,
-                                        onImageChanged: (i) => setState(
-                                            () => _selectedImageIndex = i),
-                                        onClose: _isFullPage
-                                            ? _collapseOrClose
-                                            : () => Navigator.of(context).pop(),
-                                        onShare: () => _shareProduct(product),
-                                        onCart: () => Navigator.pushNamed(
-                                            context, AppRoutes.cart),
+                                      KeyedSubtree(
+                                        key: _heroFlyKey,
+                                        child: _HeroGallery(
+                                          key: ValueKey(
+                                              '${product.id}_$_selectedVariantIndex'),
+                                          images: _allImages(product),
+                                          selectedIndex: _selectedImageIndex,
+                                          discount: product.discount,
+                                          topPad: _isFullPage
+                                              ? media.padding.top + 6
+                                              : 10,
+                                          cartCount: cart.totalItems,
+                                          showCart: _isFullPage,
+                                          isWishlisted: context
+                                              .watch<WishlistProvider>()
+                                              .contains(product.id),
+                                          onImageChanged: (i) => setState(
+                                              () => _selectedImageIndex = i),
+                                          onClose: _isFullPage
+                                              ? _collapseOrClose
+                                              : () =>
+                                                  Navigator.of(context).pop(),
+                                          onWishlist: () =>
+                                              _toggleWishlist(product),
+                                          onShare: () =>
+                                              _shareProduct(product),
+                                          onCart: () => Navigator.pushNamed(
+                                              context, AppRoutes.cart),
+                                        ),
                                       ),
                                       AnimatedSwitcher(
                                         duration:
@@ -466,33 +556,11 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                 product: product,
                                 unitPrice: unitPrice,
                                 quantity: _quantity,
-                                onAddToCart: () => _addToCart(product),
+                                onAddToCart: (btnCtx) =>
+                                    _addToCart(product, originContext: btnCtx),
                               ),
                             ],
                           ),
-                          if (_showAddedToast)
-                            Positioned(
-                              bottom: 96,
-                              left: 0,
-                              right: 0,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.ink,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    'Added to cart',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
                         ],
                       ),
                     ),
@@ -501,16 +569,84 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
               ),
             ),
           ),
-          if (!_isFullPage && _peers.length > 1)
+          if (!_isFullPage)
             Positioned(
               left: 0,
               right: 0,
               bottom: 0,
-              child: _PeerStrip(
-                peers: _peers,
-                selectedId: _current.id,
-                bottomPadding: bottomInset + 8,
-                onSelect: _selectPeer,
+              child: SizedBox(
+                height: _kPeerStripHeight + bottomInset + 14,
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    // Peer product images — fade + ease down when cart shows.
+                    IgnorePointer(
+                      ignoring: !showPeers,
+                      child: AnimatedOpacity(
+                        duration: _kCartSwapDuration,
+                        curve: _showCartPreview
+                            ? Curves.easeInCubic
+                            : Curves.easeOutCubic,
+                        opacity: showPeers ? 1 : 0,
+                        child: AnimatedSlide(
+                          duration: _kCartSwapDuration,
+                          curve: Curves.easeInOutCubic,
+                          offset: showPeers
+                              ? Offset.zero
+                              : const Offset(0, 0.18),
+                          child: AnimatedScale(
+                            duration: _kCartSwapDuration,
+                            curve: Curves.easeInOutCubic,
+                            scale: showPeers ? 1 : 0.92,
+                            child: _peers.length > 1
+                                ? _PeerStrip(
+                                    peers: _peers,
+                                    selectedId: _current.id,
+                                    bottomPadding: bottomInset + 8,
+                                    onSelect: _selectPeer,
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Cart bar — rises into place while peers fade out.
+                    IgnorePointer(
+                      ignoring: !_showCartPreview,
+                      child: AnimatedOpacity(
+                        duration: _kCartSwapDuration,
+                        curve: _showCartPreview
+                            ? Curves.easeOutCubic
+                            : Curves.easeInCubic,
+                        opacity: _showCartPreview ? 1 : 0,
+                        child: AnimatedSlide(
+                          duration: _kCartSwapDuration,
+                          curve: Curves.easeOutBack,
+                          offset: _showCartPreview
+                              ? Offset.zero
+                              : const Offset(0, 0.55),
+                          child: AnimatedScale(
+                            duration: _kCartSwapDuration,
+                            curve: Curves.easeOutCubic,
+                            scale: _showCartPreview ? 1 : 0.96,
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                14,
+                                0,
+                                14,
+                                bottomInset +
+                                    (_kPeerStripHeight - MiniCartBar.height) /
+                                        2 +
+                                    8,
+                              ),
+                              child: const MiniCartBar(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -523,10 +659,12 @@ class _OverlayIconButton extends StatelessWidget {
   const _OverlayIconButton({
     required this.icon,
     required this.onPressed,
+    this.color,
   });
 
   final IconData icon;
   final VoidCallback onPressed;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -541,7 +679,7 @@ class _OverlayIconButton extends StatelessWidget {
         child: SizedBox(
           width: 38,
           height: 38,
-          child: Icon(icon, size: 20, color: AppTheme.ink),
+          child: Icon(icon, size: 20, color: color ?? AppTheme.ink),
         ),
       ),
     );
@@ -557,8 +695,10 @@ class _HeroGallery extends StatefulWidget {
     required this.topPad,
     required this.cartCount,
     required this.showCart,
+    required this.isWishlisted,
     required this.onImageChanged,
     required this.onClose,
+    required this.onWishlist,
     required this.onShare,
     required this.onCart,
   });
@@ -569,8 +709,10 @@ class _HeroGallery extends StatefulWidget {
   final double topPad;
   final int cartCount;
   final bool showCart;
+  final bool isWishlisted;
   final ValueChanged<int> onImageChanged;
   final VoidCallback onClose;
+  final VoidCallback onWishlist;
   final VoidCallback onShare;
   final VoidCallback onCart;
 
@@ -676,6 +818,14 @@ class _HeroGalleryState extends State<_HeroGallery> {
                   onPressed: widget.onClose,
                 ),
                 const Spacer(),
+                _OverlayIconButton(
+                  icon: widget.isWishlisted
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: widget.isWishlisted ? const Color(0xFFB42318) : null,
+                  onPressed: widget.onWishlist,
+                ),
+                const SizedBox(width: 8),
                 _OverlayIconButton(
                   icon: Icons.share_outlined,
                   onPressed: widget.onShare,
@@ -809,7 +959,7 @@ class _SheetVariantSelector extends StatelessWidget {
             'Options',
             style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w500,
               color: AppTheme.ink,
             ),
           ),
@@ -867,7 +1017,7 @@ class _SheetVariantSelector extends StatelessWidget {
                             '${off.toStringAsFixed(0)}% OFF',
                             style: TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w500,
                               color: Colors.green.shade700,
                             ),
                           ),
@@ -896,7 +1046,7 @@ class _SheetAddBar extends StatelessWidget {
   final Product product;
   final double unitPrice;
   final int quantity;
-  final VoidCallback onAddToCart;
+  final void Function(BuildContext buttonContext) onAddToCart;
 
   @override
   Widget build(BuildContext context) {
@@ -920,7 +1070,7 @@ class _SheetAddBar extends StatelessWidget {
                     '${product.discount!.toStringAsFixed(0)}% OFF',
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       color: Colors.green.shade700,
                     ),
                   ),
@@ -931,7 +1081,7 @@ class _SheetAddBar extends StatelessWidget {
                       PriceFormatter.format(total),
                       style: TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         color: AppTheme.ink,
                         height: 1.15,
                       ),
@@ -955,26 +1105,32 @@ class _SheetAddBar extends StatelessWidget {
           SizedBox(
             width: 96,
             height: 36,
-            child: ElevatedButton(
-              onPressed: product.isAvailable ? onAddToCart : null,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.wine,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(96, 36),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                product.isAvailable ? 'ADD' : 'N/A',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.3,
-                ),
-              ),
+            child: Builder(
+              builder: (buttonContext) {
+                return ElevatedButton(
+                  onPressed: product.isAvailable
+                      ? () => onAddToCart(buttonContext)
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.wine,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(96, 36),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    product.isAvailable ? 'ADD' : 'N/A',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -985,6 +1141,7 @@ class _SheetAddBar extends StatelessWidget {
 
 class _PeerStrip extends StatefulWidget {
   const _PeerStrip({
+    super.key,
     required this.peers,
     required this.selectedId,
     required this.bottomPadding,

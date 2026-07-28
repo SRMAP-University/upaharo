@@ -32,6 +32,7 @@ model User {
   businessProfile    BusinessProfile?
   wallet             WalletAccount?
   walletTransactions WalletTransaction[]
+  wishlistItems      WishlistItem[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -143,6 +144,26 @@ model Address {
   @@index([userId])
 }
 
+/// Compact banner tile for the `miniBanners` home row, where several sit side
+/// by side. Unlike `Banner` these carry no product strip — just an image that
+/// deep-links to a product or category.
+model MiniBanner {
+  id        String   @id @default(cuid())
+  title     String
+  image     String
+  /// Tap target kind: NONE, PRODUCT or CATEGORY.
+  linkType  String   @default("NONE")
+  /// Product id or category id, depending on linkType.
+  linkId    String?
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([order])
+}
+
 model Banner {
   id         String   @id @default(cuid())
   title      String
@@ -194,12 +215,27 @@ model Product {
   productViewEvents         ProductViewEvent[]
   sourceRecommendationRules RecommendationRule[] @relation("SourceProductRecommendationRules")
   targetRecommendationRules RecommendationRule[] @relation("TargetProductRecommendationRules")
+  wishlistedBy              WishlistItem[]
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
   @@index([category])
   @@index([isAvailable])
   @@index([sellerId])
+}
+
+/// Products a customer saved for later.
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
 }
 
 model Order {
@@ -237,6 +273,10 @@ model Order {
   paymentStatus        PaymentStatus    @default(PENDING)
   estimatedTime        Int
   placedAt             DateTime         @default(now())
+  /// Start of the requested delivery window; null means deliver ASAP.
+  scheduledFor         DateTime?
+  /// Human-readable window shown to the customer, e.g. "Tomorrow, 12–3 PM".
+  deliverySlotLabel    String?
   acceptedAt           DateTime?
   preparingAt          DateTime?
   outForDeliveryAt     DateTime?
@@ -268,6 +308,7 @@ model Order {
   @@index([couponId])
   @@index([isGift])
   @@index([isWholesale])
+  @@index([scheduledFor])
 }
 
 enum FulfillmentType {
@@ -562,6 +603,10 @@ model AppSettings {
   homepageBannerHeight         Int      @default(320)
   /// Height of product tiles inside each homepage banner.
   homepageBannerProductHeight  Int      @default(112)
+  /// Mini banner tiles visible per row (1-4); sets each tile's width.
+  miniBannerColumns            Int      @default(3)
+  /// Mini banner tile height in logical pixels.
+  miniBannerHeight             Int      @default(96)
   homepageShowTopCategories    Boolean  @default(true)
   homepageShowCategorySections Boolean  @default(true)
   homepageShowOccasionTabs     Boolean  @default(true)
@@ -631,6 +676,13 @@ model AppSettings {
   freeDeliveryMinAmount        Float    @default(199)
   /// Delivery fee charged when the goods total is below freeDeliveryMinAmount.
   deliveryFeeAmount            Float    @default(40)
+  /// Bookable delivery windows: `[{ id, startHour, endHour, label }]` in Nepal
+  /// time. Null = use built-in defaults; empty array = scheduling disabled.
+  deliverySlots                Json?
+  /// Quick day chips offered in the schedule picker, including today.
+  scheduleDayCount             Int      @default(3)
+  /// Furthest day a customer may book via the custom date picker.
+  scheduleMaxDaysAhead         Int      @default(30)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 }

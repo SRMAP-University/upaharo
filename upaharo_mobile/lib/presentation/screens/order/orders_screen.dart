@@ -5,7 +5,9 @@ import 'package:provider/provider.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/price_formatter.dart';
+import '../../../core/utils/reorder.dart';
 import '../../../data/models/order.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../widgets/bottom_nav_bar.dart';
@@ -84,7 +86,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 children: [
                   Icon(Icons.receipt_long_outlined, size: 56, color: AppTheme.wine.withAlpha(120)),
                   const SizedBox(height: 12),
-                  const Text('No orders yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Text('No orders yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: _goHome,
@@ -118,6 +120,21 @@ class _OrderCard extends StatelessWidget {
 
   final Order order;
 
+  bool get _canReorder =>
+      order.items.isNotEmpty &&
+      (order.status == OrderStatus.delivered ||
+          order.status == OrderStatus.cancelled);
+
+  void _buyAgain(BuildContext context) {
+    final outcome = reorderIntoCart(order, context.read<CartProvider>());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(outcome.message)),
+    );
+    if (outcome.hasAdded) {
+      Navigator.pushNamed(context, AppRoutes.cart);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = statusThemeFor(order.status);
@@ -150,7 +167,7 @@ class _OrderCard extends StatelessWidget {
                   children: [
                     Text(
                       'Order ${order.orderNumber}',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                     ),
                     if (date.isNotEmpty)
                       Text(date, style: TextStyle(fontSize: 12, color: AppTheme.charcoal)),
@@ -167,7 +184,7 @@ class _OrderCard extends StatelessWidget {
                   statusLabel(order.status),
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: theme.color,
                   ),
                 ),
@@ -204,7 +221,7 @@ class _OrderCard extends StatelessWidget {
                           item.product?.name ?? 'Product',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                         ),
                         Text(
                           'Qty ${item.quantity}',
@@ -215,7 +232,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   Text(
                     PriceFormatter.format(item.price * item.quantity),
-                    style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.wine),
+                    style: TextStyle(fontWeight: FontWeight.w500, color: AppTheme.wine),
                   ),
                 ],
               ),
@@ -255,16 +272,30 @@ class _OrderCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Total ${PriceFormatter.format(order.total)}',
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                 ),
               ),
+              if (_canReorder)
+                TextButton.icon(
+                  onPressed: () => _buyAgain(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppTheme.wine,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text(
+                    'Buy again',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
               OutlinedButton(
                 onPressed: () => Navigator.pushNamed(
                   context,
                   AppRoutes.orderDetail,
                   arguments: order.id,
                 ),
-                child: const Text('Track Order'),
+                child: Text(_canReorder ? 'Details' : 'Track Order'),
               ),
             ],
           ),

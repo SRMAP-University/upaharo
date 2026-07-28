@@ -138,6 +138,7 @@ export const REDIS_KEYS = {
   HOME_RECOMMENDATIONS: (viewedKey: string) => `cache:home-recommendations:${viewedKey}`,
   HOME: 'cache:home:v1',
   HOME_BANNERS: 'cache:home:banners',
+  HOME_MINI_BANNERS: 'cache:home:mini-banners',
 }
 
 export const REDIS_CHANNELS = {

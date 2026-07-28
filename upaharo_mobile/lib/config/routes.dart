@@ -23,4 +23,6 @@ class AppRoutes {
   static const String helpSupport = '/help-support';
   static const String about = '/about';
   static const String aiChat = '/ai-chat';
+  static const String notifications = '/notifications';
+  static const String wishlist = '/wishlist';
 }

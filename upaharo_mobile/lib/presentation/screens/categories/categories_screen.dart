@@ -304,7 +304,7 @@ class _CategoryRail extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 10,
                           height: 1.15,
-                          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                          fontWeight: selected ? FontWeight.w600 : FontWeight.w600,
                           color: selected ? AppTheme.wine : AppTheme.ink,
                         ),
                       ),

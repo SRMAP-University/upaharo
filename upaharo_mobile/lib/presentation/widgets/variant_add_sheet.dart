@@ -186,7 +186,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               color: AppTheme.ink,
                             ),
                           ),
@@ -195,7 +195,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                             PriceFormatter.format(_unitPrice),
                             style: TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               color: AppTheme.wine,
                             ),
                           ),
@@ -237,7 +237,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                     hasVariants ? 'Select option' : 'Add to cart',
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       color: AppTheme.ink,
                     ),
                   ),
@@ -313,7 +313,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w500,
                                         color: AppTheme.ink,
                                       ),
                                     ),
@@ -324,7 +324,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w500,
                                         color: AppTheme.ink,
                                       ),
                                     ),
@@ -385,7 +385,7 @@ class _VariantAddSheetState extends State<_VariantAddSheet> {
                             Text(
                               '$_quantity',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 15,
                               ),
                             ),
@@ -439,7 +439,7 @@ class _MetaChip extends StatelessWidget {
         label,
         style: TextStyle(
           fontSize: 11,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
           color: AppTheme.ink,
         ),
       ),

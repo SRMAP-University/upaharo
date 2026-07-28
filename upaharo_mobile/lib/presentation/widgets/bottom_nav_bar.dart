@@ -120,7 +120,7 @@ class _BottomNavBarState extends State<BottomNavBar>
             style: TextStyle(
               fontSize: 13,
               height: 1,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
               color: selected ? AppTheme.gold : AppTheme.wine,
             ),
           ),
@@ -131,7 +131,7 @@ class _BottomNavBarState extends State<BottomNavBar>
               style: TextStyle(
                 fontSize: 8,
                 height: 1.05,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.4,
                 color: selected ? Colors.white : AppTheme.wine,
               ),
@@ -154,7 +154,7 @@ class _BottomNavBarState extends State<BottomNavBar>
           style: TextStyle(
             fontSize: 8,
             height: 1.1,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: selected ? Colors.white : AppTheme.wine,
           ),
         ),
@@ -258,7 +258,7 @@ class _BottomNavBarState extends State<BottomNavBar>
                                   style: TextStyle(
                                     fontSize: 9,
                                     fontWeight: selected
-                                        ? FontWeight.w800
+                                        ? FontWeight.w600
                                         : FontWeight.w600,
                                     color: selected
                                         ? AppTheme.wine
@@ -373,7 +373,7 @@ class _BottomNavBarState extends State<BottomNavBar>
                                       '%',
                                       style: TextStyle(
                                         fontSize: 8,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w600,
                                         color: promoSelected
                                             ? AppTheme.wine
                                             : Colors.white,

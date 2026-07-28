@@ -42,7 +42,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                     'Need help with ${settings.siteName}?',
                     style: TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.ink,
                     ),
                   ),

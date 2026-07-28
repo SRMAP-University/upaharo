@@ -203,6 +203,7 @@ class CartProvider extends ChangeNotifier {
     List<CartItem>? items,
     bool includeGift = true,
     GiftOptions? giftOptions,
+    DateTime? scheduledFor,
   }) {
     final lines = items ?? _items;
     final isPickup = fulfillmentType.toUpperCase() == 'PICKUP';
@@ -236,6 +237,8 @@ class CartProvider extends ChangeNotifier {
       'deliveryFee': resolvedDeliveryFee,
       'tax': 0,
       'total': computedTotal,
+      if (!isPickup && scheduledFor != null)
+        'scheduledFor': scheduledFor.toUtc().toIso8601String(),
       if (walletAmount > 0) 'walletAmount': walletAmount,
       if (couponCode != null && couponCode.trim().isNotEmpty)
         'couponCode': couponCode.trim().toUpperCase(),

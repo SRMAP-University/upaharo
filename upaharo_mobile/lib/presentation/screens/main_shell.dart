@@ -10,6 +10,7 @@ import '../providers/orders_provider.dart';
 import '../providers/promo_spin_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
+import '../providers/wishlist_provider.dart';
 import '../widgets/active_order_bar.dart';
 import '../widgets/animated_indexed_stack.dart';
 import '../widgets/bottom_nav_bar.dart';
@@ -28,7 +29,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   bool _navVisible = true;
   int _lastTab = 0;
   bool? _wasAuthed;
@@ -40,10 +41,19 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrap();
       _syncOrdersPolling();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App opened / returned to foreground — always refresh GPS.
+      unawaited(_refreshExactLocation());
+    }
   }
 
   /// Restore session / location / settings without blocking the first home frame.
@@ -63,16 +73,28 @@ class _MainShellState extends State<MainShell> {
             authenticated: auth.isAuthenticated,
           ),
     );
+    if (auth.isAuthenticated) {
+      unawaited(context.read<WishlistProvider>().load());
+    }
 
+    // Show last-known address instantly, then always fetch exact GPS.
+    await location.loadSavedLocation().catchError((_) {});
+    if (!mounted) return;
     await Future.wait([
-      location.loadSavedLocation().catchError((_) {}),
-      location.detectLocation().catchError((_) => false),
+      location.refreshCurrentLocation(minInterval: Duration.zero).catchError((_) => false),
       settings.load().catchError((_) {}),
     ]);
   }
 
+  Future<void> _refreshExactLocation() async {
+    if (!mounted) return;
+    final location = context.read<LocationProvider>();
+    await location.refreshCurrentLocation().catchError((_) => false);
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Provider may outlive this shell — stop only if still mounted tree.
     try {
       context.read<OrdersProvider>().stopActiveOrderPolling();

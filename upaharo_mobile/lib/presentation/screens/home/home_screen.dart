@@ -11,6 +11,7 @@ import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/banner.dart';
 import '../../../data/models/category.dart';
 import '../../../data/models/coupon.dart';
+import '../../../data/models/mini_banner.dart';
 import '../../../data/models/product.dart';
 import '../../../data/models/app_settings.dart';
 import '../../../data/models/wallet.dart';
@@ -21,6 +22,7 @@ import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/coupon_provider.dart';
 import '../../providers/location_provider.dart';
+import '../../providers/mini_banner_provider.dart';
 import '../../providers/promo_spin_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
@@ -153,6 +155,7 @@ class _HomeScreenState extends State<HomeScreen>
       // Always refresh admin coupons / banners so newly added items appear.
       context.read<CouponProvider>().load(force: true);
       context.read<BannerProvider>().load(force: true);
+      context.read<MiniBannerProvider>().load(force: true);
       _loadWallet();
     });
   }
@@ -192,6 +195,7 @@ class _HomeScreenState extends State<HomeScreen>
       context.read<CatalogProvider>().load(force: true),
       context.read<CouponProvider>().load(force: true),
       context.read<BannerProvider>().load(force: true),
+      context.read<MiniBannerProvider>().load(force: true),
       context.read<PromoSpinProvider>().refresh(),
       _loadWallet(),
     ]);
@@ -277,6 +281,29 @@ class _HomeScreenState extends State<HomeScreen>
         'title': title ?? category?.name ?? 'Products',
       },
     );
+  }
+
+  /// Mini banner taps. The server already dropped links whose target was
+  /// deleted, so an unlinked tile is display-only rather than a dead end.
+  void _openMiniBanner(MiniBanner banner) {
+    final targetId = banner.linkId;
+    if (!banner.hasLink || targetId == null) return;
+
+    switch (banner.linkType) {
+      case MiniBannerLinkType.product:
+        Navigator.pushNamed(context, AppRoutes.productDetail, arguments: targetId);
+      case MiniBannerLinkType.category:
+        Navigator.pushNamed(
+          context,
+          AppRoutes.products,
+          arguments: {
+            'categoryId': targetId,
+            'title': banner.linkLabel ?? banner.title,
+          },
+        );
+      case MiniBannerLinkType.none:
+        break;
+    }
   }
 
   @override
@@ -376,15 +403,7 @@ class _HomeScreenState extends State<HomeScreen>
                   delegate: _PinnedHomeHeader(
                     topInset: topInset,
                     deliveryEstimate: appSettings.deliveryEstimate,
-                    locationLabel: () {
-                      final label = location?.label?.trim();
-                      if (label != null && label.isNotEmpty) return label;
-                      final city = location?.city?.trim();
-                      if (city != null && city.isNotEmpty) return city;
-                      final address = location?.address.trim() ?? '';
-                      if (address.isNotEmpty) return address;
-                      return 'Choose location';
-                    }(),
+                    locationLabel: location?.headerLabel ?? 'Choose location',
                     profileInitial: (user?.name.trim().isNotEmpty ?? false)
                         ? user!.name.trim()[0].toUpperCase()
                         : null,
@@ -541,7 +560,7 @@ class _HomeScreenState extends State<HomeScreen>
               title,
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
                 color: AppTheme.ink,
               ),
             ),
@@ -580,6 +599,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
     final quickPicks = _slice(pool, 5, 12);
+    final miniBanners = context.watch<MiniBannerProvider>().banners;
 
     // Admin owns order + copy; each builder still gates on its own data/toggle.
     final builders = <String, List<Widget> Function(HomeSectionConfig)>{
@@ -601,6 +621,17 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ]
           : const [],
+      'miniBanners': (section) => miniBanners.isEmpty
+          ? const []
+          : [
+              _pad(_MiniBannerRow(
+                title: section.title,
+                banners: miniBanners,
+                columns: settings.miniBannerColumns,
+                tileHeight: settings.miniBannerHeight.toDouble(),
+                onTap: _openMiniBanner,
+              )),
+            ],
       'quickPicks': (section) => settings.homepageShowTopCategories
           ? [
               _pad(_Section4MiniCircles(
@@ -660,7 +691,7 @@ class _HomeScreenState extends State<HomeScreen>
                         Text(
                           section.title,
                           style: TextStyle(
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                             fontSize: 15,
                             color: AppTheme.ink,
                           ),
@@ -780,7 +811,7 @@ class _PlainHomeProductTile extends StatelessWidget {
                           '-${discount.round()}%',
                           style: const TextStyle(
                             fontSize: 9,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                             color: Colors.white,
                           ),
                         ),
@@ -810,7 +841,7 @@ class _PlainHomeProductTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 0.4,
                         color: AppTheme.charcoal.withAlpha(160),
                       ),
@@ -833,7 +864,7 @@ class _PlainHomeProductTile extends StatelessWidget {
                     PriceFormatter.format(product.finalPrice),
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.wine,
                     ),
                   ),
@@ -1056,7 +1087,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w800,
+                                              fontWeight: FontWeight.w600,
                                               color: AppTheme.ink,
                                             ),
                                           ),
@@ -1099,7 +1130,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                         PriceFormatter.format(walletBalance!),
                                         style: TextStyle(
                                           fontSize: 11,
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w600,
                                           color: AppTheme.wine,
                                         ),
                                       ),
@@ -1118,7 +1149,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                     ? Text(
                                         profileInitial!,
                                         style: TextStyle(
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w600,
                                           color: AppTheme.wine,
                                           fontSize: 12,
                                         ),
@@ -1410,7 +1441,7 @@ class _SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: titleColor),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: titleColor),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 2),
@@ -1556,7 +1587,7 @@ class _Section2FourGrid extends StatelessWidget {
                                 PriceFormatter.format(p.finalPrice),
                                 style: const TextStyle(
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
@@ -1640,13 +1671,13 @@ class _Section3Spotlight extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w500,
                                       fontSize: 13,
                                     ),
                                   ),
                                   Text(
                                     PriceFormatter.format(main.finalPrice),
-                                    style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.w800),
+                                    style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.w600),
                                   ),
                                 ],
                               ),
@@ -1685,7 +1716,7 @@ class _Section3Spotlight extends StatelessWidget {
                                             style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 11,
-                                              fontWeight: FontWeight.w700,
+                                              fontWeight: FontWeight.w500,
                                               shadows: [Shadow(blurRadius: 4, color: Colors.black)],
                                             ),
                                           ),
@@ -1710,6 +1741,95 @@ class _Section3Spotlight extends StatelessWidget {
 }
 
 // ─── 4 Mini circle rail ──────────────────────────────────────────────────────
+
+/// Admin-managed banner tiles laid out side by side.
+///
+/// [columns] tiles fill the row exactly; any extras stay reachable by scrolling
+/// sideways rather than being silently dropped.
+class _MiniBannerRow extends StatelessWidget {
+  const _MiniBannerRow({
+    required this.title,
+    required this.banners,
+    required this.columns,
+    required this.tileHeight,
+    required this.onTap,
+  });
+
+  final String title;
+  final List<MiniBanner> banners;
+  final int columns;
+  final double tileHeight;
+  final ValueChanged<MiniBanner> onTap;
+
+  static const double _hPad = 14;
+  static const double _gap = 10;
+
+  @override
+  Widget build(BuildContext context) {
+    final heading = title.trim();
+    final across = columns.clamp(1, 4);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (heading.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: _hPad),
+              child: Text(
+                heading,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final usable = constraints.maxWidth - _hPad * 2;
+              final tileWidth =
+                  ((usable - _gap * (across - 1)) / across).clamp(48.0, 640.0);
+
+              return SizedBox(
+                height: tileHeight,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: _hPad),
+                  itemCount: banners.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: _gap),
+                  itemBuilder: (_, i) {
+                    final banner = banners[i];
+                    return Semantics(
+                      label: banner.title,
+                      button: banner.hasLink,
+                      child: GestureDetector(
+                        onTap: banner.hasLink ? () => onTap(banner) : null,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: SizedBox(
+                            width: tileWidth,
+                            height: tileHeight,
+                            child: _netImage(
+                              ImageResolver.resolve(banner.image),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _Section4MiniCircles extends StatelessWidget {
   const _Section4MiniCircles({
@@ -1737,7 +1857,7 @@ class _Section4MiniCircles extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Text(
               title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(height: 12),
@@ -1845,12 +1965,12 @@ class _Section5TallScroll extends StatelessWidget {
                                   p.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                                 ),
                                 Text(
                                   PriceFormatter.format(p.finalPrice),
                                   style: TextStyle(
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                     color: AppTheme.wine,
                                     fontSize: 14,
                                   ),
@@ -1907,7 +2027,7 @@ class _Section6FeatureTiles extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
@@ -1940,7 +2060,7 @@ class _Section6FeatureTiles extends StatelessWidget {
                           label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                         ),
                         Text(
                           'From ${PriceFormatter.format(p.finalPrice)}',
@@ -1983,7 +2103,7 @@ class _Section7CompactList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           ...products.take(5).map((p) {
             return Padding(
@@ -2015,12 +2135,12 @@ class _Section7CompactList extends StatelessWidget {
                               p.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
                             ),
                             Text(
                               PriceFormatter.format(p.finalPrice),
                               style: TextStyle(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 color: AppTheme.wine,
                                 fontSize: 13,
                               ),
@@ -2097,7 +2217,7 @@ class _Section8Magazine extends StatelessWidget {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                     shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
                                   ),
@@ -2144,7 +2264,7 @@ class _Section8Magazine extends StatelessWidget {
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               color: Colors.white,
-                                              fontWeight: FontWeight.w700,
+                                              fontWeight: FontWeight.w500,
                                               fontSize: 12,
                                               shadows: [Shadow(blurRadius: 4, color: Colors.black)],
                                             ),
@@ -2189,7 +2309,7 @@ class _Section9WideBanners extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         ),
         SizedBox(
           height: 140,
@@ -2243,7 +2363,7 @@ class _Section9WideBanners extends StatelessWidget {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             SizedBox(height: 6),
@@ -2257,7 +2377,7 @@ class _Section9WideBanners extends StatelessWidget {
                                 PriceFormatter.format(p.finalPrice),
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w500,
                                   fontSize: 12,
                                 ),
                               ),
@@ -2338,7 +2458,7 @@ class _Section10SmallGrid extends StatelessWidget {
                     ),
                     Text(
                       PriceFormatter.format(p.finalPrice),
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.wine),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.wine),
                     ),
                   ],
                 ),

@@ -16,6 +16,7 @@ class OrderSuccessArgs {
     this.couponCode,
     this.isGift = false,
     this.secondaryOrderNumber,
+    this.deliverySlotLabel,
   });
 
   final String orderId;
@@ -25,6 +26,7 @@ class OrderSuccessArgs {
   final String? couponCode;
   final bool isGift;
   final String? secondaryOrderNumber;
+  final String? deliverySlotLabel;
 
   factory OrderSuccessArgs.fromMap(Map<String, dynamic> map) {
     return OrderSuccessArgs(
@@ -35,6 +37,7 @@ class OrderSuccessArgs {
       couponCode: map['couponCode'] as String?,
       isGift: map['isGift'] as bool? ?? false,
       secondaryOrderNumber: map['secondaryOrderNumber'] as String?,
+      deliverySlotLabel: map['deliverySlotLabel'] as String?,
     );
   }
 }
@@ -106,6 +109,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
 
     final hasSavings = args.amountSaved > 0;
     final hasCoupon = (args.couponCode?.trim().isNotEmpty ?? false);
+    final slot = args.deliverySlotLabel?.trim() ?? '';
 
     return Scaffold(
       backgroundColor: AppTheme.cream,
@@ -140,15 +144,17 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.ink,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    args.isGift
-                        ? 'Your gift is on its way — thank you for spreading joy.'
-                        : 'Your order has been placed successfully.',
+                    slot.isNotEmpty
+                        ? 'Arriving $slot.'
+                        : args.isGift
+                            ? 'Your gift is on its way — thank you for spreading joy.'
+                            : 'Your order has been placed successfully.',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 15, color: AppTheme.charcoal, height: 1.4),
                   ),
@@ -168,14 +174,14 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                   args.secondaryOrderNumber!.trim().isNotEmpty
                               ? 'Orders ${args.orderNumber} · ${args.secondaryOrderNumber}'
                               : 'Order ${args.orderNumber}',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                         ),
                         SizedBox(height: 6),
                         Text(
                           'Total ${PriceFormatter.format(args.total)}',
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                             color: AppTheme.wine,
                           ),
                         ),
@@ -209,7 +215,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                   PriceFormatter.format(args.amountSaved),
                                   style: TextStyle(
                                     fontSize: 26,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight: FontWeight.w600,
                                     color: AppTheme.wine,
                                   ),
                                 ),
@@ -218,7 +224,7 @@ class _OrderSuccessScreenState extends State<OrderSuccessScreen> {
                                     'with coupon ${args.couponCode}',
                                     style: TextStyle(
                                       fontSize: 13,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w500,
                                       color: AppTheme.ink,
                                     ),
                                   ),

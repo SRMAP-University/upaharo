@@ -80,7 +80,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                     child: Text(
                       'Explore coupons',
                       style: TextStyle(
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                         fontSize: 14,
                         color: AppTheme.ink,
                       ),
@@ -147,7 +147,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w500,
                                   fontSize: 13,
                                   letterSpacing: 0.4,
                                   color: AppTheme.ink,
@@ -188,7 +188,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                           ),
                           child: const Text(
                             'Copy',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                            style: TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
                           ),
                         ),
                         if (widget.showApply)
@@ -211,7 +211,7 @@ class _ExploreCouponsSectionState extends State<ExploreCouponsSection> {
                             child: Text(
                               applied ? 'Applied' : 'Apply',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w500,
                                 fontSize: 12,
                               ),
                             ),

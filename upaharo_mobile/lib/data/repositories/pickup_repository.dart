@@ -36,17 +36,23 @@ class PickupRepository {
     if (ids.isEmpty) return PickupResolveResult.empty;
 
     final batch = await _fetch(ids);
-    if (batch.location != null || batch.pickupProductIds.isNotEmpty || ids.length == 1) {
+
+    // If the batch already covers every id (or only one id), trust it.
+    final known = batch.pickupProductIds.toSet();
+    if (ids.length == 1 || known.length >= ids.length) {
       return batch;
     }
 
-    // Older API may omit pickupProductIds — probe each id and keep one shared pin.
-    PickupLocation? shared;
-    final capable = <String>[];
+    // Expand with per-product probes — catches strict grouping / older API gaps.
+    PickupLocation? shared = batch.location;
+    final capable = <String>{...known};
+
     for (final id in ids) {
+      if (capable.contains(id)) continue;
       final single = await _fetch([id]);
       final loc = single.location;
       if (loc == null) continue;
+
       if (shared == null) {
         shared = loc;
         capable.add(id);
@@ -56,14 +62,15 @@ class PickupRepository {
     }
 
     return PickupResolveResult(
-      eligible: false,
-      location: shared,
-      pickupProductIds: capable,
+      eligible: capable.length == ids.length && shared != null,
+      location: shared ?? batch.location,
+      pickupProductIds: capable.toList(),
     );
   }
 
+  /// ~100m — same store pins often differ slightly when saved from the map.
   bool _samePoint(PickupLocation a, PickupLocation b) {
-    const tol = 1e-5;
+    const tol = 1e-3;
     return (a.latitude - b.latitude).abs() <= tol &&
         (a.longitude - b.longitude).abs() <= tol;
   }

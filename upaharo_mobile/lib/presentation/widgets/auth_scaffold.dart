@@ -58,7 +58,7 @@ class AuthScaffold extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 36,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                   letterSpacing: -0.6,
                                   color: AppTheme.wine,
                                   height: 1.05,
@@ -83,7 +83,7 @@ class AuthScaffold extends StatelessWidget {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w500,
                                   fontStyle: FontStyle.italic,
                                   color: AppTheme.ink.withAlpha(210),
                                 ),
@@ -233,7 +233,7 @@ class AuthPrimaryButton extends StatelessWidget {
                 )
               : Text(
                   label,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
         ),
       ),
@@ -306,7 +306,7 @@ class AuthLinkRow extends StatelessWidget {
             ),
             TextSpan(
               text: action,
-              style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.wine),
+              style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.wine),
             ),
           ],
         ),

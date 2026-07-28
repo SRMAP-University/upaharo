@@ -45,6 +45,10 @@ class Order {
   final PaymentStatus paymentStatus;
   final int estimatedTime;
   final DateTime? placedAt;
+  /// Start of the requested delivery window; null means ASAP.
+  final DateTime? scheduledFor;
+  /// Human-readable window, e.g. "Tomorrow, 12 – 3 PM".
+  final String? deliverySlotLabel;
   final bool isGift;
   final String? recipientId;
   final GiftRecipient? recipient;
@@ -82,6 +86,8 @@ class Order {
     this.paymentStatus = PaymentStatus.pending,
     this.estimatedTime = 0,
     this.placedAt,
+    this.scheduledFor,
+    this.deliverySlotLabel,
     this.isGift = false,
     this.recipientId,
     this.recipient,
@@ -135,6 +141,10 @@ class Order {
       paymentStatus: _parsePaymentStatus(rawPaymentStatus),
       estimatedTime: json['estimatedTime'] as int? ?? 0,
       placedAt: json['placedAt'] != null ? DateTime.tryParse(json['placedAt'] as String) : null,
+      scheduledFor: json['scheduledFor'] != null
+          ? DateTime.tryParse(json['scheduledFor'] as String)?.toLocal()
+          : null,
+      deliverySlotLabel: json['deliverySlotLabel'] as String?,
       isGift: json['isGift'] as bool? ?? false,
       recipientId: json['recipientId'] as String?,
       recipient: json['recipient'] != null
@@ -179,6 +189,8 @@ class Order {
         'paymentStatus': paymentStatus.name.toUpperCase(),
         'estimatedTime': estimatedTime,
         if (placedAt != null) 'placedAt': placedAt!.toIso8601String(),
+        if (scheduledFor != null) 'scheduledFor': scheduledFor!.toUtc().toIso8601String(),
+        if (deliverySlotLabel != null) 'deliverySlotLabel': deliverySlotLabel,
         'isGift': isGift,
         if (recipientId != null) 'recipientId': recipientId,
         if (recipient != null) 'recipient': recipient!.toJson(),

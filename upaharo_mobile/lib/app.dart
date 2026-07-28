@@ -17,6 +17,7 @@ import 'presentation/screens/checkout/order_success_screen.dart';
 import 'presentation/screens/location/location_screen.dart';
 import 'presentation/screens/location/map_location_screen.dart';
 import 'presentation/screens/main_shell.dart';
+import 'presentation/screens/notifications/notifications_screen.dart';
 import 'presentation/screens/order/order_detail_screen.dart';
 import 'presentation/screens/order/orders_screen.dart';
 import 'presentation/screens/product/product_detail_screen.dart';
@@ -24,6 +25,7 @@ import 'presentation/screens/product/product_list_screen.dart';
 import 'presentation/screens/search/search_screen.dart';
 import 'presentation/screens/wallet/wallet_screen.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
+import 'presentation/screens/wishlist/wishlist_screen.dart';
 
 class UpaharoApp extends StatelessWidget {
   const UpaharoApp({super.key});
@@ -60,6 +62,8 @@ class UpaharoApp extends StatelessWidget {
         AppRoutes.helpSupport: (_) => const HelpSupportScreen(),
         AppRoutes.about: (_) => const AboutScreen(),
         AppRoutes.aiChat: (_) => const AiChatScreen(),
+        AppRoutes.notifications: (_) => const NotificationsScreen(),
+        AppRoutes.wishlist: (_) => const WishlistScreen(),
       },
     );
   }

@@ -76,7 +76,7 @@ class _PromoScreenState extends State<PromoScreen> {
                 'Featured offers',
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   color: AppTheme.ink,
                 ),
               ),
@@ -129,7 +129,7 @@ class _PromoScreenState extends State<PromoScreen> {
                                   banner.title,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                     color: AppTheme.ink,
                                   ),
                                 ),

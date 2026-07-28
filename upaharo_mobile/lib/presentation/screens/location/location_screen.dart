@@ -81,7 +81,7 @@ class LocationScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              location?.label ?? 'Your location',
+                              location?.headerLabel ?? 'Your location',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -95,8 +95,9 @@ class LocationScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    location?.shortAddress ??
-                        'We use your location only to check delivery availability in our service area.',
+                    location == null
+                        ? 'We use your location only to check delivery availability in our service area.'
+                        : location.shortAddress,
                     style: TextStyle(fontSize: 14, height: 1.5, color: AppTheme.charcoal),
                   ),
                 ],

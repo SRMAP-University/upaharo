@@ -1,4 +1,9 @@
-import { DEFAULT_HOME_SECTIONS, type HomeSectionConfig } from '@/lib/app-settings-schema'
+import {
+  DEFAULT_DELIVERY_SLOTS,
+  DEFAULT_HOME_SECTIONS,
+  type DeliverySlotConfig,
+  type HomeSectionConfig,
+} from '@/lib/app-settings-schema'
 
 /** Form mirror of PublicAppSettings; lat/lng stay strings while typing. */
 export type SettingsForm = {
@@ -16,6 +21,8 @@ export type SettingsForm = {
   homepageShowBanner: boolean
   homepageBannerHeight: number
   homepageBannerProductHeight: number
+  miniBannerColumns: number
+  miniBannerHeight: number
   homepageShowTopCategories: boolean
   homepageShowCategorySections: boolean
   homepageShowOccasionTabs: boolean
@@ -59,6 +66,10 @@ export type SettingsForm = {
   checkoutMinOrderAmount: number
   freeDeliveryMinAmount: number
   deliveryFeeAmount: number
+  /** Empty disables scheduled delivery. */
+  deliverySlots: DeliverySlotConfig[]
+  scheduleDayCount: number
+  scheduleMaxDaysAhead: number
 }
 
 export const EMPTY_FORM: SettingsForm = {
@@ -76,6 +87,8 @@ export const EMPTY_FORM: SettingsForm = {
   homepageShowBanner: true,
   homepageBannerHeight: 320,
   homepageBannerProductHeight: 112,
+  miniBannerColumns: 3,
+  miniBannerHeight: 96,
   homepageShowTopCategories: true,
   homepageShowCategorySections: true,
   homepageShowOccasionTabs: true,
@@ -117,6 +130,9 @@ export const EMPTY_FORM: SettingsForm = {
   checkoutMinOrderAmount: 0,
   freeDeliveryMinAmount: 199,
   deliveryFeeAmount: 40,
+  deliverySlots: DEFAULT_DELIVERY_SLOTS,
+  scheduleDayCount: 3,
+  scheduleMaxDaysAhead: 30,
 }
 
 export const INPUT_CLASS =

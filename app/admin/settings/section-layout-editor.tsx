@@ -18,6 +18,11 @@ const SECTION_META: Record<
     subtitleLabel: 'Accent word',
     hint: 'The accent word renders in the brand secondary colour.',
   },
+  miniBanners: {
+    label: 'Mini banner row',
+    subtitleLabel: 'Subtitle',
+    hint: 'Tiles come from Mini Banners; sizing lives in the Mini banner row block below.',
+  },
   quickPicks: {
     label: 'Quick picks circles',
     subtitleLabel: null,

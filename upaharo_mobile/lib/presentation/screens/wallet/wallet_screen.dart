@@ -85,7 +85,7 @@ class _WalletScreenState extends State<WalletScreen> {
                     'ACTIVITY',
                     style: TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       color: AppTheme.charcoal,
                       letterSpacing: 0.6,
                     ),
@@ -125,7 +125,7 @@ class _WalletScreenState extends State<WalletScreen> {
             PriceFormatter.format(_wallet.balance),
             style: TextStyle(
               fontSize: 32,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               color: AppTheme.wine,
             ),
           ),
@@ -181,7 +181,7 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
           Text(
             '$sign${PriceFormatter.format(tx.amount.abs())}',
-            style: TextStyle(fontWeight: FontWeight.w800, color: color),
+            style: TextStyle(fontWeight: FontWeight.w600, color: color),
           ),
         ],
       ),

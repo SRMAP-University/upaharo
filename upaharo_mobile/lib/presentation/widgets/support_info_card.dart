@@ -47,7 +47,7 @@ class SupportInfoCard extends StatelessWidget {
               'Support',
               style: TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: AppTheme.ink,
               ),
             ),
@@ -158,7 +158,7 @@ class _InfoRow extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: '$label: ',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(fontWeight: FontWeight.w500),
                     ),
                     TextSpan(
                       text: value,

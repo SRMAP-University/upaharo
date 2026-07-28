@@ -2,10 +2,12 @@ import {
   clampFloat,
   clampInt,
   DEFAULT_APP_SETTINGS,
+  normalizeDeliverySlots,
   normalizeDensity,
   normalizeHexColor,
   normalizeHomeSections,
   normalizeOptionalAmount,
+  normalizeScheduleDays,
   normalizeValueDealsProductIds,
   type PublicAppSettings,
 } from '@/lib/app-settings-schema'
@@ -53,6 +55,18 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
           DEFAULT_APP_SETTINGS.homepageBannerProductHeight,
           72,
           180
+        ),
+        miniBannerColumns: clampInt(
+          settings.miniBannerColumns,
+          DEFAULT_APP_SETTINGS.miniBannerColumns,
+          1,
+          4
+        ),
+        miniBannerHeight: clampInt(
+          settings.miniBannerHeight,
+          DEFAULT_APP_SETTINGS.miniBannerHeight,
+          56,
+          240
         ),
         homepageShowTopCategories: settings.homepageShowTopCategories ?? DEFAULT_APP_SETTINGS.homepageShowTopCategories,
         homepageShowCategorySections:
@@ -141,6 +155,11 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
           DEFAULT_APP_SETTINGS.deliveryFeeAmount,
           0,
           1_000_000
+        ),
+        deliverySlots: normalizeDeliverySlots(settings.deliverySlots),
+        ...normalizeScheduleDays(
+          settings.scheduleDayCount,
+          settings.scheduleMaxDaysAhead
         ),
       }
     })

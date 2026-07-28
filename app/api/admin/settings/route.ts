@@ -4,10 +4,12 @@ import {
   clampFloat,
   clampInt,
   DEFAULT_APP_SETTINGS,
+  normalizeDeliverySlots,
   normalizeDensity,
   normalizeHexColor,
   normalizeHomeSections,
   normalizeOptionalAmount,
+  normalizeScheduleDays,
   normalizeValueDealsProductIds,
 } from '@/lib/app-settings'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
@@ -116,6 +118,18 @@ function walletFields(body: Record<string, unknown>) {
   }
 }
 
+/**
+ * Scheduled delivery windows. An explicit empty `deliverySlots` array turns
+ * scheduling off for customers; the normalizer keeps starts unique and sorted
+ * because the order API matches an incoming time against the start hour.
+ */
+function scheduleFields(body: Record<string, unknown>) {
+  return {
+    deliverySlots: normalizeDeliverySlots(body?.deliverySlots),
+    ...normalizeScheduleDays(body?.scheduleDayCount, body?.scheduleMaxDaysAhead),
+  }
+}
+
 function settingsPayload(body: Record<string, unknown>) {
   return {
     siteName: String(body?.siteName || DEFAULT_APP_SETTINGS.siteName).trim(),
@@ -141,6 +155,18 @@ function settingsPayload(body: Record<string, unknown>) {
       DEFAULT_APP_SETTINGS.homepageBannerProductHeight,
       72,
       180
+    ),
+    miniBannerColumns: clampInt(
+      body?.miniBannerColumns,
+      DEFAULT_APP_SETTINGS.miniBannerColumns,
+      1,
+      4
+    ),
+    miniBannerHeight: clampInt(
+      body?.miniBannerHeight,
+      DEFAULT_APP_SETTINGS.miniBannerHeight,
+      56,
+      240
     ),
     homepageShowTopCategories: toBool(
       body?.homepageShowTopCategories,
@@ -186,6 +212,7 @@ function settingsPayload(body: Record<string, unknown>) {
     ...productCardFields(body),
     ...navigationFields(body),
     ...walletFields(body),
+    ...scheduleFields(body),
   }
 }
 
@@ -200,6 +227,11 @@ export async function GET() {
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
+      deliverySlots: normalizeDeliverySlots(settings?.deliverySlots),
+      ...normalizeScheduleDays(
+        settings?.scheduleDayCount,
+        settings?.scheduleMaxDaysAhead
+      ),
       brandPrimary: normalizeHexColor(settings?.brandPrimary, DEFAULT_APP_SETTINGS.brandPrimary),
       brandSecondary: normalizeHexColor(settings?.brandSecondary, DEFAULT_APP_SETTINGS.brandSecondary),
       headerWash: normalizeHexColor(settings?.headerWash, DEFAULT_APP_SETTINGS.headerWash),

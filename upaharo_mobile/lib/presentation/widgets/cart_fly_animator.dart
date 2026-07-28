@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'progressive_network_image.dart';
 
@@ -85,7 +87,7 @@ class _FlyingThumb extends StatefulWidget {
 class _FlyingThumbState extends State<_FlyingThumb>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<Offset> _position;
+  late final Animation<double> _t;
   late final Animation<double> _scale;
   late final Animation<double> _opacity;
 
@@ -94,20 +96,34 @@ class _FlyingThumbState extends State<_FlyingThumb>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 650),
+      duration: const Duration(milliseconds: 780),
     );
-    final curve = CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic);
-    _position = Tween<Offset>(begin: widget.start, end: widget.end).animate(curve);
+    _t = CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic);
     _scale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.15), weight: 20),
-      TweenSequenceItem(tween: Tween(begin: 1.15, end: 0.35), weight: 80),
-    ]).animate(curve);
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.12), weight: 18),
+      TweenSequenceItem(tween: Tween(begin: 1.12, end: 0.28), weight: 82),
+    ]).animate(_t);
     _opacity = TweenSequence<double>([
-      TweenSequenceItem(tween: ConstantTween(1.0), weight: 75),
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 25),
-    ]).animate(curve);
+      TweenSequenceItem(tween: ConstantTween(1.0), weight: 78),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 22),
+    ]).animate(_t);
 
     _controller.forward().whenComplete(widget.onDone);
+  }
+
+  /// Soft parabolic arc between start and end.
+  Offset _arcPosition(double t) {
+    final start = widget.start;
+    final end = widget.end;
+    final mid = Offset(
+      (start.dx + end.dx) / 2,
+      math.min(start.dy, end.dy) - 56,
+    );
+    final inv = 1 - t;
+    return Offset(
+      inv * inv * start.dx + 2 * inv * t * mid.dx + t * t * end.dx,
+      inv * inv * start.dy + 2 * inv * t * mid.dy + t * t * end.dy,
+    );
   }
 
   @override
@@ -123,7 +139,7 @@ class _FlyingThumbState extends State<_FlyingThumb>
       child: AnimatedBuilder(
         animation: _controller,
         builder: (_, _) {
-          final pos = _position.value;
+          final pos = _arcPosition(_t.value);
           final s = _scale.value;
           return Stack(
             children: [
@@ -142,8 +158,8 @@ class _FlyingThumbState extends State<_FlyingThumb>
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(50),
-                            blurRadius: 8,
+                            color: Colors.black.withAlpha(45),
+                            blurRadius: 10,
                             offset: const Offset(0, 3),
                           ),
                         ],

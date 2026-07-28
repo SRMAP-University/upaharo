@@ -221,7 +221,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
                 'Spin & Win',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: AppTheme.ink,
                 ),
               ),
@@ -276,7 +276,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
                           : Text(
                               _percent > 0 ? '$_percent%' : 'GO',
                               style: TextStyle(
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 color: AppTheme.wine,
                               ),
@@ -301,7 +301,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
                   child: Text(
                     'Today’s code: $_code',
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                       color: AppTheme.wine,
                       fontSize: 13,
                     ),
@@ -328,7 +328,7 @@ class _SpinRouletteCardState extends State<SpinRouletteCard>
                         : _canSpin
                             ? (_spinning ? 'Spinning…' : 'SPIN')
                             : 'Come back tomorrow',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -377,7 +377,7 @@ class _WheelPainter extends CustomPainter {
           text: '${segments[i]}%',
           style: const TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             fontSize: 14,
             shadows: [Shadow(blurRadius: 2, color: Colors.black54)],
           ),

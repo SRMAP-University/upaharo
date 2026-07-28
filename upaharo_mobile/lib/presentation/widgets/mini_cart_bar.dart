@@ -137,7 +137,7 @@ class _MiniCartBarState extends State<MiniCartBar>
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                 ),
@@ -196,7 +196,7 @@ class _DeliveryProgressSide extends StatelessWidget {
                 ? const [
                     TextSpan(
                       text: 'FREE DELIVERY ',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     TextSpan(text: 'unlocked'),
                   ]
@@ -204,13 +204,13 @@ class _DeliveryProgressSide extends StatelessWidget {
                     const TextSpan(text: 'Add '),
                     TextSpan(
                       text: PriceFormatter.format(remaining),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     TextSpan(text: compact ? ' more' : ' more to unlock '),
                     if (!compact)
                       const TextSpan(
                         text: 'FREE DELIVERY',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                   ],
           ),
@@ -336,7 +336,7 @@ class _CartRightSide extends StatelessWidget {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 11,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                   height: 1.1,
                 ),

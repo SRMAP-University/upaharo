@@ -138,6 +138,10 @@ class ApiEndpoints {
   /// GET -> { banners: [...] }
   static const String banners = '/api/banners';
 
+  /// Active mini banner tiles for the home row.
+  /// GET -> { miniBanners: [...] }
+  static const String miniBanners = '/api/mini-banners';
+
   /// Active public coupons for the storefront / app.
   /// GET -> { coupons: [...] }
   static const String coupons = '/api/coupons';
@@ -209,6 +213,12 @@ class ApiEndpoints {
   /// GET -> { notifications, unreadCount }
   /// PATCH Body: { ids?: string[], all?: boolean }
   static const String notifications = '/api/notifications';
+
+  /// Saved products (wishlist) for the authenticated user.
+  /// GET -> { items: [{ id, productId, product }], productIds: string[] }
+  /// POST Body: { productId } -> { item }
+  /// DELETE ?productId= -> { ok: true }
+  static const String wishlist = '/api/wishlist';
 
   /// ------------------------------------------------------------------------
   /// Admin / seller endpoints (not needed for the customer app but listed

@@ -26,17 +26,29 @@ class UserLocation {
   factory UserLocation.fromJson(Map<String, dynamic> json) {
     final parsed = json['parsed'] as Map<String, dynamic>?;
 
+    String? pick(String key) {
+      final top = json[key];
+      if (top is String && top.trim().isNotEmpty) return top.trim();
+      final nested = parsed?[key];
+      if (nested is String && nested.trim().isNotEmpty) return nested.trim();
+      return null;
+    }
+
     return UserLocation(
-      latitude: double.tryParse(json['lat']?.toString() ?? '') ?? (json['latitude'] as num?)?.toDouble() ?? 0,
-      longitude: double.tryParse(json['lng']?.toString() ?? '') ?? (json['longitude'] as num?)?.toDouble() ?? 0,
+      latitude: double.tryParse(json['lat']?.toString() ?? '') ??
+          (json['latitude'] as num?)?.toDouble() ??
+          0,
+      longitude: double.tryParse(json['lng']?.toString() ?? '') ??
+          (json['longitude'] as num?)?.toDouble() ??
+          0,
       address: json['address'] as String? ?? '',
       label: json['label'] as String?,
-      street: parsed?['street'] as String?,
+      street: pick('street'),
       apartment: json['apartment'] as String?,
-      landmark: parsed?['landmark'] as String? ?? json['landmark'] as String?,
-      city: parsed?['city'] as String?,
-      state: parsed?['state'] as String?,
-      pincode: parsed?['pincode'] as String?,
+      landmark: pick('landmark'),
+      city: pick('city'),
+      state: pick('state'),
+      pincode: pick('pincode'),
     );
   }
 
@@ -53,17 +65,53 @@ class UserLocation {
         if (pincode != null) 'pincode': pincode,
       };
 
+  static const _genericLabels = {
+    'current location',
+    'selected location',
+    'near you',
+    'your location',
+    'home',
+  };
+
+  bool get _hasGenericLabel {
+    final value = label?.trim().toLowerCase();
+    return value == null || value.isEmpty || _genericLabels.contains(value);
+  }
+
   /// Short human-readable location in a single line.
   /// e.g. "Maharajgunj, Kathmandu, Bagmati - 44600".
   String get shortAddress {
     final parts = <String>[
       if (street != null && street!.isNotEmpty) street!,
-      if (landmark != null && landmark!.isNotEmpty) landmark!,
+      if (landmark != null &&
+          landmark!.isNotEmpty &&
+          landmark != street)
+        landmark!,
       if (city != null && city!.isNotEmpty) city!,
       if (state != null && state!.isNotEmpty) state!,
       if (pincode != null && pincode!.isNotEmpty) pincode!,
     ];
-    return parts.isEmpty ? address : parts.join(', ');
+    if (parts.isNotEmpty) return parts.join(', ');
+    if (address.trim().isNotEmpty) return address.trim();
+    return 'Choose location';
+  }
+
+  /// Compact place name for the home header chip.
+  String get headerLabel {
+    if (!_hasGenericLabel) return label!.trim();
+    final place = street?.trim().isNotEmpty == true
+        ? street!.trim()
+        : landmark?.trim().isNotEmpty == true
+            ? landmark!.trim()
+            : city?.trim().isNotEmpty == true
+                ? city!.trim()
+                : null;
+    if (place != null) return place;
+    final first = address.split(',').first.trim();
+    if (first.isNotEmpty && !_genericLabels.contains(first.toLowerCase())) {
+      return first;
+    }
+    return shortAddress;
   }
 
   UserLocation copyWith({

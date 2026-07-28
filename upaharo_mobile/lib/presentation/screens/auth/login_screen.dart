@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/wishlist_provider.dart';
 import '../../widgets/auth_scaffold.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -33,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
     if (success && mounted) {
+      unawaited(context.read<WishlistProvider>().load(force: true));
       Navigator.pushReplacementNamed(context, AppRoutes.main);
     }
   }

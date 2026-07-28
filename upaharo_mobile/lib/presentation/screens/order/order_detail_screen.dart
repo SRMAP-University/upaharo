@@ -7,11 +7,14 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_constants.dart';
+import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../../core/utils/price_formatter.dart';
+import '../../../core/utils/reorder.dart';
 import '../../../data/models/order.dart';
 import '../../../data/repositories/order_repository.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/settings_provider.dart';
 import 'order_status_ui.dart';
@@ -146,6 +149,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return order.status == OrderStatus.pending ||
         order.status == OrderStatus.accepted ||
         order.status == OrderStatus.preparing;
+  }
+
+  void _buyAgain(Order order) {
+    final outcome = reorderIntoCart(order, context.read<CartProvider>());
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(outcome.message)),
+    );
+    if (outcome.hasAdded) {
+      Navigator.pushNamed(context, AppRoutes.cart);
+    }
   }
 
   Future<void> _cancelOrder() async {
@@ -309,7 +322,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                                 fontSize: 14,
                               ),
                             ),
@@ -385,6 +398,26 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               const SizedBox(height: 12),
                               _GiftCard(order: order),
                             ],
+                            if (order.items.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              ElevatedButton.icon(
+                                onPressed: () => _buyAgain(order),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.wine,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.refresh_rounded, size: 18),
+                                label: const Text(
+                                  'Buy again',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
                             if (_canCancel(order)) ...[
                               const SizedBox(height: 16),
                               OutlinedButton(
@@ -396,7 +429,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                                 ),
                                 child: const Text(
                                   'Cancel Order',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],
@@ -490,7 +523,7 @@ class _MapStatusHover extends StatelessWidget {
                       Text(
                         theme.title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 15,
                         ),
                       ),
@@ -529,7 +562,7 @@ class _MapStatusHover extends StatelessWidget {
                         Text(
                           formatEta(order.estimatedTime),
                           style: TextStyle(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             fontSize: 13,
                             color: theme.color,
                           ),
@@ -581,7 +614,7 @@ class _MapStatusHover extends StatelessWidget {
                   : trackingSteps[completed.clamp(0, trackingSteps.length - 1)].label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
                 color: theme.color,
               ),
             ),
@@ -613,13 +646,34 @@ class _SheetHeader extends StatelessWidget {
             children: [
               const Text(
                 'Your order',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
               if (date.isNotEmpty)
                 Text(
                   date,
                   style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
                 ),
+              if (order.deliverySlotLabel?.trim().isNotEmpty ?? false) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.wine.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Scheduled · ${order.deliverySlotLabel!.trim()}',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.wine,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -627,7 +681,7 @@ class _SheetHeader extends StatelessWidget {
           PriceFormatter.format(order.total),
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             color: AppTheme.wine,
           ),
         ),
@@ -661,7 +715,7 @@ class _OtpBanner extends StatelessWidget {
                   'DELIVERY CODE',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     letterSpacing: 1.1,
                     color: AppTheme.charcoal,
                   ),
@@ -671,7 +725,7 @@ class _OtpBanner extends StatelessWidget {
                   otp,
                   style: TextStyle(
                     fontSize: 28,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: 6,
                     color: AppTheme.wine,
                   ),
@@ -715,7 +769,7 @@ class _AddressCard extends StatelessWidget {
           children: [
             Text(
               pickup?.displayAddress ?? 'Pickup point',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
@@ -735,7 +789,7 @@ class _AddressCard extends StatelessWidget {
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(address.label, style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(address.label, style: const TextStyle(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 4),
                 Text(address.displayAddress, style: const TextStyle(height: 1.35)),
               ],
@@ -776,7 +830,7 @@ class _BillCard extends StatelessWidget {
                     : '${PriceFormatter.format(order.cashbackAmount)} cashback pending until delivery',
                 style: const TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w500,
                   color: Color(0xFF2E7D32),
                 ),
               ),
@@ -800,15 +854,15 @@ class _BillCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
+          Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w600 : FontWeight.w500)),
           const Spacer(),
           if (freeIfZero && amount <= 0)
-            const Text('FREE', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w800))
+            const Text('FREE', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600))
           else
             Text(
               PriceFormatter.format(amount.abs()) + (amount < 0 ? ' off' : ''),
               style: TextStyle(
-                fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: bold ? FontWeight.w600 : FontWeight.w600,
                 color: bold ? AppTheme.wine : AppTheme.ink,
                 fontSize: bold ? 16 : 14,
               ),
@@ -858,7 +912,7 @@ class _ItemsCard extends StatelessWidget {
                         item.product?.name ?? 'Product',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       Text(
                         'Qty ${item.quantity}',
@@ -869,7 +923,7 @@ class _ItemsCard extends StatelessWidget {
                 ),
                 Text(
                   PriceFormatter.format(item.price * item.quantity),
-                  style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.wine),
+                  style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.wine),
                 ),
               ],
             ),
@@ -924,7 +978,7 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           child,
         ],

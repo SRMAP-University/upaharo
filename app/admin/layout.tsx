@@ -139,6 +139,7 @@ export default function AdminLayout({
   const menuItems: MenuItem[] = [
     { icon: <ChartIcon className="w-5 h-5" />, label: 'Dashboard', href: '/admin' },
     { icon: <ImageIcon className="w-5 h-5" />, label: 'Banners', href: '/admin/banners' },
+    { icon: <ImageIcon className="w-5 h-5" />, label: 'Mini Banners', href: '/admin/mini-banners' },
     { icon: <GiftIcon className="w-5 h-5" />, label: 'Products', href: '/admin/products' },
     { icon: <FolderIcon className="w-5 h-5" />, label: 'Categories', href: '/admin/categories' },
     { icon: <BoxIcon className="w-5 h-5" />, label: 'Orders', href: '/admin/orders' },
