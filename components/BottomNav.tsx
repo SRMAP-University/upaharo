@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 
 function formatRupee(amount: number) {
@@ -21,7 +21,6 @@ export default function BottomNav() {
   const [cartTotal, setCartTotal] = useState(0)
   const [mounted, setMounted] = useState(false)
   const [visible, setVisible] = useState(true)
-  const [showDeliveryHint, setShowDeliveryHint] = useState(false)
   const [freeDeliveryMin, setFreeDeliveryMin] = useState(199)
   const [deliveryFee, setDeliveryFee] = useState(40)
   const lastScrollYRef = useRef(0)
@@ -50,17 +49,6 @@ export default function BottomNav() {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    if (cartCount <= 0 || deliveryFee <= 0) {
-      setShowDeliveryHint(false)
-      return
-    }
-    const id = window.setInterval(() => {
-      setShowDeliveryHint((v) => !v)
-    }, 2800)
-    return () => window.clearInterval(id)
-  }, [cartCount, deliveryFee])
 
   useEffect(() => {
     let ticking = false
@@ -96,19 +84,7 @@ export default function BottomNav() {
   const progress =
     freeDeliveryMin <= 0 ? 1 : Math.min(1, Math.max(0, cartTotal / freeDeliveryMin))
 
-  const primaryLine =
-    unlocked && showProgress
-      ? 'Free delivery unlocked'
-      : showProgress && showDeliveryHint
-        ? `Add ${formatRupee(remaining)} more`
-        : `${cartCount} ${cartCount === 1 ? 'item' : 'items'}`
-
-  const secondaryLine =
-    unlocked && showProgress
-      ? 'on this order'
-      : showProgress && showDeliveryHint
-        ? 'to unlock free delivery'
-        : formatRupee(cartTotal)
+  const thumbUrl = items[0]?.image
 
   const navItems = [
     {
@@ -174,38 +150,58 @@ export default function BottomNav() {
     <button
       type="button"
       onClick={() => router.push('/cart')}
-      className="relative w-full overflow-hidden rounded-full bg-wine text-left text-white shadow-[0_12px_28px_-16px_rgba(43,29,34,0.55)]"
+      className="w-full rounded-2xl bg-wine px-3.5 py-2.5 text-left text-white shadow-[0_12px_28px_-16px_rgba(43,29,34,0.55)]"
     >
-      <motion.div
-        className={`absolute inset-y-0 left-0 ${unlocked ? 'bg-emerald-700/40' : 'bg-white/20'}`}
-        initial={false}
-        animate={{ width: `${progress * 100}%` }}
-        transition={{ duration: 0.45, ease: 'easeOut' }}
-      />
-      <div className="relative flex items-center gap-2 px-3.5 py-2.5">
+      <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <AnimatePresence mode="wait">
+          <p className="truncate text-[12px] font-semibold leading-tight">
+            {unlocked ? (
+              <>
+                <span className="font-extrabold">FREE DELIVERY</span> unlocked
+              </>
+            ) : (
+              <>
+                Add <span className="font-extrabold">{formatRupee(remaining)}</span> more to unlock{' '}
+                <span className="font-extrabold">FREE DELIVERY</span>
+              </>
+            )}
+          </p>
+          <div className="relative mt-2 h-[9px] w-full">
+            <div className="absolute left-0 right-0 top-[3.5px] h-[2px] rounded-full bg-white/35" />
             <motion.div
-              key={primaryLine}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35 }}
-            >
-              <p className="truncate text-[11.5px] font-extrabold leading-tight">{primaryLine}</p>
-              <p className="truncate text-[10px] font-semibold leading-tight text-white/85">
-                {secondaryLine}
-              </p>
-            </motion.div>
-          </AnimatePresence>
+              className="absolute left-0 top-[3.25px] h-[2.5px] origin-left rounded-full bg-white"
+              initial={false}
+              animate={{ scaleX: Math.max(progress, 0.02) }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              style={{ width: '100%' }}
+            />
+            <motion.div
+              className="absolute top-0 h-[9px] w-[9px] rounded-full bg-white shadow-sm"
+              initial={false}
+              animate={{ left: `calc((100% - 9px) * ${progress})` }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+            />
+          </div>
         </div>
-        <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24">
-          {unlocked ? (
-            <path d="M3.375 4.5C2.339 4.5 1.5 5.34 1.5 6.375V13.5h12V6.375c0-1.036-.84-1.875-1.875-1.875h-8.25zM13.5 15h-12v2.625c0 1.035.84 1.875 1.875 1.875h.375a3 3 0 116 0h3a.75.75 0 00.75-.75V15z" />
-          ) : (
-            <path d="M2.25 3a.75.75 0 000 1.5h.797l.774 7.742A2.25 2.25 0 005.81 14.25h9.13a2.25 2.25 0 002.0-1.508l1.93-5.792A.75.75 0 0018.12 6H4.66l-.3-3H2.25zm4.5 15a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm10.5 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
-          )}
-        </svg>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="text-right">
+            <p className="text-[11px] font-extrabold tracking-wide leading-tight">CART</p>
+            <p className="text-[9.5px] font-semibold leading-tight text-white/90">
+              {cartCount} {cartCount === 1 ? 'ITEM' : 'ITEMS'}
+            </p>
+          </div>
+          {thumbUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbUrl}
+              alt=""
+              className="h-8 w-8 rounded-md border-2 border-white object-cover bg-white"
+            />
+          ) : null}
+          <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+          </svg>
+        </div>
       </div>
     </button>
   )
@@ -219,18 +215,9 @@ export default function BottomNav() {
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden safe-area-bottom"
       >
-        <AnimatePresence>
-          {mounted && showProgress && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 12 }}
-              className="px-3 pb-2"
-            >
-              {freeDeliveryChip}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {mounted && showProgress && (
+          <div className="px-3 pb-2">{freeDeliveryChip}</div>
+        )}
         <div className="border-t border-wine/10 bg-white/95 backdrop-blur-sm">
           <div className="grid h-14 grid-cols-5">
             {navItems.map((item) => (
@@ -257,7 +244,7 @@ export default function BottomNav() {
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="fixed bottom-6 left-1/2 z-50 hidden lg:block"
       >
-        <div className="flex w-[min(420px,90vw)] flex-col gap-2">
+        <div className="flex w-[min(480px,90vw)] flex-col gap-2">
           {mounted && showProgress && freeDeliveryChip}
           <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
             <div className="flex items-center gap-4">

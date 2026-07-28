@@ -9,6 +9,7 @@ import { useUserStore } from '@/lib/store/user'
 import { formatPrice, formatPriceNoDecimals } from '@/lib/utils'
 import LocationPicker from '@/components/LocationPicker'
 import LocationModal from '@/components/LocationModal'
+import PickupLocationCard from '@/components/PickupLocationCard'
 import BottomNav from '@/components/BottomNav'
 import SkeletonLoader from '@/components/SkeletonLoader'
 import { SessionSync } from '@/components/SessionSync'
@@ -34,6 +35,12 @@ interface Recipient {
   name: string
   phone: string
   email?: string
+}
+
+interface PickupLocation {
+  latitude: number
+  longitude: number
+  address: string | null
 }
 
 interface AppSettings {
@@ -132,6 +139,8 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false)
   const [wallet, setWallet] = useState<WalletInfo | null>(null)
   const [useWalletBalance, setUseWalletBalance] = useState(false)
+  const [pickupLocation, setPickupLocation] = useState<PickupLocation | null>(null)
+  const [wantsPickup, setWantsPickup] = useState(false)
   const [newAddress, setNewAddress] = useState({
     label: 'Home',
     street: '',
@@ -150,14 +159,18 @@ export default function CheckoutPage() {
   const goodsTotal = subtotal + giftWrapPrice
   const freeDeliveryMinAmount = wallet?.freeDeliveryMinAmount ?? 199
   const deliveryFeeAmount = wallet?.deliveryFeeAmount ?? 40
-  const deliveryFee = wallet
-    ? computeDeliveryFee(goodsTotal, {
-        freeDeliveryMinAmount,
-        deliveryFeeAmount,
-      })
-    : goodsTotal >= 199
-      ? 0
-      : 40
+  const pickupAvailable = Boolean(pickupLocation)
+  const isPickup = pickupAvailable && wantsPickup
+  const deliveryFee = isPickup
+    ? 0
+    : wallet
+      ? computeDeliveryFee(goodsTotal, {
+          freeDeliveryMinAmount,
+          deliveryFeeAmount,
+        })
+      : goodsTotal >= 199
+        ? 0
+        : 40
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
   const taxDisplay = Math.round(subtotal * 0.05 * 100) / 100
@@ -173,6 +186,7 @@ export default function CheckoutPage() {
   const walletAvailable = Boolean(wallet?.walletEnabled && wallet.balance > 0 && maxWalletSpend > 0)
   const minOrderAmount = wallet?.checkoutMinOrderAmount ?? 0
   const belowMinOrder = minOrderAmount > 0 && goodsTotal < minOrderAmount
+  const cartProductKey = items.map((item) => item.id).filter(Boolean).join(',')
   const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const isSelectedAddressServiceable = selectedAddress
     ? isKathmanduValleyLocation({
@@ -201,6 +215,33 @@ export default function CheckoutPage() {
     fetchAppSettings()
     fetchWallet()
   }, [user, items, router, _hasHydrated, orderPlaced])
+
+  // Pickup is all-or-nothing: the server only offers it when every item in the
+  // cart is collectable from the same pin.
+  useEffect(() => {
+    if (!cartProductKey) {
+      setPickupLocation(null)
+      return
+    }
+
+    let cancelled = false
+
+    fetch(`/api/pickup?ids=${encodeURIComponent(cartProductKey)}`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const location = data?.eligible && data?.location ? (data.location as PickupLocation) : null
+        setPickupLocation(location)
+        if (!location) setWantsPickup(false)
+      })
+      .catch(() => {
+        if (!cancelled) setPickupLocation(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [cartProductKey])
 
   useEffect(() => {
     if (deliveryAddress?.latitude && deliveryAddress?.longitude) {
@@ -416,20 +457,22 @@ export default function CheckoutPage() {
   }
 
   const handlePlaceOrder = async () => {
-    if (!selectedAddressId && addresses.length === 0) {
-      setShowAddressForm(true)
-      alert('Please add a delivery address first')
-      return
-    }
+    if (!isPickup) {
+      if (!selectedAddressId && addresses.length === 0) {
+        setShowAddressForm(true)
+        alert('Please add a delivery address first')
+        return
+      }
 
-    if (!selectedAddressId) {
-      alert('Please select a delivery address')
-      return
-    }
+      if (!selectedAddressId) {
+        alert('Please select a delivery address')
+        return
+      }
 
-    if (!isSelectedAddressServiceable) {
-      alert(SERVICE_AREA_UNAVAILABLE_MESSAGE)
-      return
+      if (!isSelectedAddressServiceable) {
+        alert(SERVICE_AREA_UNAVAILABLE_MESSAGE)
+        return
+      }
     }
 
     if (giftOptions.isGift && !giftOptions.recipientId) {
@@ -454,9 +497,10 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           items,
-          addressId: selectedAddressId,
-          addressLatitude,
-          addressLongitude,
+          fulfillmentType: isPickup ? 'PICKUP' : 'DELIVERY',
+          addressId: isPickup ? null : selectedAddressId,
+          addressLatitude: isPickup ? null : addressLatitude,
+          addressLongitude: isPickup ? null : addressLongitude,
           paymentMethod,
           subtotal,
           deliveryFee,
@@ -561,9 +605,40 @@ export default function CheckoutPage() {
               animate={{ opacity: 1, y: 0 }}
               className=""
             >
-              <h2 className="font-display text-base font-semibold text-ink mb-3 lg:text-xl lg:mb-4">📍 Delivery Address</h2>
-              
-              {addressesLoading ? (
+              {pickupAvailable && (
+                <div className="mb-3 grid grid-cols-2 gap-1 rounded-full border border-wine/15 bg-white p-1 lg:mb-4">
+                  {([
+                    { value: false, label: 'Delivery' },
+                    { value: true, label: 'Pickup · Free' },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => setWantsPickup(option.value)}
+                      className={`rounded-full py-2 text-sm font-semibold transition-colors ${
+                        wantsPickup === option.value
+                          ? 'bg-wine text-white'
+                          : 'text-ink/60 hover:text-wine'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <h2 className="font-display text-base font-semibold text-ink mb-3 lg:text-xl lg:mb-4">
+                {isPickup ? '🏪 Pickup Location' : '📍 Delivery Address'}
+              </h2>
+
+              {isPickup && pickupLocation ? (
+                <PickupLocationCard
+                  latitude={pickupLocation.latitude}
+                  longitude={pickupLocation.longitude}
+                  address={pickupLocation.address}
+                  note="Collect your order here. No delivery address or fee needed."
+                />
+              ) : addressesLoading ? (
                 <div className="space-y-2 lg:space-y-3">
                   <SkeletonLoader variant="list" count={2} />
                 </div>
@@ -610,7 +685,7 @@ export default function CheckoutPage() {
               )}
 
               {/* Add Address Form */}
-              {showAddressForm && (
+              {!isPickup && showAddressForm && (
                 <div className="mt-3 lg:mt-4 p-3 lg:p-4 bg-white border border-wine/15 rounded-2xl shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
                   <h3 className="font-display font-semibold text-ink mb-2 lg:mb-3 text-sm lg:text-base">New Address</h3>
                   <div className="space-y-2 lg:space-y-3">
@@ -951,8 +1026,12 @@ export default function CheckoutPage() {
                     className="w-4 h-4 lg:w-5 lg:h-5 accent-wine"
                   />
                   <div className="flex-1">
-                    <p className="font-semibold text-ink text-sm lg:text-base">Cash on Delivery</p>
-                    <p className="text-xs lg:text-sm text-ink/55">Pay when you receive</p>
+                    <p className="font-semibold text-ink text-sm lg:text-base">
+                      {isPickup ? 'Cash on Pickup' : 'Cash on Delivery'}
+                    </p>
+                    <p className="text-xs lg:text-sm text-ink/55">
+                      {isPickup ? 'Pay when you collect' : 'Pay when you receive'}
+                    </p>
                   </div>
                 </label>
                 <label className="flex items-center space-x-2 lg:space-x-3 p-3 lg:p-4 bg-white border-2 border-wine/15 rounded-2xl cursor-pointer hover:border-wine/40 hover:shadow-sm transition-all active:scale-[0.98]">
@@ -995,7 +1074,12 @@ export default function CheckoutPage() {
                     <span>+{formatPrice(giftWrapPrice)}</span>
                   </div>
                 )}
-                {deliveryFee === 0 ? (
+                {isPickup ? (
+                  <div className="flex justify-between text-ink/60">
+                    <span>Pickup</span>
+                    <span className="font-semibold text-green-600">FREE</span>
+                  </div>
+                ) : deliveryFee === 0 ? (
                   <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
                 ) : (
                   <div className="flex justify-between text-ink/60">
@@ -1148,7 +1232,12 @@ export default function CheckoutPage() {
                       <span>+{formatPrice(giftWrapPrice)}</span>
                     </div>
                   )}
-                  {deliveryFee === 0 ? (
+                  {isPickup ? (
+                    <div className="flex justify-between text-ink/60">
+                      <span>Pickup</span>
+                      <span className="font-semibold text-green-600">FREE</span>
+                    </div>
+                  ) : deliveryFee === 0 ? (
                     <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
                   ) : (
                     <div className="flex justify-between text-ink/60">

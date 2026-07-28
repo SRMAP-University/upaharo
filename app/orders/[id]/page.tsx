@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SkeletonLoader from '@/components/SkeletonLoader'
 import FoodTypeBadge from '@/components/FoodTypeBadge'
+import PickupLocationCard from '@/components/PickupLocationCard'
 import { useUserStore } from '@/lib/store/user'
 import { resolveImageUrl } from '@/lib/image-url'
 import { formatPrice, formatPriceNoDecimals, formatTime } from '@/lib/utils'
@@ -157,6 +158,10 @@ export default function OrderTrackingPage() {
   const completedIndex = currentStatus === 'CANCELLED' ? 0 : Math.max(0, currentStatusIndex)
   const activeTheme = statusTheme[currentStatus] || statusTheme.PENDING
   const hasAddress = Boolean(order.address)
+  const isPickup = String(order.fulfillmentType || 'DELIVERY') === 'PICKUP'
+  const pickupLatitude = Number(order.pickupLatitude)
+  const pickupLongitude = Number(order.pickupLongitude)
+  const hasPickupCoordinates = Number.isFinite(pickupLatitude) && Number.isFinite(pickupLongitude)
   const hasEstimatedTime = Number.isFinite(Number(order.estimatedTime)) && Number(order.estimatedTime) > 0
   const hasCoordinates =
     Number.isFinite(Number(order.address?.latitude)) && Number.isFinite(Number(order.address?.longitude))
@@ -281,8 +286,21 @@ export default function OrderTrackingPage() {
             transition={{ delay: 0.1 }}
             className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
           >
-            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Delivery Address</h2>
-            {hasAddress ? (
+            <h2 className="mb-3 font-display text-lg font-semibold text-ink">
+              {isPickup ? 'Pickup Location' : 'Delivery Address'}
+            </h2>
+            {isPickup ? (
+              hasPickupCoordinates ? (
+                <PickupLocationCard
+                  latitude={pickupLatitude}
+                  longitude={pickupLongitude}
+                  address={order.pickupAddress}
+                  note="Collect this order at the store. No delivery fee was charged."
+                />
+              ) : (
+                <p className="text-sm text-ink/45">Pickup point unavailable for this order.</p>
+              )
+            ) : hasAddress ? (
               <div className="space-y-1 text-sm text-ink/70">
                 <p className="font-semibold text-ink">{order.address.label || 'Address'}</p>
                 <p>{order.address.street}</p>
@@ -315,8 +333,8 @@ export default function OrderTrackingPage() {
                 <span>{formatPriceNoDecimals(order.subtotal)}</span>
               </div>
               <div className="flex items-center justify-between text-ink/60">
-                <span>Delivery Fee</span>
-                <span>{formatPriceNoDecimals(order.deliveryFee)}</span>
+                <span>{isPickup ? 'Pickup' : 'Delivery Fee'}</span>
+                <span>{isPickup ? 'FREE' : formatPriceNoDecimals(order.deliveryFee)}</span>
               </div>
               <div className="flex items-center justify-between text-ink/60">
                 <span>Tax</span>

@@ -18,6 +18,10 @@ class Product {
   final List<String> tags;
   final double? discount;
   final String? sellerId;
+  final bool pickupEnabled;
+  final double? pickupLatitude;
+  final double? pickupLongitude;
+  final String? pickupAddress;
 
   Product({
     required this.id,
@@ -37,6 +41,10 @@ class Product {
     this.tags = const [],
     this.discount,
     this.sellerId,
+    this.pickupEnabled = false,
+    this.pickupLatitude,
+    this.pickupLongitude,
+    this.pickupAddress,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -61,6 +69,10 @@ class Product {
       tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? const [],
       discount: (json['discount'] as num?)?.toDouble(),
       sellerId: json['sellerId'] as String?,
+      pickupEnabled: json['pickupEnabled'] as bool? ?? false,
+      pickupLatitude: (json['pickupLatitude'] as num?)?.toDouble(),
+      pickupLongitude: (json['pickupLongitude'] as num?)?.toDouble(),
+      pickupAddress: json['pickupAddress'] as String?,
     );
   }
 
@@ -82,6 +94,10 @@ class Product {
         'tags': tags,
         if (discount != null) 'discount': discount,
         if (sellerId != null) 'sellerId': sellerId,
+        'pickupEnabled': pickupEnabled,
+        if (pickupLatitude != null) 'pickupLatitude': pickupLatitude,
+        if (pickupLongitude != null) 'pickupLongitude': pickupLongitude,
+        if (pickupAddress != null) 'pickupAddress': pickupAddress,
       };
 
   Product copyWith({
@@ -102,6 +118,10 @@ class Product {
     List<String>? tags,
     double? discount,
     String? sellerId,
+    bool? pickupEnabled,
+    double? pickupLatitude,
+    double? pickupLongitude,
+    String? pickupAddress,
   }) {
     return Product(
       id: id ?? this.id,
@@ -121,6 +141,10 @@ class Product {
       tags: tags ?? this.tags,
       discount: discount ?? this.discount,
       sellerId: sellerId ?? this.sellerId,
+      pickupEnabled: pickupEnabled ?? this.pickupEnabled,
+      pickupLatitude: pickupLatitude ?? this.pickupLatitude,
+      pickupLongitude: pickupLongitude ?? this.pickupLongitude,
+      pickupAddress: pickupAddress ?? this.pickupAddress,
     );
   }
 

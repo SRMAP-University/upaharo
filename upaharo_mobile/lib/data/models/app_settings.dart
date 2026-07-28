@@ -54,6 +54,8 @@ class AppSettings {
   final double mapLatitude;
   final double mapLongitude;
   final bool homepageShowBanner;
+  final int homepageBannerHeight;
+  final int homepageBannerProductHeight;
   final bool homepageShowTopCategories;
   final bool homepageShowCategorySections;
   final bool homepageShowOccasionTabs;
@@ -99,6 +101,8 @@ class AppSettings {
     this.mapLatitude = 27.7172,
     this.mapLongitude = 85.324,
     this.homepageShowBanner = true,
+    this.homepageBannerHeight = 320,
+    this.homepageBannerProductHeight = 112,
     this.homepageShowTopCategories = true,
     this.homepageShowCategorySections = true,
     this.homepageShowOccasionTabs = true,
@@ -178,6 +182,9 @@ class AppSettings {
       mapLatitude: (json['mapLatitude'] as num?)?.toDouble() ?? 27.7172,
       mapLongitude: (json['mapLongitude'] as num?)?.toDouble() ?? 85.324,
       homepageShowBanner: json['homepageShowBanner'] as bool? ?? true,
+      homepageBannerHeight: (json['homepageBannerHeight'] as num?)?.round() ?? 320,
+      homepageBannerProductHeight:
+          (json['homepageBannerProductHeight'] as num?)?.round() ?? 112,
       homepageShowTopCategories: json['homepageShowTopCategories'] as bool? ?? true,
       homepageShowCategorySections: json['homepageShowCategorySections'] as bool? ?? true,
       homepageShowOccasionTabs: json['homepageShowOccasionTabs'] as bool? ?? true,
@@ -234,6 +241,8 @@ class AppSettings {
         'mapLatitude': mapLatitude,
         'mapLongitude': mapLongitude,
         'homepageShowBanner': homepageShowBanner,
+        'homepageBannerHeight': homepageBannerHeight,
+        'homepageBannerProductHeight': homepageBannerProductHeight,
         'homepageShowTopCategories': homepageShowTopCategories,
         'homepageShowCategorySections': homepageShowCategorySections,
         'homepageShowOccasionTabs': homepageShowOccasionTabs,

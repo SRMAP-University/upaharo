@@ -17,7 +17,7 @@ class ActiveOrderBar extends StatelessWidget {
   /// When true, sits beside the cart chip (no full-bleed width).
   final bool compact;
 
-  static const double height = 48;
+  static const double height = 56;
 
   @override
   Widget build(BuildContext context) {
@@ -259,36 +259,82 @@ class _AnimatedProgressBar extends StatelessWidget {
   final Color trackColor;
   final double shimmer;
 
+  static const double _thumb = 8;
+
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(99),
-      child: SizedBox(
-        height: 3,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: trackColor),
-            FractionallySizedBox(
-              widthFactor: progress,
-              alignment: Alignment.centerLeft,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment(-1 + shimmer * 2, 0),
-                    end: Alignment(1 + shimmer * 2, 0),
-                    colors: [
-                      color.withValues(alpha: 0.75),
-                      Color.lerp(color, Colors.white, 0.35)!,
-                      color,
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
+    return SizedBox(
+      height: _thumb,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackW = constraints.maxWidth;
+          if (!trackW.isFinite || trackW <= 0) {
+            return const SizedBox.shrink();
+          }
+          final p = progress.clamp(0.0, 1.0);
+          final left = (trackW - _thumb) * p;
+          final fillW = left + _thumb / 2;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.centerLeft,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                top: (_thumb - 2.5) / 2,
+                child: Container(
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    color: trackColor,
+                    borderRadius: BorderRadius.circular(99),
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
+              Positioned(
+                left: 0,
+                top: (_thumb - 2.5) / 2,
+                child: Container(
+                  width: fillW.clamp(0.0, trackW),
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(99),
+                    gradient: LinearGradient(
+                      begin: Alignment(-1 + shimmer * 2, 0),
+                      end: Alignment(1 + shimmer * 2, 0),
+                      colors: [
+                        color.withValues(alpha: 0.75),
+                        Color.lerp(color, Colors.white, 0.35)!,
+                        color,
+                      ],
+                      stops: const [0.0, 0.45, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: left,
+                top: 0,
+                child: Container(
+                  width: _thumb,
+                  height: _thumb,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: color,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.35),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

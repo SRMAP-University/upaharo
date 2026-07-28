@@ -41,14 +41,35 @@ export const PRODUCT_CARD_SELECT = {
   discount: true,
   showFoodTypeLabel: true,
   miniDescription: true,
+  pickupEnabled: true,
+  pickupLatitude: true,
+  pickupLongitude: true,
+  pickupAddress: true,
+} satisfies Prisma.ProductSelect
+
+export const PICKUP_PRODUCT_SELECT = {
+  id: true,
+  name: true,
+  pickupEnabled: true,
+  pickupLatitude: true,
+  pickupLongitude: true,
+  pickupAddress: true,
 } satisfies Prisma.ProductSelect
 
 type LegacyProductShape = Prisma.ProductGetPayload<{ select: typeof LEGACY_PRODUCT_SELECT }>
 type ProductCardShape = Prisma.ProductGetPayload<{ select: typeof PRODUCT_CARD_SELECT }>
 export type ProductCompatResult = LegacyProductShape & { showFoodTypeLabel: boolean; miniDescription: string | null }
-export type ProductCardCompatResult = ProductCardShape & {
+/** Pickup fields are optional: legacy fallback selects omit them. */
+export type ProductCardCompatResult = Omit<
+  ProductCardShape,
+  'pickupEnabled' | 'pickupLatitude' | 'pickupLongitude' | 'pickupAddress'
+> & {
   showFoodTypeLabel: boolean
   miniDescription: string | null
+  pickupEnabled?: boolean
+  pickupLatitude?: number | null
+  pickupLongitude?: number | null
+  pickupAddress?: string | null
 }
 
 export function isMissingAppSettingsTableError(error: unknown) {
@@ -77,7 +98,21 @@ export function isMissingProductFoodTypeColumnError(error: unknown) {
   const message = String((error as { message?: string } | null)?.message || '')
 
   return (
-    (code === 'P2022' && (message.includes('showFoodTypeLabel') || message.includes('miniDescription'))) ||
+    (code === 'P2022' &&
+      (message.includes('showFoodTypeLabel') ||
+        message.includes('miniDescription') ||
+        message.includes('pickup'))) ||
+    message.includes('The column `(not available)` does not exist in the current database')
+  )
+}
+
+/** True when the DB predates the pickup columns (schema not pushed yet). */
+export function isMissingPickupColumnError(error: unknown) {
+  const code = (error as { code?: string } | null)?.code
+  const message = String((error as { message?: string } | null)?.message || '')
+
+  return (
+    (code === 'P2022' && message.toLowerCase().includes('pickup')) ||
     message.includes('The column `(not available)` does not exist in the current database')
   )
 }

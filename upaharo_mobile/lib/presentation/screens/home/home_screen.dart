@@ -1,9 +1,12 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/category_style.dart';
+import '../../../core/utils/image_resolver.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/banner.dart';
 import '../../../data/models/category.dart';
@@ -44,8 +47,9 @@ class _HomeScreenState extends State<HomeScreen>
   int _selectedTab = 0;
   Color? _bannerWash;
 
-  /// Currently painted header wash (lerps when banner/category changes).
-  Color? _displayWash;
+  /// Painted header wash — drives ONLY the wash DecoratedBox / chip tint via
+  /// [ValueListenableBuilder], so HomeHeaderPromo / PageView are not rebuilt.
+  late final ValueNotifier<Color> _washColor;
   Color? _washTarget;
   late final AnimationController _washCtrl;
   late final CurvedAnimation _washCurve;
@@ -64,11 +68,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _animateWashTo(Color? next) {
     if (_sameColor(_washTarget, next) && _washCtrl.isCompleted) return;
-    final begin = _displayWash ?? _washOrDefault(_washTarget);
+    final begin = _washColor.value;
     final end = _washOrDefault(next);
     _washTarget = next;
     if (_sameColor(begin, end)) {
-      _displayWash = end;
+      _washColor.value = end;
       return;
     }
     _washTween = ColorTween(begin: begin, end: end);
@@ -79,12 +83,13 @@ class _HomeScreenState extends State<HomeScreen>
     // Banner only lives on the All tab — ignore wash updates elsewhere.
     if (_selectedTab != 0) return;
     if (_sameColor(_bannerWash, color)) return;
-    // Never setState synchronously from a child's build/didUpdateWidget.
+    // Never mutate wash synchronously from a child's build/didUpdateWidget.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _selectedTab != 0 || _sameColor(_bannerWash, color)) {
         return;
       }
-      setState(() => _bannerWash = color);
+      // No setState — wash lerp notifies only the painted wash/chips.
+      _bannerWash = color;
       _animateWashTo(color);
     });
   }
@@ -128,7 +133,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    _displayWash = AppTheme.headerWash;
+    _washColor = ValueNotifier<Color>(AppTheme.headerWash);
     _washCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 520),
@@ -138,8 +143,8 @@ class _HomeScreenState extends State<HomeScreen>
       curve: Curves.easeInOutCubic,
     )..addListener(() {
         final value = _washTween?.evaluate(_washCurve);
-        if (value == null || _sameColor(_displayWash, value)) return;
-        setState(() => _displayWash = value);
+        if (value == null || _sameColor(_washColor.value, value)) return;
+        _washColor.value = value;
       });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -176,6 +181,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _washCurve.dispose();
     _washCtrl.dispose();
+    _washColor.dispose();
     super.dispose();
   }
 
@@ -234,10 +240,6 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openAiChat() {
     Navigator.pushNamed(context, AppRoutes.aiChat);
-  }
-
-  void _openOrders() {
-    Navigator.pushNamed(context, AppRoutes.orders);
   }
 
   String _normalizeKey(String text) =>
@@ -311,13 +313,62 @@ class _HomeScreenState extends State<HomeScreen>
             });
           }
 
-          return RefreshIndicator(
-            color: AppTheme.wine,
-            backgroundColor: Colors.white,
-            onRefresh: _refresh,
-            child: CustomScrollView(
+          return CustomScrollView(
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
               cacheExtent: 180,
               slivers: [
+                CupertinoSliverRefreshControl(
+                  refreshTriggerPullDistance: 110,
+                  refreshIndicatorExtent: 64,
+                  onRefresh: _refresh,
+                  builder: (
+                    context,
+                    refreshState,
+                    pulledExtent,
+                    refreshTriggerPullDistance,
+                    refreshIndicatorExtent,
+                  ) {
+                    final progress = (pulledExtent / refreshTriggerPullDistance)
+                        .clamp(0.0, 1.0);
+                    final refreshing =
+                        refreshState == RefreshIndicatorMode.refresh ||
+                            refreshState == RefreshIndicatorMode.armed ||
+                            refreshState == RefreshIndicatorMode.done;
+                    return SizedBox(
+                      height: pulledExtent,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: refreshing
+                              ? SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: AppTheme.wine,
+                                  ),
+                                )
+                              : Opacity(
+                                  opacity: progress,
+                                  child: Transform.rotate(
+                                    angle: progress * 3.14,
+                                    child: Icon(
+                                      Icons.refresh_rounded,
+                                      size: 26,
+                                      color: AppTheme.wine.withValues(
+                                        alpha: 0.55 + (0.45 * progress),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 // Sticky header: safe area always on top while scrolling.
                 // Location collapses away; search + text categories stay pinned.
                 SliverPersistentHeader(
@@ -341,19 +392,18 @@ class _HomeScreenState extends State<HomeScreen>
                     categories: data.categories,
                     selectedTab: _selectedTab,
                     // All → banner wash; category tabs → header-only tint that
-                    // fades down into cream (same as before).
-                    bannerWash: _displayWash,
+                    // fades down into cream (same as before). Painted via
+                    // ValueNotifier so PageView is not rebuilt each lerp tick.
+                    washColor: _washColor,
                     // Banner only on All — category tabs are product-only.
                     showPromo:
                         appSettings.homepageShowBanner && _selectedTab == 0,
                     coupons: coupons.coupons,
                     banners: banners.banners,
                     promoProducts: products.take(5).toList(),
-                    announcement: appSettings.announcementText,
                     onSelectTab: (i) => _onSelectTab(i, data.categories),
                     onSearchTap: _openSearch,
                     onAiTap: _openAiChat,
-                    onOrdersTap: _openOrders,
                     onWishlistTap: _openCart,
                     onLocationTap: () => Navigator.pushNamed(context, AppRoutes.location),
                     onProfileTap: _openAccount,
@@ -362,6 +412,10 @@ class _HomeScreenState extends State<HomeScreen>
                     onProductTap: _openProduct,
                     onShopAll: () => _openProducts(title: 'All gifts'),
                     onBannerWashChanged: _onBannerWashChanged,
+                    announcement: appSettings.announcementText,
+                    bannerHeight: appSettings.homepageBannerHeight.toDouble(),
+                    bannerProductHeight:
+                        appSettings.homepageBannerProductHeight.toDouble(),
                   ),
                 ),
                 ..._buildFeed(
@@ -382,7 +436,6 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
               ],
-            ),
           );
         },
       ),
@@ -797,7 +850,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     this.walletBalance,
     required this.categories,
     required this.selectedTab,
-    this.bannerWash,
+    required this.washColor,
     required this.showPromo,
     required this.coupons,
     required this.banners,
@@ -806,7 +859,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onSelectTab,
     required this.onSearchTap,
     required this.onAiTap,
-    required this.onOrdersTap,
     required this.onWishlistTap,
     required this.onLocationTap,
     required this.onProfileTap,
@@ -815,6 +867,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onProductTap,
     required this.onShopAll,
     required this.onBannerWashChanged,
+    this.bannerHeight,
+    this.bannerProductHeight,
   });
 
   final double topInset;
@@ -825,7 +879,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final double? walletBalance;
   final List<Category> categories;
   final int selectedTab;
-  final Color? bannerWash;
+  /// Animated header wash — listened locally so promo PageView is not rebuilt.
+  final ValueListenable<Color> washColor;
   final bool showPromo;
   final List<Coupon> coupons;
   final List<BannerModel> banners;
@@ -834,7 +889,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final ValueChanged<int> onSelectTab;
   final VoidCallback onSearchTap;
   final VoidCallback onAiTap;
-  final VoidCallback onOrdersTap;
   final VoidCallback onWishlistTap;
   final VoidCallback onLocationTap;
   final VoidCallback onProfileTap;
@@ -843,10 +897,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final ValueChanged<Product> onProductTap;
   final VoidCallback onShopAll;
   final ValueChanged<Color?> onBannerWashChanged;
+  final double? bannerHeight;
+  final double? bannerProductHeight;
 
   static const double _locationHeight = 46;
-  static const double _catsExpanded = 62;
-  static const double _catsCollapsed = 30;
+  static const double _catsExpanded = 56;
+  static const double _catsCollapsed = 44;
   static const double _searchRow = 2 + 38 + 4; // pad + search + gap before cats
   static const double _catsPromoGap = 10;
   static const double _bottomPad = 0;
@@ -857,6 +913,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final body = HomeHeaderPromo.extentFor(
       show: showPromo,
       hasAdminBanners: banners.isNotEmpty,
+      bannerHeight: bannerHeight,
     );
     if (body <= 0) return 0;
     return body + _catsPromoGap;
@@ -888,30 +945,28 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         : (1 - (afterLocation / promoH).clamp(0.0, 1.0));
     final afterPromo = (afterLocation - promoH).clamp(0.0, _catsExtra);
     final iconProgress = (1 - (afterPromo / _catsExtra)).clamp(0.0, 1.0);
-    final showIcons = iconProgress > 0.35;
     final catsHeight = _catsCollapsed + (_catsExtra * iconProgress);
 
-    final tabs = <({String label, IconData icon})>[
-      (label: 'All', icon: Icons.grid_view_rounded),
-      ...categories.map((c) => (label: c.name, icon: categoryIconFor(c))),
+    final tabs = <({String label, String imageUrl, IconData fallbackIcon})>[
+      (
+        label: 'All',
+        imageUrl: '',
+        fallbackIcon: Icons.grid_view_rounded,
+      ),
+      ...categories.map(
+        (c) => (
+          label: c.name,
+          imageUrl: ImageResolver.resolve(c.image),
+          fallbackIcon: categoryIconFor(c),
+        ),
+      ),
     ];
-    final eta = deliveryEstimate.trim().isEmpty ? 'Same day' : deliveryEstimate.trim();
     final headerTint = AppTheme.headerWash;
     final headerTintDeep =
         Color.lerp(headerTint, AppTheme.wine, 0.22) ?? headerTint;
     final headerTintMid =
         Color.lerp(headerTint, Colors.white, 0.25) ?? headerTint;
-    final headerChip =
-        Color.lerp(headerTint, AppTheme.wine, 0.35) ?? headerTint;
     final pageBg = AppTheme.cream;
-    final washTarget = bannerWash ?? headerTint;
-    // Active category chip follows banner wash so it visibly updates with admin tint.
-    final selectedChipBg = bannerWash != null
-        ? Color.lerp(bannerWash, Colors.white, 0.55) ?? headerChip
-        : headerChip;
-    final selectedChipFg = bannerWash != null
-        ? (Color.lerp(bannerWash, AppTheme.ink, 0.65) ?? AppTheme.wine)
-        : AppTheme.wine;
 
     // Straight rectangular edge — avoids cloud clips hiding banner/categories.
     return SizedBox(
@@ -923,24 +978,30 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
           fit: StackFit.expand,
           children: [
             // Header-only wash: strong at top, fades into cream (not full page).
-            // Color is already lerped by HomeScreen when banner/category changes.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Color.lerp(headerTintDeep, washTarget, 0.45) ??
-                        headerTintDeep,
-                    Color.lerp(headerTintMid, washTarget, 0.5) ?? headerTintMid,
-                    Color.lerp(headerTint, washTarget, 0.55) ?? headerTint,
-                    Color.lerp(washTarget, pageBg, 0.75) ?? pageBg,
-                    pageBg,
-                    pageBg,
-                  ],
-                  stops: const [0.0, 0.18, 0.34, 0.52, 0.72, 1.0],
-                ),
-              ),
+            // Isolated so wash lerp does not rebuild HomeHeaderPromo / PageView.
+            ValueListenableBuilder<Color>(
+              valueListenable: washColor,
+              builder: (context, washTarget, _) {
+                return DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color.lerp(headerTintDeep, washTarget, 0.45) ??
+                            headerTintDeep,
+                        Color.lerp(headerTintMid, washTarget, 0.5) ??
+                            headerTintMid,
+                        Color.lerp(headerTint, washTarget, 0.55) ?? headerTint,
+                        Color.lerp(washTarget, pageBg, 0.75) ?? pageBg,
+                        pageBg,
+                        pageBg,
+                      ],
+                      stops: const [0.0, 0.18, 0.34, 0.52, 0.72, 1.0],
+                    ),
+                  ),
+                );
+              },
             ),
             Column(
             children: [
@@ -967,34 +1028,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                   children: [
                                     Row(
                                       children: [
-                                        Text(
-                                          'Delivery in ',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.black.withAlpha(170),
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                        Icon(Icons.access_time, size: 12, color: AppTheme.wine),
-                                        const SizedBox(width: 3),
-                                        Flexible(
-                                          child: Text(
-                                            eta,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              color: AppTheme.ink,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 2),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.location_on, size: 13, color: AppTheme.wine),
+                                        Icon(Icons.location_on, size: 15, color: AppTheme.wine),
                                         const SizedBox(width: 2),
                                         Flexible(
                                           child: Text(
@@ -1002,15 +1036,15 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.black.withAlpha(170),
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w800,
+                                              color: AppTheme.ink,
                                             ),
                                           ),
                                         ),
                                         Icon(
                                           Icons.keyboard_arrow_down,
-                                          size: 15,
+                                          size: 16,
                                           color: Colors.black.withAlpha(160),
                                         ),
                                       ],
@@ -1146,16 +1180,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                             visualDensity: VisualDensity.compact,
-                            onPressed: onOrdersTap,
-                            icon: Icon(Icons.receipt_long_outlined, size: 20, color: AppTheme.ink),
-                            tooltip: 'Orders',
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                            visualDensity: VisualDensity.compact,
                             onPressed: onWishlistTap,
-                            icon: Icon(Icons.favorite_border, size: 20, color: AppTheme.ink),
+                            icon: Icon(Icons.shopping_cart_outlined, size: 20, color: AppTheme.ink),
                             tooltip: 'Cart',
                           ),
                         ],
@@ -1167,77 +1193,72 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
               const SizedBox(height: 4),
               SizedBox(
                 height: catsHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  itemCount: tabs.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: 0),
-                  itemBuilder: (_, index) {
-                    final selected = index == selectedTab;
-                    final tab = tabs[index];
-                    return GestureDetector(
-                      onTap: () => onSelectTab(index),
-                      behavior: HitTestBehavior.opaque,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        // Size to label — fixed 58px was cutting off longer names.
-                        constraints: showIcons
-                            ? const BoxConstraints(minWidth: 48, maxWidth: 78)
-                            : null,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: showIcons ? 4 : 10,
-                          vertical: showIcons ? 4 : 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: selected ? selectedChipBg : Colors.transparent,
-                          borderRadius:
-                              BorderRadius.circular(showIcons ? 12 : 16),
-                          border: selected
-                              ? Border.all(
-                                  color: selectedChipFg.withAlpha(70),
-                                  width: 1,
-                                )
-                              : null,
-                        ),
-                        alignment: Alignment.center,
-                        child: showIcons
-                            ? Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    tab.icon,
-                                    size: 18,
-                                    color: selected ? selectedChipFg : AppTheme.ink,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    tab.label,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    softWrap: true,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      height: 1.1,
-                                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                                      color: selected ? selectedChipFg : AppTheme.ink,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Text(
-                                tab.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                                  color: selected ? selectedChipFg : AppTheme.ink,
+                child: ValueListenableBuilder<Color>(
+                  valueListenable: washColor,
+                  builder: (context, washTarget, _) {
+                    final selectedChipFg =
+                        Color.lerp(washTarget, AppTheme.ink, 0.65) ??
+                            AppTheme.wine;
+                    return ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      itemCount: tabs.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 6),
+                      itemBuilder: (_, index) {
+                        final selected = index == selectedTab;
+                        final tab = tabs[index];
+                        final thumb = (36 + (8 * iconProgress)).clamp(36.0, 44.0);
+                        return Tooltip(
+                          message: tab.label,
+                          child: GestureDetector(
+                            onTap: () => onSelectTab(index),
+                            behavior: HitTestBehavior.opaque,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              curve: Curves.easeOutCubic,
+                              width: thumb + 10,
+                              height: catsHeight,
+                              alignment: Alignment.center,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                width: thumb,
+                                height: thumb,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: selected
+                                      ? Border.all(
+                                          color: selectedChipFg.withAlpha(120),
+                                          width: 2,
+                                        )
+                                      : null,
                                 ),
+                                clipBehavior: Clip.antiAlias,
+                                child: tab.imageUrl.isEmpty
+                                    ? ColoredBox(
+                                        color: selectedChipFg.withValues(
+                                            alpha: 0.12),
+                                        child: Icon(
+                                          tab.fallbackIcon,
+                                          size: thumb * 0.45,
+                                          color: selected
+                                              ? selectedChipFg
+                                              : AppTheme.ink,
+                                        ),
+                                      )
+                                    : _CategoryHeaderThumb(
+                                        url: tab.imageUrl,
+                                        size: thumb,
+                                        fallbackIcon: tab.fallbackIcon,
+                                        fallbackColor: selected
+                                            ? selectedChipFg
+                                            : AppTheme.ink,
+                                      ),
                               ),
-                      ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -1270,6 +1291,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                 banners: banners,
                                 products: promoProducts,
                                 announcement: announcement,
+                                bannerHeight: bannerHeight,
+                                productStripHeight: bannerProductHeight,
                                 onBannerTap: onBannerTap,
                                 onProductTap: onProductTap,
                                 onShopAll: onShopAll,
@@ -1284,8 +1307,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                 ),
             ],
           ),
-            ],
-          ),
+          ],
+        ),
       ),
     );
   }
@@ -1298,11 +1321,48 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         profileInitial != oldDelegate.profileInitial ||
         walletBalance != oldDelegate.walletBalance ||
         selectedTab != oldDelegate.selectedTab ||
-        bannerWash != oldDelegate.bannerWash ||
+        washColor != oldDelegate.washColor ||
         showPromo != oldDelegate.showPromo ||
         coupons != oldDelegate.coupons ||
         banners != oldDelegate.banners ||
-        categories != oldDelegate.categories;
+        categories != oldDelegate.categories ||
+        bannerHeight != oldDelegate.bannerHeight ||
+        bannerProductHeight != oldDelegate.bannerProductHeight;
+  }
+}
+
+/// Category image thumb for the home header strip.
+class _CategoryHeaderThumb extends StatelessWidget {
+  const _CategoryHeaderThumb({
+    required this.url,
+    required this.size,
+    required this.fallbackIcon,
+    required this.fallbackColor,
+  });
+
+  final String url;
+  final double size;
+  final IconData fallbackIcon;
+  final Color fallbackColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: ProgressiveNetworkImage(
+        url: url,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        enableBlur: false,
+        fadeDuration: Duration.zero,
+        placeholder: const SizedBox.shrink(),
+        errorWidget: Icon(
+          fallbackIcon,
+          size: size * 0.45,
+          color: fallbackColor,
+        ),
+      ),
+    );
   }
 }
 

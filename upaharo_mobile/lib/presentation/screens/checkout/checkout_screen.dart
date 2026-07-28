@@ -13,11 +13,13 @@ import '../../../data/models/gift_recipient.dart';
 import '../../../data/models/gift_wrap.dart';
 import '../../../data/models/occasion.dart';
 import '../../../data/models/order.dart';
+import '../../../data/models/pickup_location.dart';
 import '../../../data/models/wallet.dart';
 import '../../../data/repositories/address_repository.dart';
 import '../../../data/repositories/coupon_repository.dart';
 import '../../../data/repositories/gift_repository.dart';
 import '../../../data/repositories/order_repository.dart';
+import '../../../data/repositories/pickup_repository.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
@@ -66,6 +68,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _orderRepo = const OrderRepository();
   final _couponRepo = const CouponRepository();
   final _walletRepo = const WalletRepository();
+  final _pickupRepo = const PickupRepository();
 
   bool _booting = true;
   bool _placing = false;
@@ -94,6 +97,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   WalletSummary _wallet = WalletSummary.empty;
   bool _useWallet = false;
+
+  /// Set only when every cart item can be collected from the same point.
+  PickupLocation? _pickupLocation;
+  bool _wantsPickup = false;
+
+  bool get _isPickup => _pickupLocation != null && _wantsPickup;
 
   @override
   void initState() {
@@ -231,6 +240,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _senderController.text = gift.senderName ?? '';
       _showSenderName = gift.showSenderName;
 
+      _pickupLocation = await _pickupRepo.resolveForProducts(
+        cart.items.map((item) => item.id).toList(),
+      );
+
       // If no addresses, try to create one from saved location
       if (_addresses.isEmpty) {
         await _ensureAddressFromLocation();
@@ -339,7 +352,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final wrapPrice = _isGift ? (_selectedWrap?.price ?? 0.0) : 0.0;
     final goodsTotal = cart.totalPrice + wrapPrice;
     // Prefer admin delivery rules from the wallet payload (same source as the API).
-    final deliveryFee = _wallet.deliveryFeeFor(goodsTotal);
+    final deliveryFee = _isPickup ? 0.0 : _wallet.deliveryFeeFor(goodsTotal);
     final totalBeforeWallet =
         (goodsTotal + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
     final maxWalletSpend = _wallet.maxSpendFor(totalBeforeWallet);
@@ -366,7 +379,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => _error = 'Your cart is empty');
       return;
     }
-    if (address == null) {
+    if (!_isPickup && address == null) {
       setState(() => _error = 'Please select a delivery address');
       return;
     }
@@ -395,14 +408,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final totals = _computeTotals(cart);
 
     final payload = cart.toCheckoutPayload(
-      addressId: address.id,
+      addressId: address?.id,
+      fulfillmentType: _isPickup ? 'PICKUP' : 'DELIVERY',
       deliveryFee: totals.deliveryFee,
       giftWrapPrice: totals.wrapPrice,
       couponDiscount: _couponDiscount,
       walletAmount: totals.walletApplied,
       couponCode: _appliedCouponCode,
-      addressLatitude: address.latitude,
-      addressLongitude: address.longitude,
+      addressLatitude: address?.latitude,
+      addressLongitude: address?.longitude,
       total: totals.total,
       paymentMethod: _paymentMethod,
     );
@@ -515,23 +529,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ],
 
-                      _sectionTitle('Delivery address'),
-                      if (_addresses.isEmpty)
-                        _emptyAddressCard()
-                      else
-                        ..._addresses.map(_addressTile),
-                      TextButton.icon(
-                        onPressed: () async {
-                          final location = context.read<LocationProvider>();
-                          await Navigator.pushNamed(context, AppRoutes.mapLocation);
-                          if (!mounted) return;
-                          await location.loadSavedLocation();
-                          await _ensureAddressFromLocation();
-                          await _reloadAddresses();
-                        },
-                        icon: const Icon(Icons.add_location_alt_outlined),
-                        label: Text(_addresses.isEmpty ? 'Set delivery location' : 'Add / update location'),
-                      ),
+                      if (_pickupLocation != null) ...[
+                        _fulfillmentSelector(),
+                        const SizedBox(height: 12),
+                      ],
+
+                      if (_isPickup) ...[
+                        _sectionTitle('Pickup location'),
+                        _pickupCard(_pickupLocation!),
+                      ] else ...[
+                        _sectionTitle('Delivery address'),
+                        if (_addresses.isEmpty)
+                          _emptyAddressCard()
+                        else
+                          ..._addresses.map(_addressTile),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final location = context.read<LocationProvider>();
+                            await Navigator.pushNamed(context, AppRoutes.mapLocation);
+                            if (!mounted) return;
+                            await location.loadSavedLocation();
+                            await _ensureAddressFromLocation();
+                            await _reloadAddresses();
+                          },
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          label: Text(_addresses.isEmpty ? 'Set delivery location' : 'Add / update location'),
+                        ),
+                      ],
 
                       SizedBox(height: 16),
                       _sectionTitle('Send as gift'),
@@ -711,8 +735,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       _sectionTitle('Payment'),
                       _paymentOption(
                         value: 'CASH',
-                        title: 'Cash on Delivery',
-                        subtitle: 'Pay when you receive',
+                        title: _isPickup ? 'Cash on Pickup' : 'Cash on Delivery',
+                        subtitle: _isPickup ? 'Pay when you collect' : 'Pay when you receive',
                         icon: Icons.payments_outlined,
                       ),
                       const SizedBox(height: 10),
@@ -753,7 +777,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       const Divider(),
                       _totalRow('Subtotal', cart.totalPrice),
                       if (wrapPrice > 0) _totalRow('Gift wrap', wrapPrice),
-                      if (totals.deliveryFee <= 0)
+                      if (_isPickup)
+                        _totalRow(
+                          'Pickup',
+                          0,
+                          trailing: const Text(
+                            'FREE',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        )
+                      else if (totals.deliveryFee <= 0)
                         _waivedFeeRow(
                           'Delivery',
                           _wallet.deliveryFeeAmount > 0
@@ -825,7 +862,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   total: total,
                   enabled: !_placing &&
                       cart.items.isNotEmpty &&
-                      _selectedAddressId != null &&
+                      (_isPickup || _selectedAddressId != null) &&
                       !(_wallet.checkoutMinOrderAmount > 0 &&
                           totals.goodsTotal < _wallet.checkoutMinOrderAmount),
                 ),
@@ -934,6 +971,113 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.ink),
       ),
     );
+  }
+
+  Widget _fulfillmentSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.black12),
+      ),
+      child: Row(
+        children: [
+          _fulfillmentTab(label: 'Delivery', pickup: false),
+          _fulfillmentTab(label: 'Pickup · Free', pickup: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _fulfillmentTab({required String label, required bool pickup}) {
+    final selected = _wantsPickup == pickup;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _wantsPickup = pickup),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.wine : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: selected ? Colors.white : AppTheme.charcoal,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pickupCard(PickupLocation location) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.wine, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.storefront_outlined, color: AppTheme.wine),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      location.displayAddress,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Collect your order here. No delivery address or fee needed.',
+                      style: TextStyle(fontSize: 12, color: AppTheme.charcoal, height: 1.35),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: () => _openPickupInMaps(location),
+              icon: const Icon(Icons.map_outlined, size: 18),
+              label: const Text('Open in Maps'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openPickupInMaps(PickupLocation location) async {
+    final uri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open maps')),
+      );
+    }
   }
 
   Widget _emptyAddressCard() {

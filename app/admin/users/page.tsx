@@ -59,6 +59,8 @@ interface UserDetails extends User {
   completedOrders: number
   addresses: Address[]
   orders: Order[]
+  walletBalance?: number
+  pendingCashback?: number
 }
 
 export default function AdminUsers() {
@@ -68,6 +70,11 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null)
   const [detailsLoading, setDetailsLoading] = useState(false)
   const [detailsError, setDetailsError] = useState('')
+  const [walletAmount, setWalletAmount] = useState('')
+  const [walletNote, setWalletNote] = useState('')
+  const [walletSaving, setWalletSaving] = useState(false)
+  const [walletMessage, setWalletMessage] = useState('')
+  const [walletError, setWalletError] = useState('')
 
   useEffect(() => {
     fetchUsers()
@@ -115,6 +122,10 @@ export default function AdminUsers() {
 
   const openUserDetails = async (userId: string) => {
     setDetailsError('')
+    setWalletAmount('')
+    setWalletNote('')
+    setWalletMessage('')
+    setWalletError('')
     setDetailsLoading(true)
     const baseUser = users.find((user) => user.id === userId)
     if (baseUser) {
@@ -124,6 +135,8 @@ export default function AdminUsers() {
         emailVerified: null,
         addresses: [],
         orders: [],
+        walletBalance: 0,
+        pendingCashback: 0,
       })
     }
     try {
@@ -138,6 +151,48 @@ export default function AdminUsers() {
       setDetailsError('Failed to load user details.')
     } finally {
       setDetailsLoading(false)
+    }
+  }
+
+  const creditWallet = async () => {
+    if (!selectedUser) return
+    const amount = Number(walletAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setWalletError('Enter a positive amount to add')
+      setWalletMessage('')
+      return
+    }
+    if (!confirm(`Add ${formatPriceNoDecimals(amount)} to ${selectedUser.name}'s wallet?`)) {
+      return
+    }
+
+    setWalletSaving(true)
+    setWalletError('')
+    setWalletMessage('')
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}/wallet`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          note: walletNote.trim() || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to add wallet money')
+      }
+      setSelectedUser((prev) =>
+        prev ? { ...prev, walletBalance: Number(data.balance) || 0 } : prev
+      )
+      setWalletAmount('')
+      setWalletNote('')
+      setWalletMessage(`Added ${formatPriceNoDecimals(amount)}. New balance: ${formatPriceNoDecimals(Number(data.balance) || 0)}`)
+    } catch (error) {
+      console.error('Error crediting wallet:', error)
+      setWalletError(error instanceof Error ? error.message : 'Failed to add wallet money')
+    } finally {
+      setWalletSaving(false)
     }
   }
 
@@ -374,6 +429,65 @@ export default function AdminUsers() {
                         <div className="font-medium text-ink">{selectedUser.completedOrders || 0}</div>
                       </div>
                     </div>
+                  </section>
+
+                  <section className="rounded-xl border border-wine/10 bg-cream p-4">
+                    <h3 className="mb-3 text-sm font-semibold text-ink">Wallet</h3>
+                    <div className="mb-4 grid gap-3 text-sm sm:grid-cols-2">
+                      <div>
+                        <div className="text-ink/55">Balance</div>
+                        <div className="font-display text-xl font-semibold text-ink">
+                          {formatPriceNoDecimals(selectedUser.walletBalance || 0)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-ink/55">Pending cashback</div>
+                        <div className="font-medium text-ink">
+                          {formatPriceNoDecimals(selectedUser.pendingCashback || 0)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-[1fr_1.4fr_auto]">
+                      <label className="text-sm">
+                        <span className="mb-1 block text-ink/55">Amount to add</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={walletAmount}
+                          onChange={(e) => setWalletAmount(e.target.value)}
+                          placeholder="e.g. 100"
+                          className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
+                        />
+                      </label>
+                      <label className="text-sm">
+                        <span className="mb-1 block text-ink/55">Note (optional)</span>
+                        <input
+                          type="text"
+                          value={walletNote}
+                          onChange={(e) => setWalletNote(e.target.value)}
+                          placeholder="Promo credit, support goodwill…"
+                          maxLength={160}
+                          className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <button
+                          type="button"
+                          onClick={creditWallet}
+                          disabled={walletSaving}
+                          className="w-full rounded-xl bg-wine px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 sm:w-auto"
+                        >
+                          {walletSaving ? 'Adding…' : 'Add money'}
+                        </button>
+                      </div>
+                    </div>
+                    {walletError ? (
+                      <p className="mt-2 text-sm text-red-600">{walletError}</p>
+                    ) : null}
+                    {walletMessage ? (
+                      <p className="mt-2 text-sm text-emerald-700">{walletMessage}</p>
+                    ) : null}
                   </section>
 
                   <section>

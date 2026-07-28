@@ -189,8 +189,9 @@ class CartProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> toCheckoutPayload({
-    required String addressId,
+    String? addressId,
     required double deliveryFee,
+    String fulfillmentType = 'DELIVERY',
     double giftWrapPrice = 0,
     double couponDiscount = 0,
     double walletAmount = 0,
@@ -200,8 +201,10 @@ class CartProvider extends ChangeNotifier {
     double? total,
     String paymentMethod = 'CASH',
   }) {
+    final isPickup = fulfillmentType.toUpperCase() == 'PICKUP';
+    final resolvedDeliveryFee = isPickup ? 0.0 : deliveryFee;
     final computedTotal = total ??
-        (totalPrice + giftWrapPrice + deliveryFee - couponDiscount - walletAmount)
+        (totalPrice + giftWrapPrice + resolvedDeliveryFee - couponDiscount - walletAmount)
             .clamp(0, double.infinity);
     return {
       'items': _items
@@ -214,12 +217,13 @@ class CartProvider extends ChangeNotifier {
                 'isVeg': item.isVeg,
               })
           .toList(),
-      'addressId': addressId,
-      'addressLatitude': addressLatitude,
-      'addressLongitude': addressLongitude,
+      'fulfillmentType': isPickup ? 'PICKUP' : 'DELIVERY',
+      'addressId': isPickup ? null : addressId,
+      'addressLatitude': isPickup ? null : addressLatitude,
+      'addressLongitude': isPickup ? null : addressLongitude,
       'paymentMethod': paymentMethod,
       'subtotal': totalPrice,
-      'deliveryFee': deliveryFee,
+      'deliveryFee': resolvedDeliveryFee,
       'tax': 0,
       'total': computedTotal,
       if (walletAmount > 0) 'walletAmount': walletAmount,

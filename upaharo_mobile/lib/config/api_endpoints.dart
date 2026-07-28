@@ -150,6 +150,11 @@ class ApiEndpoints {
   /// GET/POST /api/promo/spin - roulette status + claim daily prize
   static const String promoSpin = '/api/promo/spin';
 
+  /// Whether the given cart can be collected instead of delivered.
+  /// Query params: ids=prod_1,prod_2
+  /// GET -> { eligible, location: { latitude, longitude, address } | null }
+  static const String pickup = '/api/pickup';
+
   /// Wallet balance, cashback rules and recent ledger entries.
   /// Query params: limit=N
   /// GET -> { enabled, balance, pendingCashback, cashbackPercent,

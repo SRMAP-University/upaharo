@@ -108,7 +108,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
         },
       ),
       bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
+          widget.showBottomNav ? const BottomNavBar(currentIndex: 2) : null,
     );
   }
 }

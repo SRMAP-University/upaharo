@@ -41,6 +41,10 @@ interface Order {
     phone: string | null
   }
   address: Address | null
+  fulfillmentType?: 'DELIVERY' | 'PICKUP'
+  pickupLatitude?: number | null
+  pickupLongitude?: number | null
+  pickupAddress?: string | null
   recipient?: {
     name: string
     phone: string
@@ -417,6 +421,54 @@ export default function AdminOrders() {
                 </div>
               </div>
 
+              {/* Pickup Location with Map */}
+              {selectedOrder.fulfillmentType === 'PICKUP' && (
+                <div>
+                  <h3 className="font-display font-semibold text-ink mb-2">Pickup Location</h3>
+                  <div className="bg-cream rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-2xl">🏪</div>
+                      <div className="flex-1">
+                        <p className="font-medium text-ink">
+                          {selectedOrder.pickupAddress || 'Pickup point'}
+                        </p>
+                        <p className="text-ink/55 text-sm">
+                          Customer collects this order — no delivery required.
+                        </p>
+                      </div>
+                    </div>
+                    {Number.isFinite(Number(selectedOrder.pickupLatitude)) &&
+                    Number.isFinite(Number(selectedOrder.pickupLongitude)) ? (
+                      <div className="mt-3 rounded-xl overflow-hidden border border-wine/10">
+                        <iframe
+                          width="100%"
+                          height="200"
+                          style={{ border: 0 }}
+                          loading="lazy"
+                          allowFullScreen
+                          referrerPolicy="no-referrer-when-downgrade"
+                          src={`https://www.google.com/maps?q=${selectedOrder.pickupLatitude},${selectedOrder.pickupLongitude}&z=16&output=embed`}
+                        />
+                        <div className="border-t border-wine/10 bg-white p-2">
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${selectedOrder.pickupLatitude},${selectedOrder.pickupLongitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-cream"
+                          >
+                            📍 Open Map
+                          </a>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded-xl border border-dashed border-wine/15 px-4 py-3 text-xs text-ink/55">
+                        No map coordinates saved for this pickup point.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Delivery Address with Map */}
               {selectedOrder.address && (
                 <div>
@@ -489,6 +541,10 @@ export default function AdminOrders() {
                       : selectedOrder.isGift
                         ? 'Gift'
                         : 'Direct'}
+                  </p>
+                  <p className="text-ink">
+                    <span className="font-medium">Fulfillment:</span>{' '}
+                    {selectedOrder.fulfillmentType === 'PICKUP' ? 'Pickup (customer collects)' : 'Delivery'}
                   </p>
 
                   {selectedOrder.isGift ? (

@@ -14,6 +14,8 @@ export type SettingsForm = {
   mapLatitude: string
   mapLongitude: string
   homepageShowBanner: boolean
+  homepageBannerHeight: number
+  homepageBannerProductHeight: number
   homepageShowTopCategories: boolean
   homepageShowCategorySections: boolean
   homepageShowOccasionTabs: boolean
@@ -69,6 +71,8 @@ export const EMPTY_FORM: SettingsForm = {
   mapLatitude: '',
   mapLongitude: '',
   homepageShowBanner: true,
+  homepageBannerHeight: 320,
+  homepageBannerProductHeight: 112,
   homepageShowTopCategories: true,
   homepageShowCategorySections: true,
   homepageShowOccasionTabs: true,

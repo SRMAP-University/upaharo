@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
+import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 
 function toNumber(value: unknown, fallback: number) {
@@ -144,6 +145,11 @@ export async function POST(request: NextRequest) {
 
     const variants = normalizeVariants(body?.variants)
 
+    const pickup = normalizePickupInput(body)
+    if (!pickup.ok) {
+      return NextResponse.json({ error: pickup.error }, { status: 400 })
+    }
+
     const data = {
       name,
       miniDescription: String(body?.miniDescription || '').trim() || null,
@@ -161,6 +167,7 @@ export async function POST(request: NextRequest) {
       tags,
       discount: Math.max(0, toNumber(body?.discount, 0)),
       isAvailable: body?.isAvailable !== false,
+      ...pickup.data,
     }
 
     const product = await withProductWriteCompatibility(data, (safeData) =>

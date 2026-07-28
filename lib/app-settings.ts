@@ -41,6 +41,18 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
         mapLatitude: settings.mapLatitude ?? DEFAULT_APP_SETTINGS.mapLatitude,
         mapLongitude: settings.mapLongitude ?? DEFAULT_APP_SETTINGS.mapLongitude,
         homepageShowBanner: settings.homepageShowBanner ?? DEFAULT_APP_SETTINGS.homepageShowBanner,
+        homepageBannerHeight: clampInt(
+          settings.homepageBannerHeight,
+          DEFAULT_APP_SETTINGS.homepageBannerHeight,
+          200,
+          520
+        ),
+        homepageBannerProductHeight: clampInt(
+          settings.homepageBannerProductHeight,
+          DEFAULT_APP_SETTINGS.homepageBannerProductHeight,
+          72,
+          180
+        ),
         homepageShowTopCategories: settings.homepageShowTopCategories ?? DEFAULT_APP_SETTINGS.homepageShowTopCategories,
         homepageShowCategorySections:
           settings.homepageShowCategorySections ?? DEFAULT_APP_SETTINGS.homepageShowCategorySections,

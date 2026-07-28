@@ -186,6 +186,18 @@ export default function AdminSettingsPage() {
         mapLatitude: String(data.mapLatitude ?? ''),
         mapLongitude: String(data.mapLongitude ?? ''),
         homepageShowBanner: Boolean(data.homepageShowBanner ?? true),
+        homepageBannerHeight: clampInt(
+          data.homepageBannerHeight,
+          EMPTY_FORM.homepageBannerHeight,
+          200,
+          520
+        ),
+        homepageBannerProductHeight: clampInt(
+          data.homepageBannerProductHeight,
+          EMPTY_FORM.homepageBannerProductHeight,
+          72,
+          180
+        ),
         homepageShowTopCategories: Boolean(data.homepageShowTopCategories ?? true),
         homepageShowCategorySections: Boolean(data.homepageShowCategorySections ?? true),
         homepageShowOccasionTabs: Boolean(data.homepageShowOccasionTabs ?? true),
@@ -447,6 +459,24 @@ export default function AdminSettingsPage() {
                 label="Show homepage banner"
                 checked={formData.homepageShowBanner}
                 onChange={(checked) => set('homepageShowBanner', checked)}
+              />
+              <RangeField
+                label="Banner height (mobile)"
+                value={formData.homepageBannerHeight}
+                min={200}
+                max={520}
+                step={4}
+                display={`${formData.homepageBannerHeight}px`}
+                onChange={(value) => set('homepageBannerHeight', value)}
+              />
+              <RangeField
+                label="Banner product tile height"
+                value={formData.homepageBannerProductHeight}
+                min={72}
+                max={180}
+                step={2}
+                display={`${formData.homepageBannerProductHeight}px`}
+                onChange={(value) => set('homepageBannerProductHeight', value)}
               />
               <Toggle
                 label="Show top category cards"

@@ -16,8 +16,8 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/mini_cart_bar.dart';
 import 'categories/categories_screen.dart';
 import 'home/home_screen.dart';
+import 'order/orders_screen.dart';
 import 'promo/promo_screen.dart';
-import 'top_picks/top_picks_screen.dart';
 
 /// Keeps all main tabs alive so switching does not reload pages.
 /// Bottom nav hides on scroll-down; cart stays and lowers into the free space.
@@ -153,7 +153,7 @@ class _MainShellState extends State<MainShell> {
           children: const [
             HomeScreen(showBottomNav: false),
             CategoriesScreen(showBottomNav: false),
-            TopPicksScreen(showBottomNav: false),
+            OrdersScreen(showBottomNav: false),
             PromoScreen(showBottomNav: false),
           ],
         ),
@@ -182,23 +182,12 @@ class _MainShellState extends State<MainShell> {
                       return const SizedBox.shrink();
                     }
 
-                    if (showCart && showOrder) {
-                      return Row(
-                        children: [
-                          const Expanded(
-                            child: ActiveOrderBar(compact: true),
-                          ),
-                          const SizedBox(width: 8),
-                          const MiniCartBar(side: true),
-                        ],
-                      );
+                    // Prefer cart over active-order progress when both apply.
+                    if (showCart) {
+                      return const MiniCartBar();
                     }
 
-                    if (showOrder) {
-                      return const ActiveOrderBar();
-                    }
-
-                    return const MiniCartBar();
+                    return const ActiveOrderBar();
                   },
                 ),
               ),

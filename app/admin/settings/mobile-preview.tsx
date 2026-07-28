@@ -304,7 +304,7 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
             <div
               style={{
                 marginTop: gap(8),
-                height: 54,
+                height: Math.max(36, Math.round(form.homepageBannerHeight * 0.16)),
                 borderRadius: radius + 4,
                 background: `linear-gradient(120deg, ${form.brandPrimary}, ${form.brandSecondary})`,
                 display: 'grid',

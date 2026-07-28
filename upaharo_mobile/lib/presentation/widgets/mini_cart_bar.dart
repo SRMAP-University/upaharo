@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,14 +10,14 @@ import 'cart_fly_animator.dart';
 import 'progressive_network_image.dart';
 
 /// Compact cart chip above the bottom nav when cart has items.
-/// Animates between item count and free-delivery progress.
+/// Shows free-delivery progress with a sliding circular thumb.
 class MiniCartBar extends StatefulWidget {
   const MiniCartBar({super.key, this.side = false});
 
   /// When true, aligns as a side chip next to the order status.
   final bool side;
 
-  static const double height = 48;
+  static const double height = 56;
 
   @override
   State<MiniCartBar> createState() => _MiniCartBarState();
@@ -27,9 +25,9 @@ class MiniCartBar extends StatefulWidget {
 
 class _MiniCartBarState extends State<MiniCartBar>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse;
-  Timer? _flipTimer;
-  bool _showDeliveryHint = false;
+  late final AnimationController _progressAnim;
+  late Animation<double> _progressTween;
+  double _lastTarget = 0;
 
   void _reportTarget() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -41,14 +39,11 @@ class _MiniCartBarState extends State<MiniCartBar>
   @override
   void initState() {
     super.initState();
-    _pulse = AnimationController(
+    _progressAnim = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-    _flipTimer = Timer.periodic(const Duration(milliseconds: 2800), (_) {
-      if (!mounted) return;
-      setState(() => _showDeliveryHint = !_showDeliveryHint);
-    });
+      duration: const Duration(milliseconds: 700),
+    );
+    _progressTween = AlwaysStoppedAnimation(0);
     _reportTarget();
   }
 
@@ -60,9 +55,20 @@ class _MiniCartBarState extends State<MiniCartBar>
 
   @override
   void dispose() {
-    _flipTimer?.cancel();
-    _pulse.dispose();
+    _progressAnim.dispose();
     super.dispose();
+  }
+
+  void _syncProgress(double target) {
+    if ((target - _lastTarget).abs() < 0.001) return;
+    final begin = _progressTween.value;
+    _lastTarget = target;
+    _progressTween = Tween<double>(begin: begin, end: target).animate(
+      CurvedAnimation(parent: _progressAnim, curve: Curves.easeOutCubic),
+    );
+    _progressAnim
+      ..reset()
+      ..forward();
   }
 
   @override
@@ -81,180 +87,303 @@ class _MiniCartBarState extends State<MiniCartBar>
     final remaining = (threshold - cartTotal).clamp(0.0, double.infinity);
     final unlocked = remaining <= 0;
     final showProgress = fee > 0;
-    final progress = threshold <= 0
-        ? 1.0
-        : (cartTotal / threshold).clamp(0.0, 1.0);
+    final targetProgress = !showProgress
+        ? 0.0
+        : threshold <= 0
+            ? 1.0
+            : (cartTotal / threshold).clamp(0.0, 1.0);
 
-    final thumbs = cart.items.take(2).toList();
-    final radius = BorderRadius.circular(MiniCartBar.height / 2);
+    if ((targetProgress - _lastTarget).abs() > 0.001) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncProgress(targetProgress);
+      });
+    }
 
-    final primaryLine = unlocked && showProgress
-        ? 'Free delivery unlocked'
-        : showProgress && _showDeliveryHint
-            ? 'Add ${PriceFormatter.format(remaining)} more'
-            : '${cart.totalItems} ${cart.totalItems == 1 ? 'item' : 'items'}';
-
-    final secondaryLine = unlocked && showProgress
-        ? 'on this order'
-        : showProgress && _showDeliveryHint
-            ? 'to unlock free delivery'
-            : PriceFormatter.format(cartTotal);
+    final thumbs = cart.items.take(1).toList();
+    final radius = BorderRadius.circular(14);
 
     final chip = Material(
       color: AppTheme.wine,
       borderRadius: radius,
-      elevation: 4,
-      shadowColor: AppTheme.wine.withAlpha(70),
+      elevation: 6,
+      shadowColor: AppTheme.wine.withAlpha(90),
       child: InkWell(
         onTap: () => Navigator.pushNamed(context, AppRoutes.cart),
         borderRadius: radius,
         child: SizedBox(
           height: MiniCartBar.height,
-          child: Stack(
-            children: [
-              if (showProgress)
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: radius,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FractionallySizedBox(
-                        widthFactor: progress,
-                        heightFactor: 1,
-                        child: ColoredBox(
-                          color: unlocked
-                              ? const Color(0xFF2E7D32).withAlpha(70)
-                              : Colors.white.withAlpha(28),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(widget.side ? 8 : 10, 5, 12, 5),
-                child: Row(
-                  mainAxisSize: widget.side ? MainAxisSize.min : MainAxisSize.max,
-                  children: [
-                    SizedBox(
-                      width: 24.0 + (thumbs.length - 1).clamp(0, 1) * 12.0,
-                      height: 28,
-                      child: Stack(
-                        children: [
-                          for (var i = 0; i < thumbs.length; i++)
-                            Positioned(
-                              left: i * 12.0,
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 1.5),
-                                  color: const Color(0xFFFFE8EE),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: ProgressiveNetworkImage(
-                                  url: thumbs[i].image,
-                                  fit: BoxFit.cover,
-                                  enableBlur: false,
-                                  fadeDuration: Duration.zero,
-                                  errorWidget: Icon(
-                                    Icons.shopping_bag_outlined,
-                                    size: 12,
-                                    color: AppTheme.wine,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      fit: widget.side ? FlexFit.loose : FlexFit.tight,
-                      child: AnimatedBuilder(
-                        animation: _pulse,
-                        builder: (context, child) {
-                          final scale = showProgress && !unlocked
-                              ? 1 + (_pulse.value * 0.02)
-                              : 1.0;
-                          return Transform.scale(
-                            scale: scale,
-                            alignment: Alignment.centerLeft,
-                            child: child,
-                          );
-                        },
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 420),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          transitionBuilder: (child, animation) {
-                            final offset = Tween<Offset>(
-                              begin: const Offset(0, 0.35),
-                              end: Offset.zero,
-                            ).animate(animation);
-                            return FadeTransition(
-                              opacity: animation,
-                              child: SlideTransition(
-                                position: offset,
-                                child: child,
-                              ),
+          width: widget.side ? null : double.infinity,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(widget.side ? 10 : 14, 8, 10, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: showProgress
+                      ? AnimatedBuilder(
+                          animation: _progressTween,
+                          builder: (context, _) {
+                            return _DeliveryProgressSide(
+                              unlocked: unlocked,
+                              remaining: remaining,
+                              progress: _progressTween.value,
+                              compact: widget.side,
                             );
                           },
-                          child: Column(
-                            key: ValueKey(primaryLine),
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                primaryLine,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: widget.side ? 10.5 : 11.5,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.1,
-                                ),
-                              ),
-                              const SizedBox(height: 1),
-                              Text(
-                                secondaryLine,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Colors.white.withAlpha(220),
-                                  fontSize: widget.side ? 9.5 : 10,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.1,
-                                ),
-                              ),
-                            ],
+                        )
+                      : Text(
+                          '${cart.totalItems} ${cart.totalItems == 1 ? 'item' : 'items'} · ${PriceFormatter.format(cartTotal)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      unlocked && showProgress
-                          ? Icons.local_shipping_rounded
-                          : Icons.shopping_cart_rounded,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                  ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                _CartRightSide(
+                  itemCount: cart.totalItems,
+                  thumbUrl: thumbs.isEmpty ? null : thumbs.first.image,
+                  compact: widget.side,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
 
-    if (widget.side) return chip;
+    if (widget.side) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(minWidth: 132, maxWidth: 168),
+        child: chip,
+      );
+    }
 
-    return Padding(
-      padding: EdgeInsets.zero,
-      child: SizedBox(width: double.infinity, child: chip),
+    return chip;
+  }
+}
+
+class _DeliveryProgressSide extends StatelessWidget {
+  const _DeliveryProgressSide({
+    required this.unlocked,
+    required this.remaining,
+    required this.progress,
+    required this.compact,
+  });
+
+  final bool unlocked;
+  final double remaining;
+  final double progress;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text.rich(
+          TextSpan(
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: compact ? 10.5 : 12,
+              fontWeight: FontWeight.w600,
+              height: 1.15,
+            ),
+            children: unlocked
+                ? const [
+                    TextSpan(
+                      text: 'FREE DELIVERY ',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    TextSpan(text: 'unlocked'),
+                  ]
+                : [
+                    const TextSpan(text: 'Add '),
+                    TextSpan(
+                      text: PriceFormatter.format(remaining),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    TextSpan(text: compact ? ' more' : ' more to unlock '),
+                    if (!compact)
+                      const TextSpan(
+                        text: 'FREE DELIVERY',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                  ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        SizedBox(height: compact ? 6 : 8),
+        _CycleProgressTrack(progress: progress, unlocked: unlocked),
+      ],
+    );
+  }
+}
+
+/// Thin track with a sliding circular thumb (“cycle”).
+class _CycleProgressTrack extends StatelessWidget {
+  const _CycleProgressTrack({
+    required this.progress,
+    required this.unlocked,
+  });
+
+  final double progress;
+  final bool unlocked;
+
+  static const double _thumb = 9;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _thumb,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final trackW = constraints.maxWidth;
+          if (!trackW.isFinite || trackW <= 0) {
+            return const SizedBox.shrink();
+          }
+          final left = (trackW - _thumb) * progress.clamp(0.0, 1.0);
+          final fillW = left + _thumb / 2;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.centerLeft,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                top: (_thumb - 2) / 2,
+                child: Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                top: (_thumb - 2.5) / 2,
+                child: Container(
+                  width: fillW.clamp(0.0, trackW),
+                  height: 2.5,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: left,
+                top: 0,
+                child: Container(
+                  width: _thumb,
+                  height: _thumb,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                    border: unlocked
+                        ? Border.all(
+                            color: const Color(0xFF81C784),
+                            width: 1.5,
+                          )
+                        : null,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CartRightSide extends StatelessWidget {
+  const _CartRightSide({
+    required this.itemCount,
+    required this.thumbUrl,
+    required this.compact,
+  });
+
+  final int itemCount;
+  final String? thumbUrl;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (!compact) ...[
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text(
+                'CART',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '$itemCount ${itemCount == 1 ? 'ITEM' : 'ITEMS'}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 8),
+        ],
+        if (thumbUrl != null)
+          Container(
+            width: compact ? 28 : 32,
+            height: compact ? 28 : 32,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              color: Colors.white,
+              border: Border.all(color: Colors.white, width: 1.5),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: ProgressiveNetworkImage(
+              url: thumbUrl!,
+              fit: BoxFit.cover,
+              enableBlur: false,
+              fadeDuration: Duration.zero,
+              errorWidget: Icon(
+                Icons.shopping_bag_outlined,
+                size: 14,
+                color: AppTheme.wine,
+              ),
+            ),
+          ),
+        const SizedBox(width: 2),
+        Icon(
+          Icons.chevron_right_rounded,
+          size: compact ? 18 : 20,
+          color: Colors.white,
+        ),
+      ],
     );
   }
 }

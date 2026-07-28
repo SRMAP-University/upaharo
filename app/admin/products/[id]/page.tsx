@@ -7,6 +7,7 @@ import ProductCategoryFields from '@/components/ProductCategoryFields'
 import ProductFoodTypeFields from '@/components/ProductFoodTypeFields'
 import ImageDropUpload from '@/components/admin/ImageDropUpload'
 import SubProductSelector from '@/components/admin/SubProductSelector'
+import ProductPickupFields from '@/components/admin/ProductPickupFields'
 import { uploadProductImage } from '@/lib/upload-image'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
@@ -61,7 +62,11 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
     prepTime: 15,
     tags: '',
     discount: 0,
-    isAvailable: true
+    isAvailable: true,
+    pickupEnabled: false,
+    pickupLatitude: null as number | null,
+    pickupLongitude: null as number | null,
+    pickupAddress: '',
   })
 
   const minutesPerDay = 24 * 60
@@ -262,7 +267,15 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
           prepTime: product.prepTime,
           tags: tagState.customTags,
           discount: product.discount || 0,
-          isAvailable: product.isAvailable
+          isAvailable: product.isAvailable,
+          pickupEnabled: Boolean(product.pickupEnabled),
+          pickupLatitude: Number.isFinite(Number(product.pickupLatitude))
+            ? Number(product.pickupLatitude)
+            : null,
+          pickupLongitude: Number.isFinite(Number(product.pickupLongitude))
+            ? Number(product.pickupLongitude)
+            : null,
+          pickupAddress: String(product.pickupAddress || ''),
         })
         setPrepTimeUnit(
           Number(product.prepTime) >= minutesPerDay && Number(product.prepTime) % minutesPerDay === 0
@@ -284,6 +297,12 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.pickupEnabled && (formData.pickupLatitude === null || formData.pickupLongitude === null)) {
+      alert('Drop a pin on the map to set the pickup location')
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -673,6 +692,16 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
               <span className="text-sm font-medium text-ink/70">Available</span>
             </label>
           </div>
+
+          <ProductPickupFields
+            value={{
+              pickupEnabled: formData.pickupEnabled,
+              pickupLatitude: formData.pickupLatitude,
+              pickupLongitude: formData.pickupLongitude,
+              pickupAddress: formData.pickupAddress,
+            }}
+            onChange={(pickup) => setFormData((prev) => ({ ...prev, ...pickup }))}
+          />
         </div>
 
         <div className="flex gap-3 mt-6">

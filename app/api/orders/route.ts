@@ -6,6 +6,7 @@ import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { validateCoupon } from '@/lib/coupon'
+import { resolvePickupForProductIds } from '@/lib/pickup'
 import { createStripeCheckoutSession, isStripeConfigured } from '@/lib/stripe'
 import {
   abandonUnpaidOnlineOrder,
@@ -49,7 +50,10 @@ export async function POST(request: NextRequest) {
       showSenderName,
       couponCode,
       walletAmount,
+      fulfillmentType,
     } = body
+
+    const isPickup = String(fulfillmentType || '').toUpperCase() === 'PICKUP'
 
     if (paymentMethod !== 'CASH' && paymentMethod !== 'ONLINE') {
       return NextResponse.json({ error: 'Invalid payment method' }, { status: 400 })
@@ -93,6 +97,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Pickup is only offered when every item shares one collection point, so a
+    // client asking for it must be re-validated against the products.
+    const pickup = isPickup ? await resolvePickupForProductIds(productIds) : null
+    if (isPickup && (!pickup?.eligible || !pickup.location)) {
+      return NextResponse.json(
+        { error: 'Pickup is not available for these items' },
+        { status: 400 }
+      )
+    }
+
     const [user, address] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -103,7 +117,7 @@ export async function POST(request: NextRequest) {
           phone: true,
         },
       }),
-      addressId
+      addressId && !isPickup
         ? prisma.address.findUnique({
             where: { id: addressId },
             select: {
@@ -123,37 +137,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    if (!addressId || !address) {
-      return NextResponse.json({ error: 'Please select a delivery address' }, { status: 400 })
-    }
+    if (!isPickup) {
+      if (!addressId || !address) {
+        return NextResponse.json({ error: 'Please select a delivery address' }, { status: 400 })
+      }
 
-    const lat = typeof addressLatitude === 'number' ? addressLatitude : Number(addressLatitude)
-    const lng = typeof addressLongitude === 'number' ? addressLongitude : Number(addressLongitude)
-    const hasIncomingCoords = Number.isFinite(lat) && Number.isFinite(lng)
+      const lat = typeof addressLatitude === 'number' ? addressLatitude : Number(addressLatitude)
+      const lng = typeof addressLongitude === 'number' ? addressLongitude : Number(addressLongitude)
+      const hasIncomingCoords = Number.isFinite(lat) && Number.isFinite(lng)
 
-    if (hasIncomingCoords && address.latitude === 0 && address.longitude === 0) {
-      await prisma.address.update({
-        where: { id: address.id },
-        data: {
-          latitude: lat,
-          longitude: lng,
-        },
-      })
-    }
+      if (hasIncomingCoords && address.latitude === 0 && address.longitude === 0) {
+        await prisma.address.update({
+          where: { id: address.id },
+          data: {
+            latitude: lat,
+            longitude: lng,
+          },
+        })
+      }
 
-    const resolvedLatitude = hasIncomingCoords ? lat : address.latitude
-    const resolvedLongitude = hasIncomingCoords ? lng : address.longitude
+      const resolvedLatitude = hasIncomingCoords ? lat : address.latitude
+      const resolvedLongitude = hasIncomingCoords ? lng : address.longitude
 
-    if (
-      !isKathmanduValleyLocation({
-        city: address.city,
-        state: address.state,
-        address: address.street,
-        latitude: resolvedLatitude,
-        longitude: resolvedLongitude,
-      })
-    ) {
-      return NextResponse.json({ error: SERVICE_AREA_UNAVAILABLE_MESSAGE }, { status: 400 })
+      if (
+        !isKathmanduValleyLocation({
+          city: address.city,
+          state: address.state,
+          address: address.street,
+          latitude: resolvedLatitude,
+          longitude: resolvedLongitude,
+        })
+      ) {
+        return NextResponse.json({ error: SERVICE_AREA_UNAVAILABLE_MESSAGE }, { status: 400 })
+      }
     }
 
     // Generate order number
@@ -205,8 +221,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Server-authoritative delivery fee from admin settings.
-    const resolvedDeliveryFee = computeDeliveryFee(goodsTotal, deliveryRules)
+    // Server-authoritative delivery fee from admin settings; pickup never pays one.
+    const resolvedDeliveryFee = isPickup ? 0 : computeDeliveryFee(goodsTotal, deliveryRules)
 
     // Server-authoritative total (includes gift wrap when selected).
     const totalBeforeWallet = Math.max(
@@ -234,7 +250,11 @@ export async function POST(request: NextRequest) {
         data: {
           orderNumber,
           userId,
-          addressId,
+          addressId: isPickup ? null : addressId,
+          fulfillmentType: isPickup ? 'PICKUP' : 'DELIVERY',
+          pickupLatitude: pickup?.location?.latitude ?? null,
+          pickupLongitude: pickup?.location?.longitude ?? null,
+          pickupAddress: pickup?.location?.address ?? null,
           subtotal: resolvedSubtotal,
           deliveryFee: resolvedDeliveryFee,
           tax: resolvedTax,

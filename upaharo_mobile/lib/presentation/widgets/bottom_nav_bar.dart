@@ -10,11 +10,11 @@ import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
 
-/// Compact bar: Home · Categories · Top picks + circular Promo orb.
+/// Compact bar: Home · Categories · Orders + circular Promo orb.
 class BottomNavBar extends StatefulWidget {
   const BottomNavBar({super.key, required this.currentIndex});
 
-  /// 0 Home · 1 Categories · 2 Top picks · 3 Promo
+  /// 0 Home · 1 Categories · 2 Orders · 3 Promo
   final int currentIndex;
 
   @override
@@ -177,9 +177,9 @@ class _BottomNavBarState extends State<BottomNavBar>
         label: settings.navCategoriesLabel,
       ),
       (
-        outline: Icons.card_giftcard_outlined,
-        filled: Icons.card_giftcard_rounded,
-        label: settings.navTopPicksLabel,
+        outline: Icons.receipt_long_outlined,
+        filled: Icons.receipt_long_rounded,
+        label: 'Orders',
       ),
     ];
 

@@ -88,6 +88,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   LatLng _deliveryLatLng(Order order) {
+    final pickup = order.pickupLocation;
+    if (order.isPickup && pickup != null && pickup.hasCoordinates) {
+      return LatLng(pickup.latitude, pickup.longitude);
+    }
     final a = order.address;
     if (a != null && a.latitude != 0 && a.longitude != 0) {
       return LatLng(a.latitude, a.longitude);
@@ -217,7 +221,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final theme = statusThemeFor(order.status);
     final dest = _deliveryLatLng(order);
     final store = _storeLatLng();
-    final showRoute = order.status != OrderStatus.cancelled &&
+    final showRoute = !order.isPickup &&
+        order.status != OrderStatus.cancelled &&
         order.status != OrderStatus.delivered &&
         (store.latitude != dest.latitude || store.longitude != dest.longitude);
 
@@ -227,8 +232,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         position: dest,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRose),
         infoWindow: InfoWindow(
-          title: 'Delivery',
-          snippet: order.address?.label ?? 'Your location',
+          title: order.isPickup ? 'Pickup' : 'Delivery',
+          snippet: order.isPickup
+              ? (order.pickupLocation?.displayAddress ?? 'Pickup point')
+              : (order.address?.label ?? 'Your location'),
         ),
       ),
       if (showRoute)
@@ -699,6 +706,27 @@ class _AddressCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pickup = order.pickupLocation;
+    if (order.isPickup) {
+      return _SectionCard(
+        title: 'Pickup location',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              pickup?.displayAddress ?? 'Pickup point',
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Collect this order at the store. No delivery fee was charged.',
+              style: TextStyle(color: AppTheme.charcoal, height: 1.35),
+            ),
+          ],
+        ),
+      );
+    }
+
     final address = order.address;
     return _SectionCard(
       title: 'Delivery address',
@@ -728,7 +756,7 @@ class _BillCard extends StatelessWidget {
       child: Column(
         children: [
           _row('Subtotal', order.subtotal),
-          _row('Delivery', order.deliveryFee, freeIfZero: true),
+          _row(order.isPickup ? 'Pickup' : 'Delivery', order.deliveryFee, freeIfZero: true),
           if (order.couponDiscount > 0 || order.discount > 0)
             _row(
               order.couponCode != null ? 'Coupon (${order.couponCode})' : 'Discount',

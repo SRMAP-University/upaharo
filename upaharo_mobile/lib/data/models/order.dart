@@ -3,6 +3,7 @@ import 'gift_recipient.dart';
 import 'gift_wrap.dart';
 import 'occasion.dart';
 import 'order_item.dart';
+import 'pickup_location.dart';
 
 enum OrderStatus {
   pending,
@@ -26,6 +27,9 @@ class Order {
   final OrderStatus status;
   final String? addressId;
   final Address? address;
+  /// DELIVERY | PICKUP
+  final String fulfillmentType;
+  final PickupLocation? pickupLocation;
   final double subtotal;
   final double deliveryFee;
   final double tax;
@@ -62,6 +66,8 @@ class Order {
     this.status = OrderStatus.pending,
     this.addressId,
     this.address,
+    this.fulfillmentType = 'DELIVERY',
+    this.pickupLocation,
     this.subtotal = 0,
     this.deliveryFee = 0,
     this.tax = 0,
@@ -105,6 +111,12 @@ class Order {
       status: _parseStatus(rawStatus),
       addressId: json['addressId'] as String?,
       address: json['address'] != null ? Address.fromJson(json['address'] as Map<String, dynamic>) : null,
+      fulfillmentType: (json['fulfillmentType'] as String? ?? 'DELIVERY').toUpperCase(),
+      pickupLocation: PickupLocation.fromJson({
+        'latitude': json['pickupLatitude'],
+        'longitude': json['pickupLongitude'],
+        'address': json['pickupAddress'],
+      }),
       subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0,
       deliveryFee: (json['deliveryFee'] as num?)?.toDouble() ?? 0,
       tax: (json['tax'] as num?)?.toDouble() ?? 0,
@@ -147,6 +159,12 @@ class Order {
         'status': _statusToApi(status),
         if (addressId != null) 'addressId': addressId,
         if (address != null) 'address': address!.toJson(),
+        'fulfillmentType': fulfillmentType,
+        if (pickupLocation != null) ...{
+          'pickupLatitude': pickupLocation!.latitude,
+          'pickupLongitude': pickupLocation!.longitude,
+          if (pickupLocation!.address != null) 'pickupAddress': pickupLocation!.address,
+        },
         'subtotal': subtotal,
         'deliveryFee': deliveryFee,
         'tax': tax,
@@ -172,6 +190,8 @@ class Order {
         if (senderName != null) 'senderName': senderName,
         'showSenderName': showSenderName,
       };
+
+  bool get isPickup => fulfillmentType == 'PICKUP';
 
   static String _statusToApi(OrderStatus status) {
     switch (status) {

@@ -47,6 +47,8 @@ export type PublicAppSettings = {
   mapLatitude: number
   mapLongitude: number
   homepageShowBanner: boolean
+  homepageBannerHeight: number
+  homepageBannerProductHeight: number
   homepageShowTopCategories: boolean
   homepageShowCategorySections: boolean
   homepageShowOccasionTabs: boolean
@@ -104,6 +106,8 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   mapLatitude: 27.7172,
   mapLongitude: 85.324,
   homepageShowBanner: true,
+  homepageBannerHeight: 320,
+  homepageBannerProductHeight: 112,
   homepageShowTopCategories: true,
   homepageShowCategorySections: true,
   homepageShowOccasionTabs: true,

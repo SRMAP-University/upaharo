@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getWalletBalance, roundMoney } from '@/lib/wallet'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -8,16 +9,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const user = await prisma.user.update({
       where: { id },
       data: {
-        role: body.role
+        role: body.role,
       },
       include: {
         _count: {
           select: {
             orders: true,
-            addresses: true
-          }
-        }
-      }
+            addresses: true,
+          },
+        },
+      },
     })
     return NextResponse.json(user)
   } catch (error) {
@@ -64,6 +65,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    const [walletBalance, pendingCashback] = await Promise.all([
+      getWalletBalance(id),
+      prisma.walletTransaction.aggregate({
+        where: { userId: id, status: 'PENDING' },
+        _sum: { amount: true },
+      }),
+    ])
+
     const totalSpent = user.orders.reduce((sum, order) => sum + Number(order.total || 0), 0)
     const completedOrders = user.orders.filter((order) => order.status === 'DELIVERED').length
 
@@ -71,6 +80,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ...user,
       totalSpent,
       completedOrders,
+      walletBalance,
+      pendingCashback: roundMoney(pendingCashback._sum.amount ?? 0),
     })
   } catch (error) {
     console.error('Error fetching user details:', error)
@@ -81,9 +92,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    // Delete user's orders and addresses first (cascade delete)
     await prisma.user.delete({
-      where: { id }
+      where: { id },
     })
     return NextResponse.json({ message: 'User deleted' })
   } catch (error) {

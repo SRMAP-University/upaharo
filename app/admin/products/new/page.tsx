@@ -7,6 +7,7 @@ import ProductCategoryFields from '@/components/ProductCategoryFields'
 import ProductFoodTypeFields from '@/components/ProductFoodTypeFields'
 import ImageDropUpload from '@/components/admin/ImageDropUpload'
 import SubProductSelector from '@/components/admin/SubProductSelector'
+import ProductPickupFields from '@/components/admin/ProductPickupFields'
 import { uploadProductImage } from '@/lib/upload-image'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
@@ -58,7 +59,11 @@ export default function NewProduct() {
     prepTime: 15,
     tags: '',
     discount: 0,
-    isAvailable: true
+    isAvailable: true,
+    pickupEnabled: false,
+    pickupLatitude: null as number | null,
+    pickupLongitude: null as number | null,
+    pickupAddress: '',
   })
 
   useEffect(() => {
@@ -213,6 +218,12 @@ export default function NewProduct() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (formData.pickupEnabled && (formData.pickupLatitude === null || formData.pickupLongitude === null)) {
+      alert('Drop a pin on the map to set the pickup location')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -600,6 +611,16 @@ export default function NewProduct() {
               <span className="text-sm font-medium text-ink/70">Available</span>
             </label>
           </div>
+
+          <ProductPickupFields
+            value={{
+              pickupEnabled: formData.pickupEnabled,
+              pickupLatitude: formData.pickupLatitude,
+              pickupLongitude: formData.pickupLongitude,
+              pickupAddress: formData.pickupAddress,
+            }}
+            onChange={(pickup) => setFormData((prev) => ({ ...prev, ...pickup }))}
+          />
         </div>
 
         <div className="flex gap-3 mt-6">

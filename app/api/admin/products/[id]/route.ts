@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, appendArchivedProductTag, sanitizeProductTags } from '@/lib/product-archive'
 import { findFirstProductCompat, withProductWriteCompatibility } from '@/lib/product-db'
+import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 
 type ProductVariantInput = {
@@ -88,6 +89,14 @@ export async function PATCH(
 
     if (body?.miniDescription !== undefined) {
       data.miniDescription = String(body.miniDescription || '').trim() || null
+    }
+
+    if (body?.pickupEnabled !== undefined) {
+      const pickup = normalizePickupInput(body)
+      if (!pickup.ok) {
+        return NextResponse.json({ error: pickup.error }, { status: 400 })
+      }
+      Object.assign(data, pickup.data)
     }
 
     if (body?.wholesalePrice !== undefined) {

@@ -263,6 +263,60 @@ export async function voidPendingCashback(orderId: string): Promise<{ voided: bo
   })
 }
 
+/**
+ * Manual admin wallet adjustment (credit or debit). Uses `ADJUST` ledger
+ * rows with no orderId so multiple adjustments per user are allowed.
+ */
+export async function adjustWallet(params: {
+  userId: string
+  amount: number
+  note?: string
+}): Promise<{ balance: number; adjusted: number }> {
+  const amount = roundMoney(params.amount)
+  if (amount === 0) {
+    return { balance: await getWalletBalance(params.userId), adjusted: 0 }
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: params.userId },
+      select: { id: true },
+    })
+    if (!user) {
+      throw Object.assign(new Error('User not found'), { status: 404 })
+    }
+
+    const wallet = await ensureWallet(tx, params.userId)
+    if (amount < 0 && wallet.balance + amount < -0.001) {
+      throw Object.assign(new Error('Insufficient wallet balance'), { status: 400 })
+    }
+
+    const balanceAfter = roundMoney(wallet.balance + amount)
+    await tx.walletAccount.update({
+      where: { userId: params.userId },
+      data: { balance: balanceAfter },
+    })
+
+    const note =
+      (params.note || '').trim().slice(0, 200) ||
+      (amount > 0 ? 'Admin wallet credit' : 'Admin wallet debit')
+
+    await tx.walletTransaction.create({
+      data: {
+        userId: params.userId,
+        orderId: null,
+        type: WalletTxType.ADJUST,
+        amount,
+        balanceAfter,
+        status: WalletTxStatus.COMPLETED,
+        note,
+      },
+    })
+
+    return { balance: balanceAfter, adjusted: amount }
+  })
+}
+
 export type WalletSummary = {
   enabled: boolean
   balance: number

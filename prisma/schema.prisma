@@ -183,6 +183,11 @@ model Product {
   prepTime                  Int                  @default(15)
   tags                      String[]
   discount                  Float?               @default(0)
+  /// Customer may collect this product instead of paying for delivery.
+  pickupEnabled             Boolean              @default(false)
+  pickupLatitude            Float?
+  pickupLongitude           Float?
+  pickupAddress             String?
   sellerId                  String?
   seller                    Seller?              @relation(fields: [sellerId], references: [id])
   orderItems                OrderItem[]
@@ -204,6 +209,11 @@ model Order {
   user                 User             @relation(fields: [userId], references: [id])
   items                OrderItem[]
   status               OrderStatus      @default(PENDING)
+  /// PICKUP orders have no delivery address and never carry a delivery fee.
+  fulfillmentType      FulfillmentType  @default(DELIVERY)
+  pickupLatitude       Float?
+  pickupLongitude      Float?
+  pickupAddress        String?
   addressId            String?
   address              Address?         @relation(fields: [addressId], references: [id])
   deliveryPartnerId    String?
@@ -258,6 +268,11 @@ model Order {
   @@index([couponId])
   @@index([isGift])
   @@index([isWholesale])
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
 }
 
 enum CashbackStatus {
@@ -543,6 +558,10 @@ model AppSettings {
   mapLatitude                  Float    @default(27.7172)
   mapLongitude                 Float    @default(85.3240)
   homepageShowBanner           Boolean  @default(true)
+  /// Mobile homepage banner carousel height in logical pixels.
+  homepageBannerHeight         Int      @default(320)
+  /// Height of product tiles inside each homepage banner.
+  homepageBannerProductHeight  Int      @default(112)
   homepageShowTopCategories    Boolean  @default(true)
   homepageShowCategorySections Boolean  @default(true)
   homepageShowOccasionTabs     Boolean  @default(true)

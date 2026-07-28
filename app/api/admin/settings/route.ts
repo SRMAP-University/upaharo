@@ -129,6 +129,18 @@ function settingsPayload(body: Record<string, unknown>) {
     mapLatitude: toNumber(body?.mapLatitude, DEFAULT_APP_SETTINGS.mapLatitude),
     mapLongitude: toNumber(body?.mapLongitude, DEFAULT_APP_SETTINGS.mapLongitude),
     homepageShowBanner: toBool(body?.homepageShowBanner, DEFAULT_APP_SETTINGS.homepageShowBanner),
+    homepageBannerHeight: clampInt(
+      body?.homepageBannerHeight,
+      DEFAULT_APP_SETTINGS.homepageBannerHeight,
+      200,
+      520
+    ),
+    homepageBannerProductHeight: clampInt(
+      body?.homepageBannerProductHeight,
+      DEFAULT_APP_SETTINGS.homepageBannerProductHeight,
+      72,
+      180
+    ),
     homepageShowTopCategories: toBool(
       body?.homepageShowTopCategories,
       DEFAULT_APP_SETTINGS.homepageShowTopCategories

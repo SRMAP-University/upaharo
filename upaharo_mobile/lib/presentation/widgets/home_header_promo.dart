@@ -23,6 +23,8 @@ class HomeHeaderPromo extends StatefulWidget {
     required this.onProductTap,
     required this.onShopAll,
     required this.onBannerWashChanged,
+    this.bannerHeight,
+    this.productStripHeight,
   });
 
   // Kept for easy re-enable of the coupon strip later.
@@ -36,18 +38,28 @@ class HomeHeaderPromo extends StatefulWidget {
   final ValueChanged<Product> onProductTap;
   final VoidCallback onShopAll;
   final ValueChanged<Color?> onBannerWashChanged;
+  /// Admin-controlled admin-banner height; falls back to [adminBannerHeight].
+  final double? bannerHeight;
+  /// Admin-controlled product tile strip height inside banners.
+  final double? productStripHeight;
 
-  static const double adminBannerHeight = 360;
-  static const double fallbackBannerHeight = 180;
-  static const double bannerProductStripHeight = 128;
+  static const double adminBannerHeight = 320;
+  static const double fallbackBannerHeight = 220;
+  static const double bannerProductStripHeight = 112;
 
   static double extentFor({
     required bool show,
     required bool hasAdminBanners,
+    double? bannerHeight,
   }) {
     if (!show) return 0;
-    return hasAdminBanners ? adminBannerHeight : fallbackBannerHeight;
+    if (!hasAdminBanners) return fallbackBannerHeight;
+    final h = bannerHeight ?? adminBannerHeight;
+    return h.clamp(200.0, 520.0);
   }
+
+  double get resolvedProductStripHeight =>
+      (productStripHeight ?? bannerProductStripHeight).clamp(72.0, 180.0);
 
   @override
   State<HomeHeaderPromo> createState() => _HomeHeaderPromoState();
@@ -57,8 +69,14 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
   late final PageController _controller;
   Timer? _timer;
 
-  /// Real slide index for dots / background wash.
+  /// Real slide index for background wash (updated without setState).
   int _realPage = 0;
+
+  /// Avoid re-emitting the same wash mid-scroll / duplicate settles.
+  Color? _lastEmittedWash;
+
+  /// True while the user is finger-dragging the PageView.
+  bool _userDragging = false;
 
   /// Huge virtual range so auto-scroll / swipe never hits an edge.
   static const int _virtualCount = 100000;
@@ -119,12 +137,34 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
     return widget.banners[_realPage.clamp(0, widget.banners.length - 1)].backgroundColor;
   }
 
+  bool _sameColor(Color? a, Color? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    return a.toARGB32() == b.toARGB32();
+  }
+
   void _emitWash() {
     final color = _currentWash;
+    if (_sameColor(_lastEmittedWash, color)) return;
+    _lastEmittedWash = color;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       widget.onBannerWashChanged(color);
     });
+  }
+
+  /// Emit wash only when the page has settled near an integer — not mid-swipe.
+  void _onPageScroll() {
+    if (!_controller.hasClients) return;
+    final page = _controller.page;
+    if (page == null) return;
+    final nearest = page.round();
+    if ((page - nearest).abs() > 0.02) return;
+
+    final real = _toReal(nearest);
+    if (real == _realPage) return;
+    _realPage = real;
+    _emitWash();
   }
 
   @override
@@ -135,7 +175,7 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
     _controller = PageController(
       initialPage: start,
       viewportFraction: 0.92,
-    );
+    )..addListener(_onPageScroll);
     _startTimer();
     _emitWash();
   }
@@ -150,8 +190,9 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
       if (_realPage >= _realCount) {
         _realPage = 0;
       }
+      _lastEmittedWash = null;
       _emitWash();
-      _startTimer();
+      if (!_userDragging) _startTimer();
     }
   }
 
@@ -166,10 +207,10 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
 
   void _startTimer() {
     _timer?.cancel();
-    if (!_infinite) return;
+    if (!_infinite || _userDragging) return;
 
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_controller.hasClients) return;
+      if (!mounted || !_controller.hasClients || _userDragging) return;
       final current = _controller.page?.round() ?? _controller.initialPage;
       // Always advance one virtual page — content loops via modulo.
       _controller.animateToPage(
@@ -180,9 +221,22 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
     });
   }
 
+  void _pauseTimerForDrag() {
+    if (_userDragging) return;
+    _userDragging = true;
+    _timer?.cancel();
+  }
+
+  void _resumeTimerAfterDrag() {
+    if (!_userDragging) return;
+    _userDragging = false;
+    _startTimer();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _controller.removeListener(_onPageScroll);
     _controller.dispose();
     super.dispose();
   }
@@ -194,126 +248,130 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: PageView.builder(
-              controller: _controller,
-              padEnds: true,
-              // Infinite when 2+ slides: huge virtual list, real content via %.
-              itemCount: _pageCount,
-              onPageChanged: (virtualIndex) {
-                final real = _toReal(virtualIndex);
-                if (real == _realPage) return;
-                setState(() => _realPage = real);
-                _emitWash();
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollStartNotification &&
+                    notification.dragDetails != null) {
+                  _pauseTimerForDrag();
+                } else if (notification is ScrollEndNotification) {
+                  _resumeTimerAfterDrag();
+                }
+                return false;
               },
-              itemBuilder: (_, virtualIndex) {
-                final real = _toReal(virtualIndex);
+              child: PageView.builder(
+                controller: _controller,
+                padEnds: true,
+                // Infinite when 2+ slides: huge virtual list, real content via %.
+                itemCount: _pageCount,
+                itemBuilder: (_, virtualIndex) {
+                  final real = _toReal(virtualIndex);
 
-                if (_useAdminBanners) {
-                  final banner = widget.banners[real];
-                  final active = real == _realPage;
-                  return AnimatedScale(
-                    scale: active ? 1 : 0.96,
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
+                  if (_useAdminBanners) {
+                    final banner = widget.banners[real];
+                    return RepaintBoundary(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: _PromoBannerCard(
+                          banner: banner,
+                          productStripHeight: widget.resolvedProductStripHeight,
+                          onTap: () => widget.onBannerTap(banner.link),
+                          onProductTap: widget.onProductTap,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final slide = _slides[real % _slides.length];
+                  final product = widget.products.isEmpty
+                      ? null
+                      : widget.products[real % widget.products.length];
+                  return RepaintBoundary(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _PromoBannerCard(
-                        banner: banner,
-                        onTap: () => widget.onBannerTap(banner.link),
-                        onProductTap: widget.onProductTap,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: product == null
+                              ? widget.onShopAll
+                              : () => widget.onProductTap(product),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              color: slide.bg,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: slide.accent.withAlpha(28)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          product?.name ?? slide.title,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppTheme.ink,
+                                            height: 1.15,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          product != null
+                                              ? PriceFormatter.format(product.finalPrice)
+                                              : slide.subtitle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black.withAlpha(150),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                ClipRRect(
+                                  borderRadius:
+                                      const BorderRadius.horizontal(right: Radius.circular(14)),
+                                  child: SizedBox(
+                                    width: 110,
+                                    height: double.infinity,
+                                    child: product == null
+                                        ? ColoredBox(
+                                            color: slide.accent.withAlpha(20),
+                                            child: Icon(Icons.local_florist,
+                                                size: 40, color: slide.accent),
+                                          )
+                                        : ProductImageWithAdd(
+                                            product: product,
+                                            plusSize: 26,
+                                            plusIconSize: 15,
+                                            image: ProgressiveNetworkImage(
+                                              url: product.image,
+                                              fit: BoxFit.cover,
+                                              errorWidget: ColoredBox(
+                                                  color: slide.accent.withAlpha(20)),
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   );
-                }
-
-                final slide = _slides[real % _slides.length];
-                final product = widget.products.isEmpty
-                    ? null
-                    : widget.products[real % widget.products.length];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: product == null
-                          ? widget.onShopAll
-                          : () => widget.onProductTap(product),
-                      borderRadius: BorderRadius.circular(14),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          color: slide.bg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: slide.accent.withAlpha(28)),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      product?.name ?? slide.title,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppTheme.ink,
-                                        height: 1.15,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      product != null
-                                          ? PriceFormatter.format(product.finalPrice)
-                                          : slide.subtitle,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black.withAlpha(150),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            ClipRRect(
-                              borderRadius:
-                                  const BorderRadius.horizontal(right: Radius.circular(14)),
-                              child: SizedBox(
-                                width: 110,
-                                height: double.infinity,
-                                child: product == null
-                                    ? ColoredBox(
-                                        color: slide.accent.withAlpha(20),
-                                        child: Icon(Icons.local_florist,
-                                            size: 40, color: slide.accent),
-                                      )
-                                    : ProductImageWithAdd(
-                                        product: product,
-                                        plusSize: 26,
-                                        plusIconSize: 15,
-                                        image: ProgressiveNetworkImage(
-                                          url: product.image,
-                                          fit: BoxFit.cover,
-                                          errorWidget: ColoredBox(
-                                              color: slide.accent.withAlpha(20)),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
+                },
+              ),
             ),
           ),
         ],
@@ -325,11 +383,13 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
 class _PromoBannerCard extends StatelessWidget {
   const _PromoBannerCard({
     required this.banner,
+    required this.productStripHeight,
     required this.onTap,
     required this.onProductTap,
   });
 
   final BannerModel banner;
+  final double productStripHeight;
   final VoidCallback onTap;
   final ValueChanged<Product> onProductTap;
 
@@ -377,7 +437,7 @@ class _PromoBannerCard extends StatelessWidget {
               child: Container(
                 padding: EdgeInsets.fromLTRB(
                   10,
-                  products.isEmpty ? 36 : 48,
+                  products.isEmpty ? 36 : 56,
                   10,
                   10,
                 ),
@@ -421,7 +481,7 @@ class _PromoBannerCard extends StatelessWidget {
                     if (products.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       SizedBox(
-                        height: HomeHeaderPromo.bannerProductStripHeight,
+                        height: productStripHeight,
                         child: Row(
                           children: [
                             for (var i = 0; i < products.length; i++) ...[
@@ -459,66 +519,78 @@ class _BannerProductTile extends StatelessWidget {
     return Material(
       color: Colors.white.withValues(alpha: 0.94),
       borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(5, 5, 5, 4),
-          child: Column(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(9),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ProgressiveNetworkImage(
-                        url: product.image,
-                        fit: BoxFit.cover,
-                        errorWidget: ColoredBox(
-                          color: Color(0xFFF0F0F0),
-                          child: Icon(Icons.local_florist,
-                              size: 22, color: AppTheme.wine),
-                        ),
-                      ),
-                      Positioned(
-                        right: 2,
-                        bottom: 2,
-                        child: AddToCartPlus(
-                          product: product,
-                          size: 22,
-                          iconSize: 13,
-                        ),
-                      ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ProgressiveNetworkImage(
+              url: product.image,
+              fit: BoxFit.cover,
+              errorWidget: ColoredBox(
+                color: Color(0xFFF0F0F0),
+                child: Icon(Icons.local_florist,
+                    size: 22, color: AppTheme.wine),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(6, 20, 28, 6),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Color(0x99000000),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                product.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.ink,
-                  height: 1.1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      PriceFormatter.format(product.finalPrice),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.gold,
+                        height: 1.1,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                PriceFormatter.format(product.finalPrice),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.wine.withAlpha(220),
-                ),
+            ),
+            Positioned(
+              right: 2,
+              bottom: 2,
+              child: AddToCartPlus(
+                product: product,
+                size: 22,
+                iconSize: 13,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
