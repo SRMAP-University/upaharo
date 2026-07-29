@@ -1,6 +1,7 @@
 class Category {
   final String id;
   final String name;
+  final String? shortName;
   final String? image;
   final String type;
   final bool isActive;
@@ -14,6 +15,7 @@ class Category {
   const Category({
     required this.id,
     required this.name,
+    this.shortName,
     this.image,
     required this.type,
     required this.isActive,
@@ -25,6 +27,7 @@ class Category {
     return Category(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
+      shortName: json['shortName'] as String?,
       image: json['image'] as String?,
       type: json['type'] as String? ?? 'PRODUCT',
       isActive: json['isActive'] as bool? ?? true,
@@ -36,6 +39,7 @@ class Category {
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
+        if (shortName != null) 'shortName': shortName,
         if (image != null) 'image': image,
         'type': type,
         'isActive': isActive,

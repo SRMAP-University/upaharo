@@ -6,9 +6,17 @@ type UploadImageResponse = {
 }
 
 export async function uploadProductImage(file: File): Promise<string> {
+  return uploadImageToFolder(file, 'products')
+}
+
+export async function uploadCategoryImage(file: File): Promise<string> {
+  return uploadImageToFolder(file, 'categories')
+}
+
+async function uploadImageToFolder(file: File, folder: string): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('folder', 'products')
+  formData.append('folder', folder)
 
   const response = await fetch('/api/uploads', {
     method: 'POST',

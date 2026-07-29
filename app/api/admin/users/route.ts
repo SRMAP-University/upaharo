@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const storeContext = await resolveAdminStoreContext(request)
+    const storeContext = await resolveAdminStoreContext()
     if (!storeContext) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }

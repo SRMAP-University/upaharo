@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { normalizeCategoryIcon, normalizeCategoryWash } from '@/lib/category-style'
+import { normalizeCategoryIcon, normalizeCategoryShortName, normalizeCategoryWash } from '@/lib/category-style'
 import { prisma } from '@/lib/prisma'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
@@ -25,7 +25,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       where: { id },
       data: {
         name: body.name,
-        image: body.image,
+        shortName: normalizeCategoryShortName(body.shortName),
+        image: body.image ?? '',
         type: body.type,
         parentId,
         isActive: body.isActive,

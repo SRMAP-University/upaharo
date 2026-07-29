@@ -28,6 +28,17 @@ const Map<String, IconData> _iconByKey = {
   'food': Icons.restaurant_outlined,
   'drink': Icons.local_cafe_outlined,
   'sparkle': Icons.auto_awesome_outlined,
+  'dairy': Icons.egg_alt_rounded,
+  'grain': Icons.grain_rounded,
+  'fruit': Icons.eco_rounded,
+  'vegetable': Icons.grass_rounded,
+  'meat': Icons.set_meal_rounded,
+  'frozen': Icons.ac_unit_rounded,
+  'bakery': Icons.bakery_dining_rounded,
+  'cleaning': Icons.cleaning_services_rounded,
+  'spice': Icons.ramen_dining_rounded,
+  'oil': Icons.water_drop_rounded,
+  'staple': Icons.shopping_basket_rounded,
 };
 
 const List<Color> _washPalette = [
@@ -146,4 +157,23 @@ Color categoryWashForName(String name) {
     return const Color(0xFFF0D4B8);
   }
   return _washPalette[name.hashCode.abs() % _washPalette.length];
+}
+
+/// Label shown under the home header category chip.
+String categoryHeaderLabel(Category category) {
+  final short = category.shortName?.trim();
+  if (short != null && short.isNotEmpty) return short;
+  final name = category.name.trim();
+  if (name.isEmpty) return 'Category';
+  if (name.length <= 10) return name;
+  final first = name.split(RegExp(r'\s+')).first;
+  if (first.length <= 10) return first;
+  return '${name.substring(0, 9)}…';
+}
+
+/// Resolved header image URL when admin uploaded one (icon mode when null).
+String? categoryHeaderImageUrl(Category category) {
+  final raw = category.image?.trim();
+  if (raw == null || raw.isEmpty) return null;
+  return raw;
 }

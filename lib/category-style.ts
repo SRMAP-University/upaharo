@@ -25,6 +25,18 @@ export const CATEGORY_ICON_KEYS = [
   'food',
   'drink',
   'sparkle',
+  // Grocery aisles
+  'dairy',
+  'grain',
+  'fruit',
+  'vegetable',
+  'meat',
+  'frozen',
+  'bakery',
+  'cleaning',
+  'spice',
+  'oil',
+  'staple',
 ] as const
 
 export type CategoryIconKey = (typeof CATEGORY_ICON_KEYS)[number]
@@ -55,4 +67,10 @@ export function normalizeCategoryWash(value: unknown): string | null {
   const raw = String(value ?? '').trim()
   if (!raw) return null
   return HEX_COLOR_RE.test(raw) ? raw.toUpperCase() : null
+}
+
+export function normalizeCategoryShortName(value: unknown): string | null {
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+  return raw.slice(0, 16)
 }

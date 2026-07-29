@@ -531,6 +531,8 @@ model Category {
   storeId             String
   store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name                String
+  /// Short label for the mobile home header strip (e.g. "Dairy", "Snacks").
+  shortName           String?
   image               String
   type                CategoryType         @default(PRODUCT)
   parentId            String?

@@ -990,8 +990,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   static const double _locationHeight = 46;
   static const double _catsExpandedGifts = 56;
   static const double _catsCollapsedGifts = 44;
-  static const double _catsExpandedGrocery = 88;
-  static const double _catsCollapsedGrocery = 48;
+  static const double _catsExpandedGrocery = 58;
+  static const double _catsCollapsedGrocery = 38;
   static const double _searchRow = 2 + 38 + 4; // pad + search + gap before cats
   static const double _catsPromoGap = 10;
   static const double _bottomPad = 0;
@@ -1334,7 +1334,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         itemCount: tabs.length,
                         separatorBuilder: (_, _) => SizedBox(
-                          width: illustrativeCats ? 8 : 6,
+                          width: illustrativeCats ? 6 : 6,
                         ),
                         itemBuilder: (_, index) {
                           final selected = index == selectedTab;
@@ -1345,6 +1345,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                               label: tab.label,
                               fallbackIcon: tab.fallbackIcon,
                               washColor: tab.washColor,
+                              imageUrl: tab.imageUrl,
                               selected: selected,
                               height: catsHeight,
                               compact: compact,
