@@ -33,6 +33,7 @@ import '../../widgets/home_header_promo.dart';
 import '../../widgets/mini_cart_bar.dart';
 import '../../widgets/product_quick_sheet.dart';
 import '../../widgets/progressive_network_image.dart';
+import '../../widgets/quick_picks_categories_section.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/value_deals_section.dart';
 
@@ -264,15 +265,6 @@ class _HomeScreenState extends State<HomeScreen>
       groups.putIfAbsent(key.isEmpty ? 'more' : key, () => []).add(product);
     }
     return groups;
-  }
-
-  List<Product> _slice(List<Product> all, int start, int count) {
-    if (all.isEmpty) return const [];
-    final out = <Product>[];
-    for (var i = 0; i < count; i++) {
-      out.add(all[(start + i) % all.length]);
-    }
-    return out;
   }
 
   void _openProduct(Product product, {List<Product>? peers}) {
@@ -624,7 +616,6 @@ class _HomeScreenState extends State<HomeScreen>
         dealPeers.add(p);
       }
     }
-    final quickPicks = _slice(pool, 5, 12);
     final miniBanners = context.watch<MiniBannerProvider>().banners;
 
     // Admin owns order + copy; each builder still gates on its own data/toggle.
@@ -659,13 +650,17 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ],
-      'quickPicks': (section) => settings.homepageShowTopCategories
+      'quickPicks': (section) =>
+          settings.homepageShowTopCategories && data.categories.isNotEmpty
           ? [
               _pad(
-                _Section4MiniCircles(
+                QuickPicksCategoriesSection(
                   title: section.title,
-                  products: quickPicks,
-                  onTap: (p) => _openProduct(p, peers: quickPicks),
+                  subtitle: section.subtitle,
+                  categories: data.categories,
+                  onCategoryTap: (c) => _openProducts(category: c),
+                  onSeeAll: () =>
+                      context.read<ShellTabController>().goTo(1),
                 ),
               ),
             ]

@@ -1,36 +1,17 @@
-import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '@prisma/client'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+/**
+ * Use the standard Prisma engine everywhere. The pg adapter + Supabase pooler
+ * combo was returning empty/failed reads on Netlify while local direct URLs worked.
+ */
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL
-
-  if (!connectionString) {
-    return new PrismaClient()
-  }
-
-  // In local `next dev`, the pg adapter pool can survive hot reloads in a bad state
-  // and keep returning P1017 until the server is restarted. Use the standard Prisma
-  // engine in development and keep the adapter for production runtimes.
-  if (process.env.NODE_ENV !== 'production') {
-    return new PrismaClient()
-  }
-
-  const adapter = new PrismaPg(
-    {
-      connectionString,
-    },
-    {
-      onPoolError: (error) => {
-        console.warn('Postgres pool error:', error.message)
-      },
-    }
-  )
-
-  return new PrismaClient({ adapter })
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+  })
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
