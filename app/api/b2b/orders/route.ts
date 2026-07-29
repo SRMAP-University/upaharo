@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { generateOrderNumber } from '@/lib/utils'
 import { notifyOrderPlaced } from '@/lib/notifications'
 import { getTokenFromRequest, verifyToken } from '@/lib/auth'
+import { resolveStoreContext } from '@/lib/store-context'
 
 const B2B_DELIVERY_FEE = Number(process.env.B2B_DELIVERY_FEE || 0)
 
@@ -10,6 +11,11 @@ type IncomingItem = { id?: string; productId?: string; quantity?: number }
 
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const body = await request.json()
     const notes = String(body.notes || '').trim()
     const items = (Array.isArray(body.items) ? body.items : []) as IncomingItem[]
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest) {
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
+        storeId: storeContext.store.id,
         isAvailable: true,
         wholesalePrice: { not: null },
       },
@@ -110,11 +117,12 @@ export async function POST(request: NextRequest) {
     const subtotal = lineItems.reduce((sum, i) => sum + i.price * i.quantity, 0)
     const deliveryFee = Number.isFinite(B2B_DELIVERY_FEE) ? Math.max(0, B2B_DELIVERY_FEE) : 0
     const total = subtotal + deliveryFee
-    const orderNumber = generateOrderNumber()
+    const orderNumber = generateOrderNumber(storeContext.slug)
 
     const order = await prisma.order.create({
       data: {
         orderNumber,
+        storeId: storeContext.store.id,
         userId: user.id,
         addressId: address.id,
         subtotal,

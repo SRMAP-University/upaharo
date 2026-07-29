@@ -63,10 +63,16 @@ export function formatTime(minutes: number): string {
   return `${days} ${days === 1 ? 'day' : 'days'} ${hours}h`
 }
 
-export function generateOrderNumber(): string {
+export function generateOrderNumber(storeSlug = 'gifts'): string {
+  const storeCode =
+    String(storeSlug)
+      .trim()
+      .replace(/[^a-z0-9]/gi, '')
+      .slice(0, 6)
+      .toUpperCase() || 'STORE'
   const timestamp = Date.now().toString(36).toUpperCase()
   const random = Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `ORD${timestamp}${random}`
+  return `${storeCode}-${timestamp}${random}`
 }
 
 export function calculateDistance(

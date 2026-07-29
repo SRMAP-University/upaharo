@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -32,11 +33,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     FocusScope.of(context).unfocus();
     final success = await context.read<AuthProvider>().signup(
-          name: _nameController.text.trim(),
-          email: _emailController.text.trim(),
-          phone: _phoneController.text.trim(),
-          password: _passwordController.text,
-        );
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      phone: _phoneController.text.trim(),
+      password: _passwordController.text,
+    );
 
     if (success && mounted) {
       Navigator.pushReplacementNamed(context, AppRoutes.main);
@@ -50,57 +51,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     return AuthScaffold(
       showBack: true,
-      brandLine: 'Upaharo',
-      headline: 'Join the celebration',
-      subtitle: 'Create an account to track orders & save your favourites',
+      brandLine: FlavorConfig.appName,
+      headline: 'Create your account',
+      subtitle: 'Track orders, save addresses and keep your favourites.',
       child: AutofillGroup(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Soft perk strip — unique to register
-            Container(
-              margin: EdgeInsets.only(bottom: 18),
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.wine.withAlpha(14),
-                    AppTheme.gold.withAlpha(18),
-                  ],
-                ),
-                border: Border.all(color: AppTheme.wine.withAlpha(22)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(220),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.card_giftcard_rounded,
-                      size: 18,
-                      color: AppTheme.wine,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Order faster, save addresses & get gift ideas for every occasion.',
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.35,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.charcoal.withAlpha(200),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const AuthPerkStrip(
+              perks: [
+                (Icons.local_shipping_outlined, 'Track orders'),
+                (Icons.place_outlined, 'Saved addresses'),
+                (Icons.account_balance_wallet_outlined, 'Wallet'),
+              ],
             ),
+            const SizedBox(height: 20),
             AuthField(
               controller: _nameController,
               label: 'Full name',
@@ -144,7 +109,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 18),
-            if (auth.errorMessage != null) AuthErrorBanner(message: auth.errorMessage!),
+            if (auth.errorMessage != null)
+              AuthErrorBanner(message: auth.errorMessage!),
             AuthPrimaryButton(
               label: 'Create account',
               loading: loading,

@@ -1,14 +1,14 @@
 import { Prisma, WalletTxStatus, WalletTxType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { getAppSettings } from '@/lib/app-settings'
+import { getAppSettings, type StoreSettingsTarget } from '@/lib/app-settings'
 import { roundMoney, type WalletRules } from '@/lib/wallet-rules'
 
 type Tx = Prisma.TransactionClient
 
 export * from '@/lib/wallet-rules'
 
-export async function getWalletRules(): Promise<WalletRules> {
-  const settings = await getAppSettings()
+export async function getWalletRules(store?: StoreSettingsTarget): Promise<WalletRules> {
+  const settings = await getAppSettings(store)
   return {
     walletEnabled: settings.walletEnabled,
     cashbackPercent: settings.cashbackPercent,
@@ -19,8 +19,8 @@ export async function getWalletRules(): Promise<WalletRules> {
   }
 }
 
-export async function getDeliveryRules() {
-  const settings = await getAppSettings()
+export async function getDeliveryRules(store?: StoreSettingsTarget) {
+  const settings = await getAppSettings(store)
   return {
     freeDeliveryMinAmount: settings.freeDeliveryMinAmount,
     deliveryFeeAmount: settings.deliveryFeeAmount,

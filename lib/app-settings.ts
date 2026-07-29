@@ -14,14 +14,32 @@ import {
 import { prisma } from '@/lib/prisma'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import { DEFAULT_STORE_SLUG, type StoreIdentity } from '@/lib/store-context'
 
 export * from '@/lib/app-settings-schema'
 
-export async function getAppSettings(): Promise<PublicAppSettings> {
+export type StoreSettingsTarget = Pick<StoreIdentity, 'id' | 'slug'> | string
+
+/**
+ * Reads settings for one storefront. Calls with no argument intentionally
+ * resolve to the legacy gifts store, preserving old server callers while
+ * storefront handlers pass their resolved store context explicitly.
+ */
+export async function getAppSettings(
+  target: StoreSettingsTarget = 'store_gifts'
+): Promise<PublicAppSettings> {
+  const storeId = typeof target === 'string' ? target : target.id
+  const cacheSlug =
+    typeof target === 'string'
+      ? target === 'store_gifts'
+        ? DEFAULT_STORE_SLUG
+        : target
+      : target.slug
+
   try {
-    return await getOrSetJson(REDIS_KEYS.APP_SETTINGS, 300, async () => {
+    return await getOrSetJson(REDIS_KEYS.APP_SETTINGS(cacheSlug), 300, async () => {
       const settings = await prisma.appSettings.findUnique({
-        where: { id: 'default' },
+        where: { storeId },
       })
 
       if (!settings) {
@@ -90,6 +108,12 @@ export async function getAppSettings(): Promise<PublicAppSettings> {
         ),
         homepageShowSpinBanner:
           settings.homepageShowSpinBanner ?? DEFAULT_APP_SETTINGS.homepageShowSpinBanner,
+        featureGiftOptions:
+          settings.featureGiftOptions ?? DEFAULT_APP_SETTINGS.featureGiftOptions,
+        featureAiAssistant:
+          settings.featureAiAssistant ?? DEFAULT_APP_SETTINGS.featureAiAssistant,
+        featureWishlist:
+          settings.featureWishlist ?? DEFAULT_APP_SETTINGS.featureWishlist,
         homepageRecommendationMode:
           settings.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode,
         homepageRecommendationTitle:

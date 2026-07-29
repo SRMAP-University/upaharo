@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/category_style.dart';
@@ -125,9 +126,10 @@ class _HomeScreenState extends State<HomeScreen>
     if (index <= 0 || index > categories.length) return;
     final cat = categories[index - 1];
     // Force refresh so a previously cached Netlify "same for all" list is replaced.
-    await context
-        .read<CatalogProvider>()
-        .loadProductsForCategory(cat, force: true);
+    await context.read<CatalogProvider>().loadProductsForCategory(
+      cat,
+      force: true,
+    );
     if (!mounted || _selectedTab != index) return;
     setState(() {});
   }
@@ -140,14 +142,13 @@ class _HomeScreenState extends State<HomeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 520),
     );
-    _washCurve = CurvedAnimation(
-      parent: _washCtrl,
-      curve: Curves.easeInOutCubic,
-    )..addListener(() {
-        final value = _washTween?.evaluate(_washCurve);
-        if (value == null || _sameColor(_washColor.value, value)) return;
-        _washColor.value = value;
-      });
+    _washCurve =
+        CurvedAnimation(parent: _washCtrl, curve: Curves.easeInOutCubic)
+          ..addListener(() {
+            final value = _washTween?.evaluate(_washCurve);
+            if (value == null || _sameColor(_washColor.value, value)) return;
+            _washColor.value = value;
+          });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // Force a fresh home feed so a stale 4-item cakes cache cannot win.
@@ -208,11 +209,17 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
 
-    final uri = Uri.tryParse(path.startsWith('http') ? path : 'https://www.upaharo.com$path');
+    final uri = Uri.tryParse(
+      path.startsWith('http') ? path : 'https://www.upaharo.com$path',
+    );
     final segments = uri?.pathSegments ?? const <String>[];
     if (segments.isNotEmpty && segments.first == 'products') {
       if (segments.length >= 2 && segments[1].isNotEmpty) {
-        Navigator.pushNamed(context, AppRoutes.productDetail, arguments: segments[1]);
+        Navigator.pushNamed(
+          context,
+          AppRoutes.productDetail,
+          arguments: segments[1],
+        );
         return;
       }
       _openProducts(title: 'All gifts');
@@ -291,7 +298,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     switch (banner.linkType) {
       case MiniBannerLinkType.product:
-        Navigator.pushNamed(context, AppRoutes.productDetail, arguments: targetId);
+        Navigator.pushNamed(
+          context,
+          AppRoutes.productDetail,
+          arguments: targetId,
+        );
       case MiniBannerLinkType.category:
         Navigator.pushNamed(
           context,
@@ -324,8 +335,16 @@ class _HomeScreenState extends State<HomeScreen>
             return _ErrorState(error: catalog.error!, onRetry: _refresh);
           }
 
+          final showOccasionTabs =
+              FlavorConfig.isGifts && appSettings.homepageShowOccasionTabs;
           final data = HomeData(
-            categories: catalog.categories,
+            categories: catalog.categories
+                .where(
+                  (category) =>
+                      showOccasionTabs ||
+                      category.type.trim().toUpperCase() != 'OCCASION',
+                )
+                .toList(),
             products: catalog.products,
           );
           final products = data.products;
@@ -341,130 +360,136 @@ class _HomeScreenState extends State<HomeScreen>
           }
 
           return CustomScrollView(
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              cacheExtent: 180,
-              slivers: [
-                CupertinoSliverRefreshControl(
-                  refreshTriggerPullDistance: 110,
-                  refreshIndicatorExtent: 64,
-                  onRefresh: _refresh,
-                  builder: (
-                    context,
-                    refreshState,
-                    pulledExtent,
-                    refreshTriggerPullDistance,
-                    refreshIndicatorExtent,
-                  ) {
-                    final progress = (pulledExtent / refreshTriggerPullDistance)
-                        .clamp(0.0, 1.0);
-                    final refreshing =
-                        refreshState == RefreshIndicatorMode.refresh ||
-                            refreshState == RefreshIndicatorMode.armed ||
-                            refreshState == RefreshIndicatorMode.done;
-                    return SizedBox(
-                      height: pulledExtent,
-                      child: Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: refreshing
-                              ? SizedBox(
-                                  width: 28,
-                                  height: 28,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.4,
-                                    color: AppTheme.wine,
-                                  ),
-                                )
-                              : Opacity(
-                                  opacity: progress,
-                                  child: Transform.rotate(
-                                    angle: progress * 3.14,
-                                    child: Icon(
-                                      Icons.refresh_rounded,
-                                      size: 26,
-                                      color: AppTheme.wine.withValues(
-                                        alpha: 0.55 + (0.45 * progress),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            cacheExtent: 180,
+            slivers: [
+              CupertinoSliverRefreshControl(
+                refreshTriggerPullDistance: 110,
+                refreshIndicatorExtent: 64,
+                onRefresh: _refresh,
+                builder:
+                    (
+                      context,
+                      refreshState,
+                      pulledExtent,
+                      refreshTriggerPullDistance,
+                      refreshIndicatorExtent,
+                    ) {
+                      final progress =
+                          (pulledExtent / refreshTriggerPullDistance).clamp(
+                            0.0,
+                            1.0,
+                          );
+                      final refreshing =
+                          refreshState == RefreshIndicatorMode.refresh ||
+                          refreshState == RefreshIndicatorMode.armed ||
+                          refreshState == RefreshIndicatorMode.done;
+                      return SizedBox(
+                        height: pulledExtent,
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: refreshing
+                                ? SizedBox(
+                                    width: 28,
+                                    height: 28,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.4,
+                                      color: AppTheme.wine,
+                                    ),
+                                  )
+                                : Opacity(
+                                    opacity: progress,
+                                    child: Transform.rotate(
+                                      angle: progress * 3.14,
+                                      child: Icon(
+                                        Icons.refresh_rounded,
+                                        size: 26,
+                                        color: AppTheme.wine.withValues(
+                                          alpha: 0.55 + (0.45 * progress),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+              ),
+              // Sticky header: safe area always on top while scrolling.
+              // Location collapses away; search + text categories stay pinned.
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedHomeHeader(
+                  topInset: topInset,
+                  deliveryEstimate: appSettings.deliveryEstimate,
+                  locationLabel: location?.headerLabel ?? 'Choose location',
+                  profileInitial: (user?.name.trim().isNotEmpty ?? false)
+                      ? user!.name.trim()[0].toUpperCase()
+                      : null,
+                  walletBalance: _wallet.enabled ? _wallet.balance : null,
+                  categories: data.categories,
+                  selectedTab: _selectedTab,
+                  // All → banner wash; category tabs → header-only tint that
+                  // fades down into cream (same as before). Painted via
+                  // ValueNotifier so PageView is not rebuilt each lerp tick.
+                  washColor: _washColor,
+                  // Banner only on All — category tabs are product-only.
+                  showPromo:
+                      appSettings.homepageShowBanner && _selectedTab == 0,
+                  coupons: coupons.coupons,
+                  banners: banners.banners,
+                  promoProducts: products.take(5).toList(),
+                  onSelectTab: (i) => _onSelectTab(i, data.categories),
+                  onSearchTap: _openSearch,
+                  onAiTap: _openAiChat,
+                  showAiAssistant: appSettings.featureAiAssistant,
+                  onWishlistTap: _openCart,
+                  onLocationTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.location),
+                  onProfileTap: _openAccount,
+                  onWalletTap: _openWallet,
+                  onBannerTap: _openBannerLink,
+                  onProductTap: _openProduct,
+                  onShopAll: () => _openProducts(title: 'All gifts'),
+                  onBannerWashChanged: _onBannerWashChanged,
+                  announcement: appSettings.announcementText,
+                  bannerHeight: appSettings.homepageBannerHeight.toDouble(),
+                  bannerProductHeight: appSettings.homepageBannerProductHeight
+                      .toDouble(),
                 ),
-                // Sticky header: safe area always on top while scrolling.
-                // Location collapses away; search + text categories stay pinned.
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _PinnedHomeHeader(
-                    topInset: topInset,
-                    deliveryEstimate: appSettings.deliveryEstimate,
-                    locationLabel: location?.headerLabel ?? 'Choose location',
-                    profileInitial: (user?.name.trim().isNotEmpty ?? false)
-                        ? user!.name.trim()[0].toUpperCase()
-                        : null,
-                    walletBalance: _wallet.enabled ? _wallet.balance : null,
-                    categories: data.categories,
-                    selectedTab: _selectedTab,
-                    // All → banner wash; category tabs → header-only tint that
-                    // fades down into cream (same as before). Painted via
-                    // ValueNotifier so PageView is not rebuilt each lerp tick.
-                    washColor: _washColor,
-                    // Banner only on All — category tabs are product-only.
-                    showPromo:
-                        appSettings.homepageShowBanner && _selectedTab == 0,
-                    coupons: coupons.coupons,
-                    banners: banners.banners,
-                    promoProducts: products.take(5).toList(),
-                    onSelectTab: (i) => _onSelectTab(i, data.categories),
-                    onSearchTap: _openSearch,
-                    onAiTap: _openAiChat,
-                    onWishlistTap: _openCart,
-                    onLocationTap: () => Navigator.pushNamed(context, AppRoutes.location),
-                    onProfileTap: _openAccount,
-                    onWalletTap: _openWallet,
-                    onBannerTap: _openBannerLink,
-                    onProductTap: _openProduct,
-                    onShopAll: () => _openProducts(title: 'All gifts'),
-                    onBannerWashChanged: _onBannerWashChanged,
-                    announcement: appSettings.announcementText,
-                    bannerHeight: appSettings.homepageBannerHeight.toDouble(),
-                    bannerProductHeight:
-                        appSettings.homepageBannerProductHeight.toDouble(),
-                  ),
+              ),
+              ..._buildFeed(
+                data: data,
+                products: products,
+                groups: groups,
+                settings: appSettings,
+                showSpinBanner:
+                    _selectedTab == 0 &&
+                    FlavorConfig.isGifts &&
+                    appSettings.homepageShowSpinBanner &&
+                    context.watch<PromoSpinProvider>().showHomeBanner,
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height:
+                      110 +
+                      (context.watch<CartProvider>().totalItems > 0
+                          ? MiniCartBar.height + 8
+                          : 0),
                 ),
-                ..._buildFeed(
-                  data: data,
-                  products: products,
-                  groups: groups,
-                  settings: appSettings,
-                  showSpinBanner: _selectedTab == 0 &&
-                      appSettings.homepageShowSpinBanner &&
-                      context.watch<PromoSpinProvider>().showHomeBanner,
-                ),
-                SliverToBoxAdapter(
-                  child: SizedBox(
-                    height: 110 +
-                        (context.watch<CartProvider>().totalItems > 0
-                            ? MiniCartBar.height + 8
-                            : 0),
-                  ),
-                ),
-              ],
+              ),
+            ],
           );
         },
       ),
       bottomNavigationBar: widget.showBottomNav
           ? const Column(
               mainAxisSize: MainAxisSize.min,
-              children: [
-                MiniCartBar(),
-                BottomNavBar(currentIndex: 0),
-              ],
+              children: [MiniCartBar(), BottomNavBar(currentIndex: 0)],
             )
           : null,
     );
@@ -605,8 +630,8 @@ class _HomeScreenState extends State<HomeScreen>
     final builders = <String, List<Widget> Function(HomeSectionConfig)>{
       'spinBanner': (section) =>
           showSpinBanner ? [_spinBannerSliver(section)] : const [],
-      'valueDeals': (section) => settings.homepageShowValueDeals &&
-              dealPeers.isNotEmpty
+      'valueDeals': (section) =>
+          settings.homepageShowValueDeals && dealPeers.isNotEmpty
           ? [
               SliverToBoxAdapter(
                 child: ValueDealsSection(
@@ -621,24 +646,27 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ]
           : const [],
-      'miniBanners': (section) => miniBanners.isEmpty
+      'miniBanners': (_) => miniBanners.isEmpty
           ? const []
           : [
-              _pad(_MiniBannerRow(
-                title: section.title,
-                banners: miniBanners,
-                columns: settings.miniBannerColumns,
-                tileHeight: settings.miniBannerHeight.toDouble(),
-                onTap: _openMiniBanner,
-              )),
+              _pad(
+                _MiniBannerRow(
+                  banners: miniBanners,
+                  columns: settings.miniBannerColumns,
+                  tileHeight: settings.miniBannerHeight.toDouble(),
+                  onTap: _openMiniBanner,
+                ),
+              ),
             ],
       'quickPicks': (section) => settings.homepageShowTopCategories
           ? [
-              _pad(_Section4MiniCircles(
-                title: section.title,
-                products: quickPicks,
-                onTap: (p) => _openProduct(p, peers: quickPicks),
-              )),
+              _pad(
+                _Section4MiniCircles(
+                  title: section.title,
+                  products: quickPicks,
+                  onTap: (p) => _openProduct(p, peers: quickPicks),
+                ),
+              ),
             ]
           : const [],
       'productGrid': (section) => gridProducts.isEmpty
@@ -678,10 +706,15 @@ class _HomeScreenState extends State<HomeScreen>
                     height: 42,
                     decoration: BoxDecoration(
                       color: AppTheme.wine,
-                      borderRadius: BorderRadius.circular(AppTheme.cornerRadius),
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.cornerRadius,
+                      ),
                     ),
-                    child: const Icon(Icons.casino_rounded,
-                        color: Colors.white, size: 24),
+                    child: const Icon(
+                      Icons.casino_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -710,8 +743,10 @@ class _HomeScreenState extends State<HomeScreen>
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right_rounded,
-                      color: AppTheme.wine.withAlpha(220)),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.wine.withAlpha(220),
+                  ),
                 ],
               ),
             ),
@@ -733,27 +768,24 @@ class _HomeScreenState extends State<HomeScreen>
           crossAxisSpacing: spacing,
           childAspectRatio: settings.productCardAspectRatio,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final product = products[index];
-            return _PlainHomeProductTile(
-              product: product,
-              settings: settings,
-              onTap: () => _openProduct(product, peers: products),
-            );
-          },
-          childCount: products.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final product = products[index];
+          return _PlainHomeProductTile(
+            product: product,
+            settings: settings,
+            onTap: () => _openProduct(product, peers: products),
+          );
+        }, childCount: products.length),
       ),
     );
   }
 
   Widget _pad(Widget child) => SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(12, AppTheme.space(12), 12, 0),
-          child: child,
-        ),
-      );
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(12, AppTheme.space(12), 12, 0),
+      child: child,
+    ),
+  );
 }
 
 /// Edge-to-edge product tile — no card chrome, no outer padding.
@@ -794,7 +826,10 @@ class _PlainHomeProductTile extends StatelessWidget {
                     placeholder: ColoredBox(color: AppTheme.creamDeep),
                     errorWidget: ColoredBox(
                       color: AppTheme.creamDeep,
-                      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+                      child: const Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                      ),
                     ),
                   ),
                   if (showBadge)
@@ -802,7 +837,10 @@ class _PlainHomeProductTile extends StatelessWidget {
                       left: 6,
                       top: 6,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.wine,
                           borderRadius: BorderRadius.circular(6),
@@ -834,7 +872,8 @@ class _PlainHomeProductTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (settings.productShowCategoryLabel && category.isNotEmpty) ...[
+                  if (settings.productShowCategoryLabel &&
+                      category.isNotEmpty) ...[
                     Text(
                       category.toUpperCase(),
                       maxLines: 1,
@@ -882,10 +921,7 @@ class HomeData {
   final List<Category> categories;
   final List<Product> products;
 
-  HomeData({
-    required this.categories,
-    required this.products,
-  });
+  HomeData({required this.categories, required this.products});
 }
 
 // ─── Shared chrome (BigBasket-style header) ──────────────────────────────────
@@ -909,6 +945,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onSelectTab,
     required this.onSearchTap,
     required this.onAiTap,
+    required this.showAiAssistant,
     required this.onWishlistTap,
     required this.onLocationTap,
     required this.onProfileTap,
@@ -925,10 +962,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final String deliveryEstimate;
   final String locationLabel;
   final String? profileInitial;
+
   /// Null when the wallet programme is off or the user is logged out.
   final double? walletBalance;
   final List<Category> categories;
   final int selectedTab;
+
   /// Animated header wash — listened locally so promo PageView is not rebuilt.
   final ValueListenable<Color> washColor;
   final bool showPromo;
@@ -939,6 +978,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final ValueChanged<int> onSelectTab;
   final VoidCallback onSearchTap;
   final VoidCallback onAiTap;
+  final bool showAiAssistant;
   final VoidCallback onWishlistTap;
   final VoidCallback onLocationTap;
   final VoidCallback onProfileTap;
@@ -982,14 +1022,24 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
       _bottomPad;
 
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
     final height = (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
     final promoH = _promoHeight;
 
     // Collapse bottom-up with layout: location → promo → category icons.
     // Promo sits under cats in the same wash so tint never restarts below cats.
-    final locationProgress = (1 - (shrinkOffset / _locationHeight)).clamp(0.0, 1.0);
-    final afterLocation = (shrinkOffset - _locationHeight).clamp(0.0, double.infinity);
+    final locationProgress = (1 - (shrinkOffset / _locationHeight)).clamp(
+      0.0,
+      1.0,
+    );
+    final afterLocation = (shrinkOffset - _locationHeight).clamp(
+      0.0,
+      double.infinity,
+    );
     final promoProgress = promoH <= 0
         ? 1.0
         : (1 - (afterLocation / promoH).clamp(0.0, 1.0));
@@ -998,11 +1048,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final catsHeight = _catsCollapsed + (_catsExtra * iconProgress);
 
     final tabs = <({String label, String imageUrl, IconData fallbackIcon})>[
-      (
-        label: 'All',
-        imageUrl: '',
-        fallbackIcon: Icons.grid_view_rounded,
-      ),
+      (label: 'All', imageUrl: '', fallbackIcon: Icons.grid_view_rounded),
       ...categories.map(
         (c) => (
           label: c.name,
@@ -1054,309 +1100,354 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
               },
             ),
             Column(
-            children: [
-              SizedBox(height: topInset),
-              ClipRect(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  heightFactor: locationProgress,
-                  child: Opacity(
-                    opacity: locationProgress,
-                    child: SizedBox(
-                      height: _locationHeight,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: onLocationTap,
-                                behavior: HitTestBehavior.opaque,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.location_on, size: 15, color: AppTheme.wine),
-                                        const SizedBox(width: 2),
-                                        Flexible(
-                                          child: Text(
-                                            locationLabel,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppTheme.ink,
+              children: [
+                SizedBox(height: topInset),
+                ClipRect(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    heightFactor: locationProgress,
+                    child: Opacity(
+                      opacity: locationProgress,
+                      child: SizedBox(
+                        height: _locationHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: onLocationTap,
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            Icons.location_on,
+                                            size: 15,
+                                            color: AppTheme.wine,
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Flexible(
+                                            child: Text(
+                                              locationLabel,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppTheme.ink,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        Icon(
-                                          Icons.keyboard_arrow_down,
-                                          size: 16,
-                                          color: Colors.black.withAlpha(160),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            if (walletBalance != null) ...[
-                              GestureDetector(
-                                onTap: onWalletTap,
-                                child: Container(
-                                  height: 28,
-                                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: AppTheme.wine.withAlpha(40),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.account_balance_wallet_outlined,
-                                        size: 14,
-                                        color: AppTheme.wine,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        PriceFormatter.format(walletBalance!),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppTheme.wine,
-                                        ),
+                                          Icon(
+                                            Icons.keyboard_arrow_down,
+                                            size: 16,
+                                            color: Colors.black.withAlpha(160),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
-                            ],
-                            GestureDetector(
-                              onTap: onProfileTap,
-                              child: CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Colors.white,
-                                child: profileInitial != null
-                                    ? Text(
-                                        profileInitial!,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
+                              if (walletBalance != null) ...[
+                                GestureDetector(
+                                  onTap: onWalletTap,
+                                  child: Container(
+                                    height: 28,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: AppTheme.wine.withAlpha(40),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.account_balance_wallet_outlined,
+                                          size: 14,
                                           color: AppTheme.wine,
-                                          fontSize: 12,
                                         ),
-                                      )
-                                    : Icon(Icons.person_outline, color: AppTheme.wine, size: 16),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          PriceFormatter.format(walletBalance!),
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.wine,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              GestureDetector(
+                                onTap: onProfileTap,
+                                child: CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: Colors.white,
+                                  child: profileInitial != null
+                                      ? Text(
+                                          profileInitial!,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.wine,
+                                            fontSize: 12,
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.person_outline,
+                                          color: AppTheme.wine,
+                                          size: 16,
+                                        ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: onSearchTap,
-                        child: Container(
-                          height: 38,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withAlpha(10),
-                                blurRadius: 6,
-                                offset: const Offset(0, 1),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.search, size: 18, color: AppTheme.charcoal),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  "Search for 'roses'",
-                                  style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onSearchTap,
+                          child: Container(
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(10),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 1),
                                 ),
-                              ),
-                              Icon(Icons.mic_none_rounded, size: 18, color: AppTheme.charcoal),
-                            ],
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.search,
+                                  size: 18,
+                                  color: AppTheme.charcoal,
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    "Search for 'roses'",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppTheme.charcoal,
+                                    ),
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.mic_none_rounded,
+                                  size: 18,
+                                  color: AppTheme.charcoal,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      height: 38,
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(10),
-                            blurRadius: 6,
-                            offset: const Offset(0, 1),
-                          ),
-                        ],
+                      const SizedBox(width: 8),
+                      Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(10),
+                              blurRadius: 6,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            if (showAiAssistant)
+                              IconButton(
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 34,
+                                  minHeight: 34,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: onAiTap,
+                                icon: Icon(
+                                  Icons.auto_awesome,
+                                  size: 20,
+                                  color: AppTheme.wine,
+                                ),
+                                tooltip: 'AI assistant',
+                              ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                minWidth: 34,
+                                minHeight: 34,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              onPressed: onWishlistTap,
+                              icon: Icon(
+                                Icons.shopping_cart_outlined,
+                                size: 20,
+                                color: AppTheme.ink,
+                              ),
+                              tooltip: 'Cart',
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: BoxConstraints(minWidth: 34, minHeight: 34),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: onAiTap,
-                            icon: Icon(Icons.auto_awesome, size: 20, color: AppTheme.wine),
-                            tooltip: 'AI gift assistant',
-                          ),
-                          IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                            visualDensity: VisualDensity.compact,
-                            onPressed: onWishlistTap,
-                            icon: Icon(Icons.shopping_cart_outlined, size: 20, color: AppTheme.ink),
-                            tooltip: 'Cart',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: catsHeight,
-                child: ValueListenableBuilder<Color>(
-                  valueListenable: washColor,
-                  builder: (context, washTarget, _) {
-                    final selectedChipFg =
-                        Color.lerp(washTarget, AppTheme.ink, 0.65) ??
-                            AppTheme.wine;
-                    return ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      itemCount: tabs.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 6),
-                      itemBuilder: (_, index) {
-                        final selected = index == selectedTab;
-                        final tab = tabs[index];
-                        final thumb = (36 + (8 * iconProgress)).clamp(36.0, 44.0);
-                        return Tooltip(
-                          message: tab.label,
-                          child: GestureDetector(
-                            onTap: () => onSelectTab(index),
-                            behavior: HitTestBehavior.opaque,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 180),
-                              curve: Curves.easeOutCubic,
-                              width: thumb + 10,
-                              height: catsHeight,
-                              alignment: Alignment.center,
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: catsHeight,
+                  child: ValueListenableBuilder<Color>(
+                    valueListenable: washColor,
+                    builder: (context, washTarget, _) {
+                      final selectedChipFg =
+                          Color.lerp(washTarget, AppTheme.ink, 0.65) ??
+                          AppTheme.wine;
+                      return ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        itemCount: tabs.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 6),
+                        itemBuilder: (_, index) {
+                          final selected = index == selectedTab;
+                          final tab = tabs[index];
+                          final thumb = (36 + (8 * iconProgress)).clamp(
+                            36.0,
+                            44.0,
+                          );
+                          return Tooltip(
+                            message: tab.label,
+                            child: GestureDetector(
+                              onTap: () => onSelectTab(index),
+                              behavior: HitTestBehavior.opaque,
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 180),
                                 curve: Curves.easeOutCubic,
-                                width: thumb,
-                                height: thumb,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: selected
-                                      ? Border.all(
-                                          color: selectedChipFg.withAlpha(120),
-                                          width: 2,
+                                width: thumb + 10,
+                                height: catsHeight,
+                                alignment: Alignment.center,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  width: thumb,
+                                  height: thumb,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: selected
+                                        ? Border.all(
+                                            color: selectedChipFg.withAlpha(
+                                              120,
+                                            ),
+                                            width: 2,
+                                          )
+                                        : null,
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: tab.imageUrl.isEmpty
+                                      ? ColoredBox(
+                                          color: selectedChipFg.withValues(
+                                            alpha: 0.12,
+                                          ),
+                                          child: Icon(
+                                            tab.fallbackIcon,
+                                            size: thumb * 0.45,
+                                            color: selected
+                                                ? selectedChipFg
+                                                : AppTheme.ink,
+                                          ),
                                         )
-                                      : null,
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: tab.imageUrl.isEmpty
-                                    ? ColoredBox(
-                                        color: selectedChipFg.withValues(
-                                            alpha: 0.12),
-                                        child: Icon(
-                                          tab.fallbackIcon,
-                                          size: thumb * 0.45,
-                                          color: selected
+                                      : _CategoryHeaderThumb(
+                                          url: tab.imageUrl,
+                                          size: thumb,
+                                          fallbackIcon: tab.fallbackIcon,
+                                          fallbackColor: selected
                                               ? selectedChipFg
                                               : AppTheme.ink,
                                         ),
-                                      )
-                                    : _CategoryHeaderThumb(
-                                        url: tab.imageUrl,
-                                        size: thumb,
-                                        fallbackIcon: tab.fallbackIcon,
-                                        fallbackColor: selected
-                                            ? selectedChipFg
-                                            : AppTheme.ink,
-                                      ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              if (showPromo && promoH > 0)
-                ClipRect(
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    heightFactor: promoProgress,
-                    child: Opacity(
-                      opacity: promoProgress,
-                      child: SizedBox(
-                        height: promoH,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: _catsPromoGap),
-                            Expanded(
-                              child: HomeHeaderPromo(
-                                // Remount when banner set changes so infinite
-                                // PageController starts in the virtual middle.
-                                key: ValueKey(
-                                  banners.isEmpty
-                                      ? 'fallback-${promoProducts.length}'
-                                      : banners
-                                          .map((b) => '${b.id}:${b.bgColor}')
-                                          .join('|'),
                                 ),
-                                coupons: coupons,
-                                banners: banners,
-                                products: promoProducts,
-                                announcement: announcement,
-                                bannerHeight: bannerHeight,
-                                productStripHeight: bannerProductHeight,
-                                onBannerTap: onBannerTap,
-                                onProductTap: onProductTap,
-                                onShopAll: onShopAll,
-                                onBannerWashChanged: onBannerWashChanged,
                               ),
                             ),
-                          ],
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                if (showPromo && promoH > 0)
+                  ClipRect(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      heightFactor: promoProgress,
+                      child: Opacity(
+                        opacity: promoProgress,
+                        child: SizedBox(
+                          height: promoH,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              const SizedBox(height: _catsPromoGap),
+                              Expanded(
+                                child: HomeHeaderPromo(
+                                  // Remount when banner set changes so infinite
+                                  // PageController starts in the virtual middle.
+                                  key: ValueKey(
+                                    banners.isEmpty
+                                        ? 'fallback-${promoProducts.length}'
+                                        : banners
+                                              .map(
+                                                (b) => '${b.id}:${b.bgColor}',
+                                              )
+                                              .join('|'),
+                                  ),
+                                  coupons: coupons,
+                                  banners: banners,
+                                  products: promoProducts,
+                                  announcement: announcement,
+                                  bannerHeight: bannerHeight,
+                                  productStripHeight: bannerProductHeight,
+                                  onBannerTap: onBannerTap,
+                                  onProductTap: onProductTap,
+                                  onShopAll: onShopAll,
+                                  onBannerWashChanged: onBannerWashChanged,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1377,7 +1468,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         banners != oldDelegate.banners ||
         categories != oldDelegate.categories ||
         bannerHeight != oldDelegate.bannerHeight ||
-        bannerProductHeight != oldDelegate.bannerProductHeight;
+        bannerProductHeight != oldDelegate.bannerProductHeight ||
+        showAiAssistant != oldDelegate.showAiAssistant;
   }
 }
 
@@ -1441,11 +1533,18 @@ class _SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: titleColor),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: titleColor,
+                ),
               ),
               if (subtitle != null) ...[
                 const SizedBox(height: 2),
-                Text(subtitle!, style: TextStyle(fontSize: 12, color: subColor)),
+                Text(
+                  subtitle!,
+                  style: TextStyle(fontSize: 12, color: subColor),
+                ),
               ],
             ],
           ),
@@ -1461,7 +1560,11 @@ class _SectionHeader extends StatelessWidget {
               child: SizedBox(
                 width: 36,
                 height: 36,
-                child: Icon(Icons.arrow_forward, size: 18, color: dark ? AppTheme.ink : AppTheme.ink),
+                child: Icon(
+                  Icons.arrow_forward,
+                  size: 18,
+                  color: dark ? AppTheme.ink : AppTheme.ink,
+                ),
               ),
             ),
           ),
@@ -1677,7 +1780,10 @@ class _Section3Spotlight extends StatelessWidget {
                                   ),
                                   Text(
                                     PriceFormatter.format(main.finalPrice),
-                                    style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: AppTheme.gold,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1717,7 +1823,12 @@ class _Section3Spotlight extends StatelessWidget {
                                               color: Colors.white,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w500,
-                                              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                                              shadows: [
+                                                Shadow(
+                                                  blurRadius: 4,
+                                                  color: Colors.black,
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
@@ -1742,91 +1853,65 @@ class _Section3Spotlight extends StatelessWidget {
 
 // ─── 4 Mini circle rail ──────────────────────────────────────────────────────
 
-/// Admin-managed banner tiles laid out side by side.
+/// Admin-managed banner tiles laid out side by side, bare on the feed
+/// background — the artwork carries its own framing and copy.
 ///
 /// [columns] tiles fill the row exactly; any extras stay reachable by scrolling
 /// sideways rather than being silently dropped.
 class _MiniBannerRow extends StatelessWidget {
   const _MiniBannerRow({
-    required this.title,
     required this.banners,
     required this.columns,
     required this.tileHeight,
     required this.onTap,
   });
 
-  final String title;
   final List<MiniBanner> banners;
   final int columns;
   final double tileHeight;
   final ValueChanged<MiniBanner> onTap;
 
-  static const double _hPad = 14;
   static const double _gap = 10;
 
   @override
   Widget build(BuildContext context) {
-    final heading = title.trim();
     final across = columns.clamp(1, 4);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (heading.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: _hPad),
-              child: Text(
-                heading,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final usable = constraints.maxWidth - _hPad * 2;
-              final tileWidth =
-                  ((usable - _gap * (across - 1)) / across).clamp(48.0, 640.0);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final tileWidth =
+            ((constraints.maxWidth - _gap * (across - 1)) / across).clamp(
+              48.0,
+              640.0,
+            );
 
-              return SizedBox(
-                height: tileHeight,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: _hPad),
-                  itemCount: banners.length,
-                  separatorBuilder: (_, _) => const SizedBox(width: _gap),
-                  itemBuilder: (_, i) {
-                    final banner = banners[i];
-                    return Semantics(
-                      label: banner.title,
-                      button: banner.hasLink,
-                      child: GestureDetector(
-                        onTap: banner.hasLink ? () => onTap(banner) : null,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: SizedBox(
-                            width: tileWidth,
-                            height: tileHeight,
-                            child: _netImage(
-                              ImageResolver.resolve(banner.image),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+        return SizedBox(
+          height: tileHeight,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: banners.length,
+            separatorBuilder: (_, _) => const SizedBox(width: _gap),
+            itemBuilder: (_, i) {
+              final banner = banners[i];
+              return Semantics(
+                label: banner.title,
+                button: banner.hasLink,
+                child: GestureDetector(
+                  onTap: banner.hasLink ? () => onTap(banner) : null,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(
+                      width: tileWidth,
+                      height: tileHeight,
+                      child: _netImage(ImageResolver.resolve(banner.image)),
+                    ),
+                  ),
                 ),
               );
             },
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -1881,7 +1966,10 @@ class _Section4MiniCircles extends StatelessWidget {
                           height: 64,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            border: Border.all(color: AppTheme.wine.withAlpha(60), width: 2),
+                            border: Border.all(
+                              color: AppTheme.wine.withAlpha(60),
+                              width: 2,
+                            ),
                           ),
                           child: ClipOval(child: _netImage(p.image)),
                         ),
@@ -1891,7 +1979,10 @@ class _Section4MiniCircles extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -1931,7 +2022,11 @@ class _Section5TallScroll extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SectionHeader(title: title, subtitle: 'Big looks', onSeeAll: onSeeAll),
+          _SectionHeader(
+            title: title,
+            subtitle: 'Big looks',
+            onSeeAll: onSeeAll,
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 280,
@@ -1965,7 +2060,10 @@ class _Section5TallScroll extends StatelessWidget {
                                   p.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13,
+                                  ),
                                 ),
                                 Text(
                                   PriceFormatter.format(p.finalPrice),
@@ -2027,7 +2125,10 @@ class _Section6FeatureTiles extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
@@ -2060,11 +2161,17 @@ class _Section6FeatureTiles extends StatelessWidget {
                           label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
                         ),
                         Text(
                           'From ${PriceFormatter.format(p.finalPrice)}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
@@ -2103,7 +2210,10 @@ class _Section7CompactList extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 10),
           ...products.take(5).map((p) {
             return Padding(
@@ -2135,7 +2245,10 @@ class _Section7CompactList extends StatelessWidget {
                               p.name,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
                             ),
                             Text(
                               PriceFormatter.format(p.finalPrice),
@@ -2189,7 +2302,11 @@ class _Section8Magazine extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SectionHeader(title: title, subtitle: 'Premium finds for you', onSeeAll: onSeeAll),
+          _SectionHeader(
+            title: title,
+            subtitle: 'Premium finds for you',
+            onSeeAll: onSeeAll,
+          ),
           const SizedBox(height: 12),
           SizedBox(
             height: 240,
@@ -2219,7 +2336,12 @@ class _Section8Magazine extends StatelessWidget {
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
-                                    shadows: [Shadow(blurRadius: 6, color: Colors.black54)],
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 6,
+                                        color: Colors.black54,
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 Text(
@@ -2227,7 +2349,12 @@ class _Section8Magazine extends StatelessWidget {
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w600,
-                                    shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 4,
+                                        color: Colors.black54,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -2266,7 +2393,12 @@ class _Section8Magazine extends StatelessWidget {
                                               color: Colors.white,
                                               fontWeight: FontWeight.w500,
                                               fontSize: 12,
-                                              shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                                              shadows: [
+                                                Shadow(
+                                                  blurRadius: 4,
+                                                  color: Colors.black,
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ),
@@ -2309,7 +2441,10 @@ class _Section9WideBanners extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
         ),
         SizedBox(
           height: 140,
@@ -2341,7 +2476,10 @@ class _Section9WideBanners extends StatelessWidget {
                       DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [Colors.black.withAlpha(160), Colors.transparent],
+                            colors: [
+                              Colors.black.withAlpha(160),
+                              Colors.transparent,
+                            ],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
@@ -2368,7 +2506,10 @@ class _Section9WideBanners extends StatelessWidget {
                             ),
                             SizedBox(height: 6),
                             Container(
-                              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppTheme.wine,
                                 borderRadius: BorderRadius.circular(20),
@@ -2425,7 +2566,11 @@ class _Section10SmallGrid extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _SectionHeader(title: title, subtitle: 'Small & snackable', onSeeAll: onSeeAll),
+          _SectionHeader(
+            title: title,
+            subtitle: 'Small & snackable',
+            onSeeAll: onSeeAll,
+          ),
           const SizedBox(height: 12),
           GridView.builder(
             shrinkWrap: true,
@@ -2454,11 +2599,18 @@ class _Section10SmallGrid extends StatelessWidget {
                       p.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     Text(
                       PriceFormatter.format(p.finalPrice),
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.wine),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.wine,
+                      ),
                     ),
                   ],
                 ),
@@ -2489,12 +2641,24 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Something went wrong',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.ink),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.ink,
+              ),
             ),
             const SizedBox(height: 8),
-            Text(error, textAlign: TextAlign.center, style: TextStyle(color: AppTheme.charcoal)),
+            Text(
+              error,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.charcoal),
+            ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
           ],
         ),
       ),

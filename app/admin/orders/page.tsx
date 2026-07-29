@@ -35,6 +35,10 @@ interface Order {
   deliveryOtp?: string | null
   deliveryDate: string
   createdAt: string
+  store: {
+    slug: string
+    name: string
+  }
   user: {
     name: string
     email: string
@@ -286,6 +290,7 @@ export default function AdminOrders() {
                 <thead className="bg-cream-deep/50 border-b border-wine/10">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Order</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Store</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Customer</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Address</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Amount</th>
@@ -308,6 +313,11 @@ export default function AdminOrders() {
                         )}
                       </div>
                       <div className="text-xs text-ink/55">{new Date(order.createdAt).toLocaleDateString()}</div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="rounded-full bg-wine/10 px-2 py-1 text-xs font-semibold text-wine">
+                        {order.store.name}
+                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <div className="font-medium text-ink">{order.user.name}</div>
@@ -379,7 +389,7 @@ export default function AdminOrders() {
                     </span>
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-ink/55">
-                    <span>{order.user.name}</span>
+                    <span>{order.user.name} · {order.store.name}</span>
                     <span>{formatPriceNoDecimals(order.total || 0)}</span>
                   </div>
                   <div className="mt-1 text-xs text-ink/55 truncate">

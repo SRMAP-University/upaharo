@@ -4,6 +4,8 @@ import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive
 import { findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
 import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
+import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 function toNumber(value: unknown, fallback: number) {
   const n = Number(value)
@@ -43,6 +45,11 @@ function normalizeVariants(input: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
@@ -50,6 +57,7 @@ export async function GET(request: NextRequest) {
     const limitParam = Number(searchParams.get('limit'))
 
     const where: any = {
+      storeId: storeContext.store.id,
       NOT: {
         tags: {
           has: ARCHIVED_PRODUCT_TAG,
@@ -101,6 +109,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const body = await request.json()
 
     const name = String(body?.name || '').trim()
@@ -113,6 +126,9 @@ export async function POST(request: NextRequest) {
         { error: 'name, description, category and image are required' },
         { status: 400 }
       )
+    }
+    if (!(await prisma.category.findFirst({ where: { name: { equals: category, mode: 'insensitive' }, storeId: storeContext.store.id }, select: { id: true } }))) {
+      return NextResponse.json({ error: 'Invalid product category' }, { status: 400 })
     }
 
     const price = toNumber(body?.price, NaN)
@@ -151,6 +167,7 @@ export async function POST(request: NextRequest) {
     }
 
     const data = {
+      storeId: storeContext.store.id,
       name,
       miniDescription: String(body?.miniDescription || '').trim() || null,
       description,
@@ -174,7 +191,7 @@ export async function POST(request: NextRequest) {
       prisma.product.create({ data: safeData })
     )
 
-    await redis.del(REDIS_KEYS.HOME)
+    await redis.del(REDIS_KEYS.HOME(storeContext.slug))
 
     return NextResponse.json({ product }, { status: 201 })
   } catch (error) {

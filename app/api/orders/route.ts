@@ -4,6 +4,7 @@ import { generateOrderNumber } from '@/lib/utils'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
+import { resolveStoreContext } from '@/lib/store-context'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { validateCoupon } from '@/lib/coupon'
 import { getScheduleConfig, validateSchedule } from '@/lib/delivery-schedule'
@@ -27,6 +28,11 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
     const schedule = validateSchedule({
       scheduledFor,
       isPickup,
-      config: await getScheduleConfig(),
+      config: await getScheduleConfig(storeContext.store),
     })
     if (!schedule.ok) {
       return NextResponse.json({ error: schedule.error }, { status: 400 })
@@ -91,6 +97,7 @@ export async function POST(request: NextRequest) {
     const availableProducts = await prisma.product.findMany({
       where: {
         id: { in: productIds },
+        storeId: storeContext.store.id,
         isAvailable: true,
         NOT: {
           tags: {
@@ -110,7 +117,9 @@ export async function POST(request: NextRequest) {
 
     // Pickup is only offered when every item in *this* order shares one pin.
     // Mixed carts place a separate pickup order with only pickup-capable items.
-    const pickup = isPickup ? await resolvePickupForProductIds(productIds) : null
+    const pickup = isPickup
+      ? await resolvePickupForProductIds(productIds, storeContext.store.id)
+      : null
     if (isPickup && (!pickup?.eligible || !pickup.location)) {
       return NextResponse.json(
         { error: 'Pickup is not available for these items' },
@@ -184,7 +193,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate order number
-    const orderNumber = generateOrderNumber()
+    const orderNumber = generateOrderNumber(storeContext.slug)
 
     const resolvedSubtotal = Number(subtotal) || 0
     const resolvedTax = 0
@@ -195,7 +204,7 @@ export async function POST(request: NextRequest) {
       const result = await validateCoupon(couponCode, {
         subtotal: resolvedSubtotal,
         productIds,
-      })
+      }, storeContext.store.id)
 
       if (!result.valid || !result.coupon) {
         return NextResponse.json(
@@ -210,14 +219,14 @@ export async function POST(request: NextRequest) {
 
     let giftWrapFee = 0
     if (isGift && giftWrapId) {
-      const wrap = await prisma.giftWrap.findUnique({
-        where: { id: giftWrapId },
+      const wrap = await prisma.giftWrap.findFirst({
+        where: { id: giftWrapId, storeId: storeContext.store.id },
         select: { price: true },
       })
       giftWrapFee = wrap?.price ?? 0
     }
 
-    const deliveryRules = await getDeliveryRules()
+    const deliveryRules = await getDeliveryRules(storeContext.store)
     const goodsTotal = resolvedSubtotal + giftWrapFee
 
     if (
@@ -242,7 +251,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Wallet spend is always re-capped here; the client value is only a request.
-    const walletRules = await getWalletRules()
+    const walletRules = await getWalletRules(storeContext.store)
     const requestedWallet = Math.max(0, Number(walletAmount) || 0)
     let walletDiscount = 0
     if (walletRules.walletEnabled && requestedWallet > 0) {
@@ -260,6 +269,7 @@ export async function POST(request: NextRequest) {
       const created = await tx.order.create({
         data: {
           orderNumber,
+          storeId: storeContext.store.id,
           userId,
           addressId: isPickup ? null : addressId,
           fulfillmentType: isPickup ? 'PICKUP' : 'DELIVERY',

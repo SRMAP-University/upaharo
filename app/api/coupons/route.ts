@@ -1,12 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { resolveStoreContext } from '@/lib/store-context'
 
 /** Public list of currently available coupons for the storefront / app. */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { store } = storeContext
     const now = new Date()
     const coupons = await prisma.coupon.findMany({
       where: {
+        storeId: store.id,
         isActive: true,
         AND: [
           { OR: [{ startAt: null }, { startAt: { lte: now } }] },

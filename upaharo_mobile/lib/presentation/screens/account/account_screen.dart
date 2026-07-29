@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/price_formatter.dart';
@@ -24,9 +25,9 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  static const _privacyUrl = 'https://www.upaharo.com/privacy';
-  static const _termsUrl = 'https://www.upaharo.com/terms';
-  static const _deleteInfoUrl = 'https://www.upaharo.com/account-deletion';
+  static const _privacyUrl = '${FlavorConfig.shareDomain}/privacy';
+  static const _termsUrl = '${FlavorConfig.shareDomain}/terms';
+  static const _deleteInfoUrl = '${FlavorConfig.shareDomain}/account-deletion';
   static const _pageBg = Color(0xFFF2F2F2);
 
   final _walletRepo = const WalletRepository();
@@ -84,9 +85,9 @@ class _AccountScreenState extends State<AccountScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open $url')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open $url')));
     }
   }
 
@@ -121,9 +122,9 @@ class _AccountScreenState extends State<AccountScreen> {
     setState(() => _deleting = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Account deleted')));
       Navigator.pushNamedAndRemoveUntil(context, AppRoutes.login, (_) => false);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -212,7 +213,7 @@ class _AccountScreenState extends State<AccountScreen> {
           const SizedBox(height: 10),
           _groupCard(
             children: [
-              if (loggedIn)
+              if (loggedIn && settings.featureWishlist)
                 _row(
                   icon: Icons.notifications_none_rounded,
                   title: 'Notifications',
@@ -221,10 +222,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       : 'Order updates, reminders and offers',
                   badgeCount: _unreadNotifications,
                   onTap: () async {
-                    await Navigator.pushNamed(
-                      context,
-                      AppRoutes.notifications,
-                    );
+                    await Navigator.pushNamed(context, AppRoutes.notifications);
                     await _loadUnread();
                   },
                 ),
@@ -318,7 +316,10 @@ class _AccountScreenState extends State<AccountScreen> {
                 onPressed: () => _openUrl(_deleteInfoUrl),
                 style: TextButton.styleFrom(
                   foregroundColor: AppTheme.wine,
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 4,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -389,17 +390,15 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 child: const Text(
                   'Sign in',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
         ],
       ),
-      bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
+      bottomNavigationBar: widget.showBottomNav
+          ? const BottomNavBar(currentIndex: 0)
+          : null,
     );
   }
 
@@ -670,14 +669,10 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   BoxDecoration get _cardDecoration => BoxDecoration(
-        color: AppTheme.cardSurface,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
-      );
+    color: AppTheme.cardSurface,
+    borderRadius: BorderRadius.circular(18),
+    boxShadow: const [
+      BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 4)),
+    ],
+  );
 }

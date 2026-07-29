@@ -129,16 +129,20 @@ export const REDIS_KEYS = {
   DELIVERY_LOCATION: (partnerId: string) => `delivery:${partnerId}:location`,
   SESSION: (sessionId: string) => `session:${sessionId}`,
   RATE_LIMIT: (ip: string) => `ratelimit:${ip}`,
-  APP_SETTINGS: 'cache:app-settings:public',
-  CATEGORIES: (type: string) => `cache:categories:${type}`,
-  PRODUCT_LIST: (query: string) => `cache:products:${query}`,
-  PRODUCT_DETAIL: (id: string) => `cache:product:${id}`,
-  PRODUCT_RECOMMENDATIONS: (productId: string, viewedKey: string) => `cache:product-recommendations:${productId}:${viewedKey}`,
-  CART_RECOMMENDATIONS: (productKey: string, viewedKey: string) => `cache:cart-recommendations:${productKey}:${viewedKey}`,
-  HOME_RECOMMENDATIONS: (viewedKey: string) => `cache:home-recommendations:${viewedKey}`,
-  HOME: 'cache:home:v1',
-  HOME_BANNERS: 'cache:home:banners',
-  HOME_MINI_BANNERS: 'cache:home:mini-banners',
+  STORE: (slug: string) => `cache:stores:${slug}`,
+  APP_SETTINGS: (store: string) => `cache:${store}:app-settings:public`,
+  CATEGORIES: (store: string, type: string) => `cache:${store}:categories:${type}`,
+  PRODUCT_LIST: (store: string, query: string) => `cache:${store}:products:${query}`,
+  PRODUCT_DETAIL: (store: string, id: string) => `cache:${store}:product:${id}`,
+  PRODUCT_RECOMMENDATIONS: (store: string, productId: string, viewedKey: string) =>
+    `cache:${store}:product-recommendations:${productId}:${viewedKey}`,
+  CART_RECOMMENDATIONS: (store: string, productKey: string, viewedKey: string) =>
+    `cache:${store}:cart-recommendations:${productKey}:${viewedKey}`,
+  HOME_RECOMMENDATIONS: (store: string, viewedKey: string) =>
+    `cache:${store}:home-recommendations:${viewedKey}`,
+  HOME: (store: string) => `cache:${store}:home:v1`,
+  HOME_BANNERS: (store: string) => `cache:${store}:home:banners`,
+  HOME_MINI_BANNERS: (store: string) => `cache:${store}:home:mini-banners`,
 }
 
 export const REDIS_CHANNELS = {

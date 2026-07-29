@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { findFirstProductCompat } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import { resolveStoreContext } from '@/lib/store-context'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -13,10 +14,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const product = await getOrSetJson(REDIS_KEYS.PRODUCT_DETAIL(id), 180, async () =>
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { slug, store } = storeContext
+    const product = await getOrSetJson(REDIS_KEYS.PRODUCT_DETAIL(slug, id), 180, async () =>
       findFirstProductCompat({
         where: {
           id,
+          storeId: store.id,
           NOT: {
             tags: {
               has: ARCHIVED_PRODUCT_TAG,

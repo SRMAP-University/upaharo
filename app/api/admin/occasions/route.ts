@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const occasions = await prisma.occasion.findMany({
+      where: { storeId: storeContext.store.id },
       orderBy: { name: 'asc' }
     })
     return NextResponse.json(occasions, {
@@ -19,9 +27,15 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const body = await request.json()
     const occasion = await prisma.occasion.create({
       data: {
+        storeId: storeContext.store.id,
         name: body.name,
         emoji: body.emoji,
         description: body.description || null,

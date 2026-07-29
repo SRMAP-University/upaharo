@@ -119,6 +119,25 @@ const sampleProducts = [
 async function main() {
   console.log('🌱 Starting seed...')
 
+  const giftsStore = await prisma.store.upsert({
+    where: { slug: 'gifts' },
+    update: { name: 'Upaharo Gifts', isActive: true },
+    create: {
+      id: 'store_gifts',
+      slug: 'gifts',
+      name: 'Upaharo Gifts',
+    },
+  })
+  const groceryStore = await prisma.store.upsert({
+    where: { slug: 'grocery' },
+    update: { name: 'Upaharo Grocery', isActive: true },
+    create: {
+      id: 'store_grocery',
+      slug: 'grocery',
+      name: 'Upaharo Grocery',
+    },
+  })
+
   // Hash password
   const hashedPassword = await bcrypt.hash('admin123', 10)
 
@@ -145,16 +164,16 @@ async function main() {
 
   // Create sample products
   for (const product of sampleProducts) {
-    await prisma.product.create({ data: product })
+    await prisma.product.create({ data: { ...product, storeId: giftsStore.id } })
   }
 
   console.log(`✅ Created ${sampleProducts.length} products`)
 
   await prisma.appSettings.upsert({
-    where: { id: 'default' },
+    where: { storeId: giftsStore.id },
     update: {},
     create: {
-      id: 'default',
+      storeId: giftsStore.id,
       siteName: 'Upaharo',
       supportPhone: '+977 9812345678',
       supportEmail: 'support@fnp.com',
@@ -164,9 +183,38 @@ async function main() {
       deliveryNote: 'Delivery slots and support availability can be updated from the admin settings page.',
       announcementText: 'Same day gifting with live support and doorstep delivery.',
       storeAddress: 'Kathmandu, Nepal',
+      featureGiftOptions: true,
+      featureAiAssistant: true,
+      featureWishlist: true,
     },
   })
-  console.log('✅ Ensured default app settings')
+  console.log('✅ Ensured gifts app settings')
+
+  await prisma.appSettings.upsert({
+    where: { storeId: groceryStore.id },
+    update: {},
+    create: {
+      storeId: groceryStore.id,
+      siteName: 'Upaharo Grocery',
+      supportPhone: '+977 9812345678',
+      supportEmail: 'support@upaharo.com',
+      supportHours: '7:00 AM - 9:00 PM',
+      supportMessage: 'Need help with your grocery order? Our team is available during support hours.',
+      deliveryEstimate: 'Estimated delivery: 30-45 minutes',
+      deliveryNote: 'Delivery timings may vary depending on location and order volume.',
+      announcementText: 'Fresh groceries delivered to your door.',
+      storeAddress: 'Kathmandu, Nepal',
+      homepageShowSpinBanner: false,
+      homepageShowOccasionTabs: false,
+      featureGiftOptions: false,
+      featureAiAssistant: false,
+      featureWishlist: true,
+      brandPrimary: '#2F6B3A',
+      brandSecondary: '#F0B429',
+      headerWash: '#F3F8F3',
+    },
+  })
+  console.log('✅ Ensured grocery app settings')
 
   console.log('🎉 Seed completed!')
 }

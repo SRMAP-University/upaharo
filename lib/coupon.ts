@@ -13,10 +13,10 @@ export interface ValidationResult {
   message?: string
 }
 
-async function gatherCategories(productIds?: string[]) {
+async function gatherCategories(productIds?: string[], storeId?: string) {
   if (!productIds || productIds.length === 0) return []
   const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
+    where: { id: { in: productIds }, ...(storeId ? { storeId } : {}) },
     select: { id: true, category: true }
   })
   return products.map((p) => p.category.trim().toLowerCase())
@@ -24,14 +24,20 @@ async function gatherCategories(productIds?: string[]) {
 
 export async function validateCoupon(
   code: string,
-  cart: CartSummary
+  cart: CartSummary,
+  storeId = 'store_gifts'
 ): Promise<ValidationResult> {
   if (!code?.trim()) {
     return { valid: false, discount: 0, message: 'Coupon code is required' }
   }
 
   const coupon = await prisma.coupon.findUnique({
-    where: { code: code.trim().toUpperCase() }
+    where: {
+      storeId_code: {
+        storeId,
+        code: code.trim().toUpperCase(),
+      },
+    },
   })
 
   if (!coupon) {
@@ -63,7 +69,7 @@ export async function validateCoupon(
   }
 
   const productIds = cart.productIds ?? []
-  const categoryNames = await gatherCategories(productIds)
+  const categoryNames = await gatherCategories(productIds, storeId)
 
   if (coupon.applicability === CouponApplicability.PRODUCTS) {
     const applicable = productIds.some((id) =>

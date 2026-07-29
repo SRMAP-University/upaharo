@@ -100,6 +100,11 @@ interface MenuItem {
   href: string
 }
 
+type StoreOption = {
+  slug: string
+  name: string
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -109,6 +114,9 @@ export default function AdminLayout({
   const pathname = usePathname()
   const { user, _hasHydrated } = useUserStore()
   const [mounted, setMounted] = useState(false)
+  const [stores, setStores] = useState<StoreOption[]>([])
+  const [selectedStore, setSelectedStore] = useState('gifts')
+  const [switchingStore, setSwitchingStore] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -121,6 +129,42 @@ export default function AdminLayout({
       router.push('/login')
     }
   }, [mounted, user, router, _hasHydrated])
+
+  useEffect(() => {
+    if (!mounted || !_hasHydrated || user?.role !== 'ADMIN') return
+
+    void fetch('/api/admin/store')
+      .then(async (response) => {
+        if (!response.ok) return
+        const data = (await response.json()) as {
+          stores?: StoreOption[]
+          selectedSlug?: string
+        }
+        setStores(data.stores || [])
+        setSelectedStore(data.selectedSlug || 'gifts')
+      })
+      .catch(() => undefined)
+  }, [mounted, _hasHydrated, user?.role])
+
+  const switchStore = async (slug: string) => {
+    if (!slug || slug === selectedStore || switchingStore) return
+    setSwitchingStore(true)
+    try {
+      const response = await fetch('/api/admin/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      })
+      if (!response.ok) {
+        throw new Error('Unable to switch store')
+      }
+      setSelectedStore(slug)
+      window.location.reload()
+    } catch {
+      setSwitchingStore(false)
+      window.alert('Unable to switch stores. Please try again.')
+    }
+  }
 
   if (!mounted || !_hasHydrated || !user || user.role !== 'ADMIN') {
     return (
@@ -164,6 +208,24 @@ export default function AdminLayout({
               </Link>
             </div>
             <div className="flex items-center gap-3 md:gap-4">
+              {stores.length > 0 && (
+                <label className="flex items-center gap-2 text-xs font-semibold text-ink/65">
+                  <span className="hidden lg:inline">Managing</span>
+                  <select
+                    value={selectedStore}
+                    onChange={(event) => void switchStore(event.target.value)}
+                    disabled={switchingStore}
+                    className="rounded-lg border border-wine/20 bg-cream px-2 py-1.5 text-xs font-semibold text-ink outline-none focus:border-wine disabled:opacity-60"
+                    aria-label="Store to manage"
+                  >
+                    {stores.map((store) => (
+                      <option key={store.slug} value={store.slug}>
+                        {store.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <span className="hidden md:inline text-sm text-ink/55">{user?.name || 'Admin'}</span>
               <Link href="/" className="text-xs md:text-sm text-wine hover:text-wine-deep font-semibold">
                 View Site →

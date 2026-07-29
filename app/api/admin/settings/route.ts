@@ -14,6 +14,8 @@ import {
 } from '@/lib/app-settings'
 import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
+import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 function toNumber(value: unknown, fallback: number) {
   if (value === '' || value === null || value === undefined) {
@@ -203,6 +205,18 @@ function settingsPayload(body: Record<string, unknown>) {
       body?.homepageShowSpinBanner,
       DEFAULT_APP_SETTINGS.homepageShowSpinBanner
     ),
+    featureGiftOptions: toBool(
+      body?.featureGiftOptions,
+      DEFAULT_APP_SETTINGS.featureGiftOptions
+    ),
+    featureAiAssistant: toBool(
+      body?.featureAiAssistant,
+      DEFAULT_APP_SETTINGS.featureAiAssistant
+    ),
+    featureWishlist: toBool(
+      body?.featureWishlist,
+      DEFAULT_APP_SETTINGS.featureWishlist
+    ),
     homepageRecommendationMode:
       String(body?.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode).trim(),
     homepageRecommendationTitle:
@@ -216,14 +230,22 @@ function settingsPayload(body: Record<string, unknown>) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Selected store not found' }, { status: 404 })
+    }
     const settings = await prisma.appSettings.findUnique({
-      where: { id: 'default' },
+      where: { storeId: storeContext.store.id },
     })
 
     return NextResponse.json({
-      id: 'default',
+      id: settings?.id,
+      store: storeContext.store,
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
@@ -259,19 +281,29 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Selected store not found' }, { status: 404 })
+    }
     const body = (await request.json()) as Record<string, unknown>
     const payload = settingsPayload(body)
 
     const settings = await prisma.appSettings.upsert({
-      where: { id: 'default' },
+      where: { storeId: storeContext.store.id },
       update: payload,
       create: {
-        id: 'default',
+        storeId: storeContext.store.id,
         ...payload,
       },
     })
 
-    await redis.del(REDIS_KEYS.APP_SETTINGS, REDIS_KEYS.HOME)
+    await redis.del(
+      REDIS_KEYS.APP_SETTINGS(storeContext.slug),
+      REDIS_KEYS.HOME(storeContext.slug)
+    )
 
     return NextResponse.json(settings)
   } catch (error) {

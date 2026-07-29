@@ -9,9 +9,13 @@ import {
 } from '@/lib/notifications'
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
+import { requireAdmin } from '@/lib/request-auth'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     const { id } = await params
     const body = await request.json()
     const updateData: Record<string, unknown> = {}

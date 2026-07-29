@@ -159,12 +159,13 @@ export function serializeRecommendationRules(records: RuleRecord[]): Recommendat
 }
 
 export async function replaceRecommendationRules(input: {
+  storeId: string
   scopeType: RecommendationScopeTypeValue
   sourceProductId?: string | null
   sourceCategoryId?: string | null
   rules: RecommendationRuleInputMap
 }) {
-  const { scopeType, sourceProductId = null, sourceCategoryId = null, rules } = input
+  const { storeId, scopeType, sourceProductId = null, sourceCategoryId = null, rules } = input
 
   if (scopeType === 'PRODUCT' && !sourceProductId) {
     return
@@ -177,12 +178,13 @@ export async function replaceRecommendationRules(input: {
   await prisma.recommendationRule.deleteMany({
     where:
       scopeType === 'PRODUCT'
-        ? { scopeType, sourceProductId }
-        : { scopeType, sourceCategoryId },
+        ? { storeId, scopeType, sourceProductId }
+        : { storeId, scopeType, sourceCategoryId },
   })
 
   const flattened = RECOMMENDATION_KINDS.flatMap((kind) =>
     rules[kind].map((targetProductId, index) => ({
+      storeId,
       scopeType,
       sourceProductId,
       sourceCategoryId,
@@ -197,13 +199,14 @@ export async function replaceRecommendationRules(input: {
   }
 }
 
-async function fetchCategoryIdsByName(names: string[]) {
+async function fetchCategoryIdsByName(storeId: string, names: string[]) {
   if (names.length === 0) {
     return new Map<string, string>()
   }
 
   const categories = await prisma.category.findMany({
     where: {
+      storeId,
       type: 'PRODUCT',
       name: { in: names },
       isActive: true,
@@ -217,12 +220,13 @@ async function fetchCategoryIdsByName(names: string[]) {
   return new Map(categories.map((category) => [category.name, category.id]))
 }
 
-async function fetchPinnedRules(input: { productIds: string[]; categoryIds: string[] }) {
+async function fetchPinnedRules(input: { storeId: string; productIds: string[]; categoryIds: string[] }) {
   try {
     const [productRules, categoryRules] = await Promise.all([
       input.productIds.length > 0
         ? prisma.recommendationRule.findMany({
             where: {
+              storeId: input.storeId,
               scopeType: 'PRODUCT',
               sourceProductId: { in: input.productIds },
             },
@@ -238,6 +242,7 @@ async function fetchPinnedRules(input: { productIds: string[]; categoryIds: stri
       input.categoryIds.length > 0
         ? prisma.recommendationRule.findMany({
             where: {
+              storeId: input.storeId,
               scopeType: 'CATEGORY',
               sourceCategoryId: { in: input.categoryIds },
             },
@@ -288,13 +293,14 @@ function resolvePinnedIdsForSourceKind(
     .map((rule) => rule.targetProductId)
 }
 
-async function fetchProductsByIds(ids: string[]) {
+async function fetchProductsByIds(storeId: string, ids: string[]) {
   if (ids.length === 0) {
     return []
   }
 
   const products = await findManyProductsCompat({
     where: {
+      storeId,
       id: { in: ids },
       isAvailable: true,
       NOT: {
@@ -309,15 +315,16 @@ async function fetchProductsByIds(ids: string[]) {
   return ids.map((id) => productMap.get(id)).filter((product): product is ProductCompatResult => Boolean(product))
 }
 
-async function fetchViewedProducts(viewedProductIds: string[]) {
-  return fetchProductsByIds(viewedProductIds.slice(0, 30))
+async function fetchViewedProducts(storeId: string, viewedProductIds: string[]) {
+  return fetchProductsByIds(storeId, viewedProductIds.slice(0, 30))
 }
 
-async function getCoViewCountsForProduct(productId: string) {
+async function getCoViewCountsForProduct(storeId: string, productId: string) {
   try {
     const cutoff = new Date(Date.now() - ACTIVE_VIEW_WINDOW_DAYS * 24 * 60 * 60 * 1000)
     const sourceEvents = await prisma.productViewEvent.findMany({
       where: {
+        storeId,
         productId,
         viewedAt: { gte: cutoff },
       },
@@ -338,6 +345,7 @@ async function getCoViewCountsForProduct(productId: string) {
 
     const relatedEvents = await prisma.productViewEvent.findMany({
       where: {
+        storeId,
         productId: { not: productId },
         viewedAt: { gte: cutoff },
         OR: [
@@ -411,9 +419,10 @@ function scoreCandidateForSource(input: {
   return score
 }
 
-async function fetchCandidatePool(excludeIds: string[], take = 160) {
+async function fetchCandidatePool(storeId: string, excludeIds: string[], take = 160) {
   return findManyProductsCompat({
     where: {
+      storeId,
       isAvailable: true,
       id: { notIn: excludeIds },
       NOT: {
@@ -428,26 +437,28 @@ async function fetchCandidatePool(excludeIds: string[], take = 160) {
 }
 
 async function buildProductSections(input: {
+  storeId: string
   sources: RecommendationContext[]
   viewedProductIds: string[]
   excludeIds?: string[]
 }) {
-  const viewedProducts = await fetchViewedProducts(input.viewedProductIds)
+  const viewedProducts = await fetchViewedProducts(input.storeId, input.viewedProductIds)
   const { productRules, categoryRules } = await fetchPinnedRules({
+    storeId: input.storeId,
     productIds: input.sources.map((source) => source.source.id),
     categoryIds: input.sources.map((source) => source.categoryId).filter((value): value is string => Boolean(value)),
   })
 
   const coViewMaps = new Map<string, Map<string, number>>()
   for (const source of input.sources) {
-    coViewMaps.set(source.source.id, await getCoViewCountsForProduct(source.source.id))
+    coViewMaps.set(source.source.id, await getCoViewCountsForProduct(input.storeId, source.source.id))
   }
 
   const excludedIds = uniqueStrings([
     ...input.sources.map((source) => source.source.id),
     ...(input.excludeIds || []),
   ])
-  const candidatePool = await fetchCandidatePool(excludedIds)
+  const candidatePool = await fetchCandidatePool(input.storeId, excludedIds)
   const usedIds = new Set(excludedIds)
   const sections = emptySections()
 
@@ -460,7 +471,7 @@ async function buildProductSections(input: {
       )
     )
 
-    const pinnedProducts = await fetchProductsByIds(pinnedIds)
+    const pinnedProducts = await fetchProductsByIds(input.storeId, pinnedIds)
     for (const product of pinnedProducts) {
       if (sections[sectionKey].length >= limit || usedIds.has(product.id)) {
         continue
@@ -523,6 +534,7 @@ async function buildProductSections(input: {
 }
 
 export async function getRecentViewHistory(input: {
+  storeId: string
   userId?: string | null
   sessionId?: string | null
   excludeProductIds?: string[]
@@ -537,6 +549,7 @@ export async function getRecentViewHistory(input: {
     const excludeProductIds = uniqueStrings(input.excludeProductIds || [])
     const events = await prisma.productViewEvent.findMany({
       where: {
+        storeId: input.storeId,
         viewedAt: { gte: cutoff },
         productId: excludeProductIds.length > 0 ? { notIn: excludeProductIds } : undefined,
         OR: [
@@ -562,11 +575,13 @@ export async function getRecentViewHistory(input: {
 }
 
 export async function getProductRecommendations(input: {
+  storeId: string
   productId: string
   viewedProductIds?: string[]
 }) {
   const product = await findFirstProductCompat({
     where: {
+      storeId: input.storeId,
       id: input.productId,
       isAvailable: true,
       NOT: {
@@ -583,6 +598,7 @@ export async function getProductRecommendations(input: {
 
   const category = await prisma.category.findFirst({
     where: {
+      storeId: input.storeId,
       type: 'PRODUCT',
       name: product.category,
       isActive: true,
@@ -593,12 +609,14 @@ export async function getProductRecommendations(input: {
   })
 
   return buildProductSections({
+    storeId: input.storeId,
     sources: [buildRecommendationContext(product, category?.id || null)],
     viewedProductIds: uniqueStrings((input.viewedProductIds || []).filter((id) => id !== product.id)),
   })
 }
 
 export async function getCartRecommendations(input: {
+  storeId: string
   productIds: string[]
   viewedProductIds?: string[]
 }) {
@@ -609,6 +627,7 @@ export async function getCartRecommendations(input: {
 
   const sources = await findManyProductsCompat({
     where: {
+      storeId: input.storeId,
       id: { in: productIds },
       isAvailable: true,
       NOT: {
@@ -623,16 +642,22 @@ export async function getCartRecommendations(input: {
     return emptySections()
   }
 
-  const categoryIdMap = await fetchCategoryIdsByName(uniqueStrings(sources.map((source) => source.category)))
+  const categoryIdMap = await fetchCategoryIdsByName(input.storeId, uniqueStrings(sources.map((source) => source.category)))
 
   return buildProductSections({
+    storeId: input.storeId,
     sources: sources.map((source) => buildRecommendationContext(source, categoryIdMap.get(source.category) || null)),
     viewedProductIds: uniqueStrings((input.viewedProductIds || []).filter((id) => !productIds.includes(id))),
     excludeIds: productIds,
   })
 }
 
-export async function trackProductView(input: { productId: string; userId?: string | null; sessionId?: string | null }) {
+export async function trackProductView(input: {
+  storeId: string
+  productId: string
+  userId?: string | null
+  sessionId?: string | null
+}) {
   if (!input.userId && !input.sessionId) {
     return
   }
@@ -640,13 +665,18 @@ export async function trackProductView(input: { productId: string; userId?: stri
   try {
     await prisma.productViewEvent.create({
       data: {
+        storeId: input.storeId,
         productId: input.productId,
         userId: input.userId || null,
         sessionId: input.sessionId || null,
       },
     })
 
-    await pruneProductViewEvents({ userId: input.userId || null, sessionId: input.sessionId || null })
+    await pruneProductViewEvents({
+      storeId: input.storeId,
+      userId: input.userId || null,
+      sessionId: input.sessionId || null,
+    })
   } catch (error) {
     if (isMissingRecommendationTablesError(error)) {
       return
@@ -656,11 +686,11 @@ export async function trackProductView(input: { productId: string; userId?: stri
   }
 }
 
-export async function pruneProductViewEvents(input: { userId?: string | null; sessionId?: string | null }) {
+export async function pruneProductViewEvents(input: { storeId: string; userId?: string | null; sessionId?: string | null }) {
   try {
     if (input.userId) {
       const overflow = await prisma.productViewEvent.findMany({
-        where: { userId: input.userId },
+        where: { storeId: input.storeId, userId: input.userId },
         orderBy: { viewedAt: 'desc' },
         skip: PRODUCT_VIEW_LIMIT,
         select: { id: true },
@@ -668,14 +698,14 @@ export async function pruneProductViewEvents(input: { userId?: string | null; se
 
       if (overflow.length > 0) {
         await prisma.productViewEvent.deleteMany({
-          where: { id: { in: overflow.map((event) => event.id) } },
+          where: { storeId: input.storeId, id: { in: overflow.map((event) => event.id) } },
         })
       }
     }
 
     if (input.sessionId) {
       const overflow = await prisma.productViewEvent.findMany({
-        where: { sessionId: input.sessionId },
+        where: { storeId: input.storeId, sessionId: input.sessionId },
         orderBy: { viewedAt: 'desc' },
         skip: PRODUCT_VIEW_LIMIT,
         select: { id: true },
@@ -683,7 +713,7 @@ export async function pruneProductViewEvents(input: { userId?: string | null; se
 
       if (overflow.length > 0) {
         await prisma.productViewEvent.deleteMany({
-          where: { id: { in: overflow.map((event) => event.id) } },
+          where: { storeId: input.storeId, id: { in: overflow.map((event) => event.id) } },
         })
       }
     }

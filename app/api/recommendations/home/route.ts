@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { findManyProductCardsCompat } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import { resolveStoreContext } from '@/lib/store-context'
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)))
@@ -9,6 +10,9 @@ function unique(values: string[]) {
 
 export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { slug, store } = storeContext
     const viewedProductIds = unique(
       String(request.nextUrl.searchParams.get('viewedProductIds') || '')
         .split(',')
@@ -29,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
 
     const cacheKey = REDIS_KEYS.HOME_RECOMMENDATIONS(
+      slug,
       JSON.stringify({
         productIds: viewedProductIds,
         categories: viewedCategories,
@@ -40,6 +45,7 @@ export async function GET(request: NextRequest) {
         viewedProductIds.length > 0
           ? await findManyProductCardsCompat({
               where: {
+                storeId: store.id,
                 id: { in: viewedProductIds },
                 isAvailable: true,
                 NOT: {
@@ -80,6 +86,7 @@ export async function GET(request: NextRequest) {
 
       const categoryProducts = await findManyProductCardsCompat({
         where: {
+          storeId: store.id,
           category: dominantCategory,
           isAvailable: true,
           id: { notIn: viewedProductIds },
@@ -95,6 +102,7 @@ export async function GET(request: NextRequest) {
 
       const fallbackProducts = await findManyProductCardsCompat({
         where: {
+          storeId: store.id,
           isAvailable: true,
           category: { not: dominantCategory },
           id: { notIn: [...viewedProductIds, ...categoryProducts.map((item) => item.id)] },

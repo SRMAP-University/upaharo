@@ -6,7 +6,7 @@ import type { HomeSectionConfig } from '@/lib/app-settings-schema'
 /** Admin-facing copy for each section id the mobile app knows how to render. */
 const SECTION_META: Record<
   string,
-  { label: string; subtitleLabel: string | null; hint: string }
+  { label: string; titleLabel?: string | null; subtitleLabel: string | null; hint: string }
 > = {
   spinBanner: {
     label: 'Spin & Win banner',
@@ -20,8 +20,9 @@ const SECTION_META: Record<
   },
   miniBanners: {
     label: 'Mini banner row',
-    subtitleLabel: 'Subtitle',
-    hint: 'Tiles come from Mini Banners; sizing lives in the Mini banner row block below.',
+    titleLabel: null,
+    subtitleLabel: null,
+    hint: 'Untitled by design — the tiles sit bare on the feed so the artwork carries its own copy. Tiles come from Mini Banners; sizing lives in the Mini banner row block below.',
   },
   quickPicks: {
     label: 'Quick picks circles',
@@ -66,6 +67,7 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
           subtitleLabel: 'Subtitle',
           hint: '',
         }
+        const titleLabel = meta.titleLabel === undefined ? 'Title' : meta.titleLabel
         const dragging = dragIndex === index
 
         return (
@@ -126,30 +128,36 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
               </div>
             </div>
 
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-ink/60">Title</label>
-                <input
-                  type="text"
-                  value={section.title}
-                  onChange={(event) => update(index, { title: event.target.value })}
-                  className={FIELD_CLASS}
-                />
+            {(titleLabel || meta.subtitleLabel) && (
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                {titleLabel && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink/60">
+                      {titleLabel}
+                    </label>
+                    <input
+                      type="text"
+                      value={section.title}
+                      onChange={(event) => update(index, { title: event.target.value })}
+                      className={FIELD_CLASS}
+                    />
+                  </div>
+                )}
+                {meta.subtitleLabel && (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-ink/60">
+                      {meta.subtitleLabel}
+                    </label>
+                    <input
+                      type="text"
+                      value={section.subtitle}
+                      onChange={(event) => update(index, { subtitle: event.target.value })}
+                      className={FIELD_CLASS}
+                    />
+                  </div>
+                )}
               </div>
-              {meta.subtitleLabel && (
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-ink/60">
-                    {meta.subtitleLabel}
-                  </label>
-                  <input
-                    type="text"
-                    value={section.subtitle}
-                    onChange={(event) => update(index, { subtitle: event.target.value })}
-                    className={FIELD_CLASS}
-                  />
-                </div>
-              )}
-            </div>
+            )}
 
             {meta.hint && <p className="mt-2 text-xs text-ink/45">{meta.hint}</p>}
           </li>

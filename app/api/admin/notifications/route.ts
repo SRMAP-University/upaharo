@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { notifyPromo, notifyUser } from '@/lib/notifications'
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return null
-  }
-  return session
-}
+import { requireAdmin } from '@/lib/request-auth'
 
 /** Stats + recent marketing / promo notifications. */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    if (!(await requireAdmin())) {
+    if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -67,7 +58,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!(await requireAdmin())) {
+    if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

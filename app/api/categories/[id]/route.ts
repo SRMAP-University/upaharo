@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { resolveStoreContext } from '@/lib/store-context'
 
 export async function GET(
   request: Request,
@@ -7,9 +8,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { store } = storeContext
 
-    const category = await prisma.category.findUnique({
-      where: { id },
+    const category = await prisma.category.findFirst({
+      where: { id, storeId: store.id },
     })
 
     if (!category) {

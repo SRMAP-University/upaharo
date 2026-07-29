@@ -32,6 +32,9 @@ export type SettingsForm = {
   valueDealsPromoText: string
   valueDealsUnlockAmount: number
   homepageShowSpinBanner: boolean
+  featureGiftOptions: boolean
+  featureAiAssistant: boolean
+  featureWishlist: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   homeSectionLayout: HomeSectionConfig[]
@@ -98,6 +101,9 @@ export const EMPTY_FORM: SettingsForm = {
   valueDealsPromoText: 'Shop for {amount} to unlock deals',
   valueDealsUnlockAmount: 199,
   homepageShowSpinBanner: true,
+  featureGiftOptions: true,
+  featureAiAssistant: true,
+  featureWishlist: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',
   homeSectionLayout: DEFAULT_HOME_SECTIONS,

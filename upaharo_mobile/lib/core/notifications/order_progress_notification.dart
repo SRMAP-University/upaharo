@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../config/flavor.dart';
 import '../../data/models/order.dart';
 import '../../presentation/screens/order/order_status_ui.dart';
 import 'order_notif_art.dart';
@@ -13,9 +14,10 @@ import 'order_notif_art.dart';
 class OrderProgressNotification {
   OrderProgressNotification._();
 
-  static final OrderProgressNotification instance = OrderProgressNotification._();
+  static final OrderProgressNotification instance =
+      OrderProgressNotification._();
 
-  static const _channelId = 'upaharo_order_tracking';
+  static const _channelId = FlavorConfig.orderTrackingNotificationChannelId;
   static const _channelName = 'Live order tracking';
   static const _channelDesc = 'Ongoing progress for your active orders';
 
@@ -38,13 +40,13 @@ class OrderProgressNotification {
       );
       await local
           .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
     }
   }
 
-  int _notifId(String orderId) =>
-      _idBase + (orderId.hashCode & 0x0000ffff);
+  int _notifId(String orderId) => _idBase + (orderId.hashCode & 0x0000ffff);
 
   /// Sync shade notifications to match current active orders.
   Future<void> sync(List<Order> activeOrders) async {
@@ -135,8 +137,9 @@ class OrderProgressNotification {
     if (local == null) return;
 
     final theme = statusThemeFor(status);
-    final step =
-        trackingCompletedIndex(status).clamp(0, trackingSteps.length - 1);
+    final step = trackingCompletedIndex(
+      status,
+    ).clamp(0, trackingSteps.length - 1);
     final maxStep = trackingSteps.length - 1;
     final copy = _NotificationCopy.from(
       status: status,
@@ -287,8 +290,8 @@ class _NotificationCopy {
     final shortNo = orderNumber.isEmpty
         ? ''
         : (orderNumber.length > 10
-            ? orderNumber.substring(orderNumber.length - 8)
-            : orderNumber);
+              ? orderNumber.substring(orderNumber.length - 8)
+              : orderNumber);
     final orderTag = shortNo.isEmpty ? 'Your order' : 'Order #$shortNo';
 
     final title = switch (status) {
@@ -308,7 +311,8 @@ class _NotificationCopy {
       '$pct% complete',
     ].join('  ·  ');
 
-    final otpLine = (deliveryOtp != null &&
+    final otpLine =
+        (deliveryOtp != null &&
             deliveryOtp.isNotEmpty &&
             (status == OrderStatus.ready ||
                 status == OrderStatus.outForDelivery))

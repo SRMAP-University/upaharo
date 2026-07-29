@@ -17,8 +17,46 @@ All API routes are centralized in `lib/config/api_endpoints.dart`.
 ```bash
 cd upaharo_mobile
 flutter pub get
-flutter run
+flutter run --flavor gifts --dart-define=STORE=gifts
 ```
+
+## Store flavors
+
+`gifts` is the Dart configuration default, which protects older build commands
+that omit `STORE`. Android now has two Gradle product flavors, so use an
+explicit flavor command for every Android run and release:
+
+```bash
+# Existing gifts app: com.upaharo.upaharo_mobile
+flutter run --flavor gifts --dart-define=STORE=gifts
+flutter build appbundle --flavor gifts --dart-define=STORE=gifts
+
+# New grocery app: com.upaharo.upaharo_mobile.grocery
+flutter run --flavor grocery --dart-define=STORE=grocery
+flutter build appbundle --flavor grocery --dart-define=STORE=grocery
+```
+
+The Android label comes from flavor resources:
+`android/app/src/gifts/res/values/strings.xml` and
+`android/app/src/grocery/res/values/strings.xml`. All API requests include
+`X-Store: gifts` or `X-Store: grocery` from the same build-time setting.
+
+### Grocery Firebase and Shorebird setup
+
+Before building a grocery binary with push notifications, create a Firebase
+Android app whose package name is exactly
+`com.upaharo.upaharo_mobile.grocery`. Put its downloaded, real configuration at
+`android/app/src/grocery/google-services.json`; never reuse the gifts JSON.
+Then regenerate/update `lib/firebase_options.dart` with the grocery Firebase
+options before enabling grocery push notifications.
+
+Create a separate Shorebird app for the grocery package
+`com.upaharo.upaharo_mobile.grocery` and record the app ID assigned by
+Shorebird. The existing `shorebird.yaml` intentionally remains bound to the
+gifts app ID. This repository has no locally documented multi-app Shorebird YAML
+syntax, so no guessed grocery ID or configuration is committed. Configure the
+grocery release with the official Shorebird flavor workflow after its app ID is
+created.
 
 To build a debug APK:
 

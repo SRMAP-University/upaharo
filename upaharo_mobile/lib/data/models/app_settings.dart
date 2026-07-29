@@ -1,4 +1,5 @@
 import '../../core/utils/delivery_slots.dart';
+import '../../config/flavor.dart';
 
 /// One reorderable mobile home section, configured from the admin panel.
 class HomeSectionConfig {
@@ -24,11 +25,11 @@ class HomeSectionConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'subtitle': subtitle,
-        'visible': visible,
-      };
+    'id': id,
+    'title': title,
+    'subtitle': subtitle,
+    'visible': visible,
+  };
 }
 
 /// Fallback order + copy used before settings load (mirrors the web defaults).
@@ -68,6 +69,9 @@ class AppSettings {
   final bool homepageShowOccasionTabs;
   final bool homepageShowRecommendations;
   final bool homepageShowValueDeals;
+  final bool featureGiftOptions;
+  final bool featureAiAssistant;
+  final bool featureWishlist;
   final List<String> valueDealsProductIds;
   final String valueDealsPromoText;
   final double valueDealsUnlockAmount;
@@ -108,10 +112,13 @@ class AppSettings {
     this.supportPhone = '',
     this.supportEmail = '',
     this.supportHours = '9:00 AM - 9:00 PM',
-    this.supportMessage = 'Need help with your order? Our team is available during support hours.',
+    this.supportMessage =
+        'Need help with your order? Our team is available during support hours.',
     this.deliveryEstimate = 'Estimated delivery: 20-30 minutes',
-    this.deliveryNote = 'Delivery timings may vary depending on location and order volume.',
-    this.announcementText = 'Same day gifting with live support and doorstep delivery.',
+    this.deliveryNote =
+        'Delivery timings may vary depending on location and order volume.',
+    this.announcementText =
+        'Same day gifting with live support and doorstep delivery.',
     this.storeAddress = '',
     this.mapLatitude = 27.7172,
     this.mapLongitude = 85.324,
@@ -125,6 +132,9 @@ class AppSettings {
     this.homepageShowOccasionTabs = true,
     this.homepageShowRecommendations = true,
     this.homepageShowValueDeals = true,
+    this.featureGiftOptions = FlavorConfig.isGifts,
+    this.featureAiAssistant = FlavorConfig.isGifts,
+    this.featureWishlist = FlavorConfig.isGifts,
     this.valueDealsProductIds = const [],
     this.valueDealsPromoText = 'Shop for {amount} to unlock deals',
     this.valueDealsUnlockAmount = 199,
@@ -160,12 +170,12 @@ class AppSettings {
   });
 
   DeliverySchedule get deliverySchedule => DeliverySchedule(
-        slots: deliverySlots,
-        dayCount: scheduleDayCount,
-        maxDaysAhead: scheduleMaxDaysAhead < scheduleDayCount
-            ? scheduleDayCount
-            : scheduleMaxDaysAhead,
-      );
+    slots: deliverySlots,
+    dayCount: scheduleDayCount,
+    maxDaysAhead: scheduleMaxDaysAhead < scheduleDayCount
+        ? scheduleDayCount
+        : scheduleMaxDaysAhead,
+  );
 
   /// Ordered, de-duplicated sections; unknown ids are dropped and any section
   /// missing from the server payload is slotted in at its position in
@@ -203,6 +213,29 @@ class AppSettings {
     return out.isEmpty ? defaultHomeSections : out;
   }
 
+  /// Settings may arrive from an older backend as a JSON boolean, a string, or
+  /// a numeric value. Missing feature flags stay conservative for grocery
+  /// builds while retaining the existing gifts-app defaults.
+  static bool _readBool(dynamic value, {required bool fallback}) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      switch (value.trim().toLowerCase()) {
+        case 'true':
+        case '1':
+        case 'yes':
+        case 'on':
+          return true;
+        case 'false':
+        case '0':
+        case 'no':
+        case 'off':
+          return false;
+      }
+    }
+    return fallback;
+  }
+
   factory AppSettings.fromJson(Map<String, dynamic> json) {
     return AppSettings(
       siteName: json['siteName'] as String? ?? 'Upaharo',
@@ -217,30 +250,51 @@ class AppSettings {
       mapLatitude: (json['mapLatitude'] as num?)?.toDouble() ?? 27.7172,
       mapLongitude: (json['mapLongitude'] as num?)?.toDouble() ?? 85.324,
       homepageShowBanner: json['homepageShowBanner'] as bool? ?? true,
-      homepageBannerHeight: (json['homepageBannerHeight'] as num?)?.round() ?? 320,
+      homepageBannerHeight:
+          (json['homepageBannerHeight'] as num?)?.round() ?? 320,
       homepageBannerProductHeight:
           (json['homepageBannerProductHeight'] as num?)?.round() ?? 112,
-      miniBannerColumns:
-          ((json['miniBannerColumns'] as num?)?.round() ?? 3).clamp(1, 4),
-      miniBannerHeight:
-          ((json['miniBannerHeight'] as num?)?.round() ?? 96).clamp(56, 240),
-      homepageShowTopCategories: json['homepageShowTopCategories'] as bool? ?? true,
-      homepageShowCategorySections: json['homepageShowCategorySections'] as bool? ?? true,
-      homepageShowOccasionTabs: json['homepageShowOccasionTabs'] as bool? ?? true,
-      homepageShowRecommendations: json['homepageShowRecommendations'] as bool? ?? true,
+      miniBannerColumns: ((json['miniBannerColumns'] as num?)?.round() ?? 3)
+          .clamp(1, 4),
+      miniBannerHeight: ((json['miniBannerHeight'] as num?)?.round() ?? 96)
+          .clamp(56, 240),
+      homepageShowTopCategories:
+          json['homepageShowTopCategories'] as bool? ?? true,
+      homepageShowCategorySections:
+          json['homepageShowCategorySections'] as bool? ?? true,
+      homepageShowOccasionTabs:
+          json['homepageShowOccasionTabs'] as bool? ?? true,
+      homepageShowRecommendations:
+          json['homepageShowRecommendations'] as bool? ?? true,
       homepageShowValueDeals: json['homepageShowValueDeals'] as bool? ?? true,
-      valueDealsProductIds: (json['valueDealsProductIds'] as List<dynamic>?)
+      featureGiftOptions: _readBool(
+        json['featureGiftOptions'],
+        fallback: FlavorConfig.isGifts,
+      ),
+      featureAiAssistant: _readBool(
+        json['featureAiAssistant'],
+        fallback: FlavorConfig.isGifts,
+      ),
+      featureWishlist: _readBool(
+        json['featureWishlist'],
+        fallback: FlavorConfig.isGifts,
+      ),
+      valueDealsProductIds:
+          (json['valueDealsProductIds'] as List<dynamic>?)
               ?.map((e) => e.toString().trim())
               .where((id) => id.isNotEmpty)
               .toList() ??
           const [],
-      valueDealsPromoText: json['valueDealsPromoText'] as String? ??
+      valueDealsPromoText:
+          json['valueDealsPromoText'] as String? ??
           'Shop for {amount} to unlock deals',
       valueDealsUnlockAmount:
           (json['valueDealsUnlockAmount'] as num?)?.toDouble() ?? 199,
       homepageShowSpinBanner: json['homepageShowSpinBanner'] as bool? ?? true,
-      homepageRecommendationMode: json['homepageRecommendationMode'] as String? ?? 'LATEST',
-      homepageRecommendationTitle: json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
+      homepageRecommendationMode:
+          json['homepageRecommendationMode'] as String? ?? 'LATEST',
+      homepageRecommendationTitle:
+          json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
       homeSectionLayout: _parseSections(json['homeSectionLayout']),
       brandPrimary: json['brandPrimary'] as String? ?? '#8B5A2B',
       brandSecondary: json['brandSecondary'] as String? ?? '#D4AF37',
@@ -254,9 +308,12 @@ class AppSettings {
       buttonRadius: (json['buttonRadius'] as num?)?.round() ?? 30,
       uiDensity: json['uiDensity'] as String? ?? 'COMFORTABLE',
       productGridColumns: (json['productGridColumns'] as num?)?.round() ?? 2,
-      productCardAspectRatio: (json['productCardAspectRatio'] as num?)?.toDouble() ?? 0.68,
-      productShowDiscountBadge: json['productShowDiscountBadge'] as bool? ?? true,
-      productShowCategoryLabel: json['productShowCategoryLabel'] as bool? ?? false,
+      productCardAspectRatio:
+          (json['productCardAspectRatio'] as num?)?.toDouble() ?? 0.68,
+      productShowDiscountBadge:
+          json['productShowDiscountBadge'] as bool? ?? true,
+      productShowCategoryLabel:
+          json['productShowCategoryLabel'] as bool? ?? false,
       showPromoTab: json['showPromoTab'] as bool? ?? true,
       promoOrbLabel: json['promoOrbLabel'] as String? ?? '20% OFF',
       navHomeLabel: json['navHomeLabel'] as String? ?? 'Home',
@@ -267,8 +324,10 @@ class AppSettings {
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
       deliverySlots: DeliverySchedule.parseSlots(json['deliverySlots']),
       scheduleDayCount:
-          (json['scheduleDayCount'] as num?)?.toInt() ?? defaultScheduleDayCount,
-      scheduleMaxDaysAhead: (json['scheduleMaxDaysAhead'] as num?)?.toInt() ??
+          (json['scheduleDayCount'] as num?)?.toInt() ??
+          defaultScheduleDayCount,
+      scheduleMaxDaysAhead:
+          (json['scheduleMaxDaysAhead'] as num?)?.toInt() ??
           defaultScheduleMaxDaysAhead,
     );
   }
@@ -282,58 +341,61 @@ class AppSettings {
   }
 
   Map<String, dynamic> toJson() => {
-        'siteName': siteName,
-        'supportPhone': supportPhone,
-        'supportEmail': supportEmail,
-        'supportHours': supportHours,
-        'supportMessage': supportMessage,
-        'deliveryEstimate': deliveryEstimate,
-        'deliveryNote': deliveryNote,
-        'announcementText': announcementText,
-        'storeAddress': storeAddress,
-        'mapLatitude': mapLatitude,
-        'mapLongitude': mapLongitude,
-        'homepageShowBanner': homepageShowBanner,
-        'homepageBannerHeight': homepageBannerHeight,
-        'homepageBannerProductHeight': homepageBannerProductHeight,
-        'miniBannerColumns': miniBannerColumns,
-        'miniBannerHeight': miniBannerHeight,
-        'homepageShowTopCategories': homepageShowTopCategories,
-        'homepageShowCategorySections': homepageShowCategorySections,
-        'homepageShowOccasionTabs': homepageShowOccasionTabs,
-        'homepageShowRecommendations': homepageShowRecommendations,
-        'homepageShowValueDeals': homepageShowValueDeals,
-        'valueDealsProductIds': valueDealsProductIds,
-        'valueDealsPromoText': valueDealsPromoText,
-        'valueDealsUnlockAmount': valueDealsUnlockAmount,
-        'homepageShowSpinBanner': homepageShowSpinBanner,
-        'homepageRecommendationMode': homepageRecommendationMode,
-        'homepageRecommendationTitle': homepageRecommendationTitle,
-        'homeSectionLayout': homeSectionLayout.map((e) => e.toJson()).toList(),
-        'brandPrimary': brandPrimary,
-        'brandSecondary': brandSecondary,
-        'headerWash': headerWash,
-        'pageBackground': pageBackground,
-        'textInk': textInk,
-        'textMuted': textMuted,
-        'surfaceSoft': surfaceSoft,
-        'cardBackground': cardBackground,
-        'cornerRadius': cornerRadius,
-        'buttonRadius': buttonRadius,
-        'uiDensity': uiDensity,
-        'productGridColumns': productGridColumns,
-        'productCardAspectRatio': productCardAspectRatio,
-        'productShowDiscountBadge': productShowDiscountBadge,
-        'productShowCategoryLabel': productShowCategoryLabel,
-        'showPromoTab': showPromoTab,
-        'promoOrbLabel': promoOrbLabel,
-        'navHomeLabel': navHomeLabel,
-        'navCategoriesLabel': navCategoriesLabel,
-        'navTopPicksLabel': navTopPicksLabel,
-        'freeDeliveryMinAmount': freeDeliveryMinAmount,
-        'deliveryFeeAmount': deliveryFeeAmount,
-        'deliverySlots': deliverySlots.map((e) => e.toJson()).toList(),
-        'scheduleDayCount': scheduleDayCount,
-        'scheduleMaxDaysAhead': scheduleMaxDaysAhead,
-      };
+    'siteName': siteName,
+    'supportPhone': supportPhone,
+    'supportEmail': supportEmail,
+    'supportHours': supportHours,
+    'supportMessage': supportMessage,
+    'deliveryEstimate': deliveryEstimate,
+    'deliveryNote': deliveryNote,
+    'announcementText': announcementText,
+    'storeAddress': storeAddress,
+    'mapLatitude': mapLatitude,
+    'mapLongitude': mapLongitude,
+    'homepageShowBanner': homepageShowBanner,
+    'homepageBannerHeight': homepageBannerHeight,
+    'homepageBannerProductHeight': homepageBannerProductHeight,
+    'miniBannerColumns': miniBannerColumns,
+    'miniBannerHeight': miniBannerHeight,
+    'homepageShowTopCategories': homepageShowTopCategories,
+    'homepageShowCategorySections': homepageShowCategorySections,
+    'homepageShowOccasionTabs': homepageShowOccasionTabs,
+    'homepageShowRecommendations': homepageShowRecommendations,
+    'homepageShowValueDeals': homepageShowValueDeals,
+    'featureGiftOptions': featureGiftOptions,
+    'featureAiAssistant': featureAiAssistant,
+    'featureWishlist': featureWishlist,
+    'valueDealsProductIds': valueDealsProductIds,
+    'valueDealsPromoText': valueDealsPromoText,
+    'valueDealsUnlockAmount': valueDealsUnlockAmount,
+    'homepageShowSpinBanner': homepageShowSpinBanner,
+    'homepageRecommendationMode': homepageRecommendationMode,
+    'homepageRecommendationTitle': homepageRecommendationTitle,
+    'homeSectionLayout': homeSectionLayout.map((e) => e.toJson()).toList(),
+    'brandPrimary': brandPrimary,
+    'brandSecondary': brandSecondary,
+    'headerWash': headerWash,
+    'pageBackground': pageBackground,
+    'textInk': textInk,
+    'textMuted': textMuted,
+    'surfaceSoft': surfaceSoft,
+    'cardBackground': cardBackground,
+    'cornerRadius': cornerRadius,
+    'buttonRadius': buttonRadius,
+    'uiDensity': uiDensity,
+    'productGridColumns': productGridColumns,
+    'productCardAspectRatio': productCardAspectRatio,
+    'productShowDiscountBadge': productShowDiscountBadge,
+    'productShowCategoryLabel': productShowCategoryLabel,
+    'showPromoTab': showPromoTab,
+    'promoOrbLabel': promoOrbLabel,
+    'navHomeLabel': navHomeLabel,
+    'navCategoriesLabel': navCategoriesLabel,
+    'navTopPicksLabel': navTopPicksLabel,
+    'freeDeliveryMinAmount': freeDeliveryMinAmount,
+    'deliveryFeeAmount': deliveryFeeAmount,
+    'deliverySlots': deliverySlots.map((e) => e.toJson()).toList(),
+    'scheduleDayCount': scheduleDayCount,
+    'scheduleMaxDaysAhead': scheduleMaxDaysAhead,
+  };
 }

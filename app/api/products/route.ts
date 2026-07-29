@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductCardsCompat, findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import { resolveStoreContext } from '@/lib/store-context'
 
 type ProductVariantInput = {
   color?: unknown
@@ -37,6 +38,9 @@ function normalizeVariants(input: unknown) {
 
 export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { slug, store } = storeContext
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const categoryId = searchParams.get('categoryId')
@@ -50,6 +54,7 @@ export async function GET(request: NextRequest) {
       searchParams.get('b2b') === '1'
 
     const where: any = {
+      storeId: store.id,
       isAvailable: true,
       NOT: {
         tags: {
@@ -81,6 +86,7 @@ export async function GET(request: NextRequest) {
       const selectedCategory = await prisma.category.findFirst({
         where: {
           id: categoryId,
+          storeId: store.id,
           isActive: true,
         },
         select: {
@@ -129,6 +135,7 @@ export async function GET(request: NextRequest) {
     }
 
     const cacheKey = REDIS_KEYS.PRODUCT_LIST(
+      slug,
       JSON.stringify({
         category,
         categoryId,
@@ -168,10 +175,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { store } = storeContext
     const body = await request.json()
     const { name, description, category, price, image, isVeg, showFoodTypeLabel, prepTime, tags, discount } = body
 
     const data = {
+      storeId: store.id,
       name,
       miniDescription: String(body?.miniDescription || '').trim() || null,
       description,

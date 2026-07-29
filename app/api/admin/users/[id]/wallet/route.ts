@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { adjustWallet, getWalletBalance, roundMoney } from '@/lib/wallet'
-
-async function requireAdmin() {
-  const session = await getServerSession(authOptions)
-  if (!session?.user || (session.user as { role?: string }).role !== 'ADMIN') {
-    return null
-  }
-  return session
-}
+import { requireAdmin } from '@/lib/request-auth'
 
 /** Current wallet balance + recent adjustments for admin user detail. */
 export async function GET(
@@ -18,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await requireAdmin())) {
+    if (!(await requireAdmin(_request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -74,8 +65,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAdmin()
-    if (!session) {
+    const admin = await requireAdmin(request)
+    if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -104,8 +95,7 @@ export async function POST(
       return NextResponse.json({ error: 'Amount too large' }, { status: 400 })
     }
 
-    const adminEmail =
-      (session.user as { email?: string | null }).email || 'admin'
+    const adminEmail = admin.email || 'admin'
     const result = await adjustWallet({
       userId,
       amount: rawAmount,

@@ -40,6 +40,29 @@ model User {
   @@index([phone])
 }
 
+/// A customer-facing storefront. Content and configuration belong to a store,
+/// while users, their wallet and their combined order history are shared.
+model Store {
+  id                  String                 @id @default(cuid())
+  slug                String                 @unique
+  name                String
+  isActive            Boolean                @default(true)
+  products            Product[]
+  categories          Category[]
+  banners             Banner[]
+  miniBanners         MiniBanner[]
+  coupons             Coupon[]
+  giftWraps           GiftWrap[]
+  occasions           Occasion[]
+  appSettings         AppSettings?
+  orders              Order[]
+  spinPlays           SpinPlay[]
+  productViewEvents   ProductViewEvent[]
+  recommendationRules RecommendationRule[]
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+}
+
 /// B2B wholesale business account (separate from retail browsing).
 model BusinessProfile {
   id        String   @id @default(cuid())
@@ -149,6 +172,8 @@ model Address {
 /// deep-links to a product or category.
 model MiniBanner {
   id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   title     String
   image     String
   /// Tap target kind: NONE, PRODUCT or CATEGORY.
@@ -160,12 +185,14 @@ model MiniBanner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([isActive])
-  @@index([order])
+  @@index([storeId, isActive])
+  @@index([storeId, order])
 }
 
 model Banner {
   id         String   @id @default(cuid())
+  storeId    String
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   title      String
   subtitle   String?
   image      String
@@ -181,12 +208,14 @@ model Banner {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@index([isActive])
-  @@index([order])
+  @@index([storeId, isActive])
+  @@index([storeId, order])
 }
 
 model Product {
   id                        String               @id @default(cuid())
+  storeId                   String
+  store                     Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   name                      String
   miniDescription           String?
   description               String
@@ -219,8 +248,8 @@ model Product {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
-  @@index([category])
-  @@index([isAvailable])
+  @@index([storeId, category])
+  @@index([storeId, isAvailable])
   @@index([sellerId])
 }
 
@@ -241,6 +270,8 @@ model WishlistItem {
 model Order {
   id                   String           @id @default(cuid())
   orderNumber          String           @unique
+  storeId              String
+  store                Store            @relation(fields: [storeId], references: [id])
   userId               String
   user                 User             @relation(fields: [userId], references: [id])
   items                OrderItem[]
@@ -303,6 +334,7 @@ model Order {
   updatedAt            DateTime         @updatedAt
 
   @@index([userId])
+  @@index([storeId, placedAt])
   @@index([status])
   @@index([orderNumber])
   @@index([couponId])
@@ -380,7 +412,9 @@ enum CouponApplicability {
 
 model Coupon {
   id                    String              @id @default(cuid())
-  code                  String              @unique
+  storeId               String
+  store                 Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  code                  String
   description           String?
   type                  CouponType
   value                 Float
@@ -400,21 +434,23 @@ model Coupon {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
-  @@index([isActive])
-  @@index([code])
+  @@unique([storeId, code])
+  @@index([storeId, isActive])
   @@index([createdByUserId])
 }
 
 /// One promo roulette play (limits spins + links awarded coupon).
 model SpinPlay {
   id       String   @id @default(cuid())
+  storeId  String
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   userId   String
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   couponId String?
   percent  Int
   playedAt DateTime @default(now())
 
-  @@index([userId, playedAt])
+  @@index([storeId, userId, playedAt])
 }
 
 model OrderItem {
@@ -482,7 +518,9 @@ enum UserRole {
 
 model Category {
   id                  String               @id @default(cuid())
-  name                String               @unique
+  storeId             String
+  store               Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name                String
   image               String
   type                CategoryType         @default(PRODUCT)
   parentId            String?
@@ -497,8 +535,9 @@ model Category {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 
-  @@index([parentId])
-  @@index([type])
+  @@unique([storeId, name, type])
+  @@index([storeId, parentId])
+  @@index([storeId, type])
 }
 
 enum CategoryType {
@@ -562,7 +601,9 @@ model GiftRecipient {
 
 model GiftWrap {
   id          String   @id @default(cuid())
-  name        String   @unique
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
   description String
   price       Float
   image       String
@@ -571,22 +612,30 @@ model GiftWrap {
   orders      Order[]
   createdAt   DateTime @default(now())
 
-  @@index([type])
+  @@unique([storeId, name])
+  @@index([storeId, type])
 }
 
 model Occasion {
   id          String   @id @default(cuid())
-  name        String   @unique
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name        String
   emoji       String
   description String
   icon        String
   isActive    Boolean  @default(true)
   orders      Order[]
   createdAt   DateTime @default(now())
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive])
 }
 
 model AppSettings {
-  id                           String   @id @default("default")
+  id                           String   @id @default(cuid())
+  storeId                      String   @unique
+  store                        Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   siteName                     String   @default("Chapter Kurus")
   supportPhone                 String?
   supportEmail                 String?
@@ -619,6 +668,12 @@ model AppSettings {
   /// Cart total needed to unlock Value Deals claims.
   valueDealsUnlockAmount       Float    @default(199)
   homepageShowSpinBanner       Boolean  @default(true)
+  /// Gift wrapping, recipients and occasion selection at checkout.
+  featureGiftOptions           Boolean  @default(true)
+  /// AI shopping assistant entry points.
+  featureAiAssistant           Boolean  @default(true)
+  /// Save-for-later controls and account entry.
+  featureWishlist              Boolean  @default(true)
   homepageRecommendationMode   String   @default("LATEST")
   homepageRecommendationTitle  String?
   /// Ordered mobile home sections: `[{ id, title, subtitle, visible }]`.
@@ -689,6 +744,8 @@ model AppSettings {
 
 model ProductViewEvent {
   id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   productId String
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   userId    String?
@@ -696,14 +753,16 @@ model ProductViewEvent {
   sessionId String?
   viewedAt  DateTime @default(now())
 
-  @@index([productId])
-  @@index([userId, viewedAt])
+  @@index([storeId, productId])
+  @@index([storeId, userId, viewedAt])
   @@index([sessionId, viewedAt])
   @@index([viewedAt])
 }
 
 model RecommendationRule {
   id               String                  @id @default(cuid())
+  storeId          String
+  store            Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
   scopeType        RecommendationScopeType
   sourceProductId  String?
   sourceProduct    Product?                @relation("SourceProductRecommendationRules", fields: [sourceProductId], references: [id], onDelete: Cascade)
@@ -716,7 +775,7 @@ model RecommendationRule {
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
 
-  @@index([scopeType, sourceProductId, kind, position])
-  @@index([scopeType, sourceCategoryId, kind, position])
-  @@index([targetProductId])
+  @@index([storeId, scopeType, sourceProductId, kind, position])
+  @@index([storeId, scopeType, sourceCategoryId, kind, position])
+  @@index([storeId, targetProductId])
 }

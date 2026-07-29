@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const { id } = await params
     const body = await request.json()
+    if (!(await prisma.giftWrap.findFirst({ where: { id, storeId: storeContext.store.id }, select: { id: true } }))) {
+      return NextResponse.json({ error: 'Gift wrap not found' }, { status: 404 })
+    }
     const giftWrap = await prisma.giftWrap.update({
       where: { id },
       data: {
@@ -25,10 +35,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const { id } = await params
-    await prisma.giftWrap.delete({
-      where: { id }
-    })
+    const result = await prisma.giftWrap.deleteMany({ where: { id, storeId: storeContext.store.id } })
+    if (result.count === 0) return NextResponse.json({ error: 'Gift wrap not found' }, { status: 404 })
     return NextResponse.json({ message: 'Gift wrap deleted' })
   } catch (error) {
     console.error('Error deleting gift wrap:', error)

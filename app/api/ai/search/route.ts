@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { searchProductsWithAi } from '@/lib/ai-product-search'
+import { resolveStoreContext } from '@/lib/store-context'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,6 +12,11 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const body = await request.json().catch(() => ({}))
     const query = String(body?.query || body?.q || '').trim()
     if (!query) {
@@ -22,7 +28,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const result = await searchProductsWithAi(query)
+    const result = await searchProductsWithAi(query, storeContext.store.id)
     return NextResponse.json(result)
   } catch (error) {
     console.error('AI search error:', error)
@@ -35,6 +41,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const query = String(request.nextUrl.searchParams.get('q') || '').trim()
     if (!query) {
       return NextResponse.json({
@@ -45,7 +56,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const result = await searchProductsWithAi(query)
+    const result = await searchProductsWithAi(query, storeContext.store.id)
     return NextResponse.json(result)
   } catch (error) {
     console.error('AI search error:', error)

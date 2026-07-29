@@ -158,7 +158,10 @@ export function normalizePickupInput(body: Record<string, unknown>):
 }
 
 /** Returns an empty list when the DB predates the pickup columns. */
-export async function loadPickupProducts(ids: string[]): Promise<PickupProductFields[]> {
+export async function loadPickupProducts(
+  ids: string[],
+  storeId?: string
+): Promise<PickupProductFields[]> {
   const uniqueIds = Array.from(
     new Set(ids.map((id) => baseProductId(id)).filter(Boolean))
   )
@@ -166,7 +169,7 @@ export async function loadPickupProducts(ids: string[]): Promise<PickupProductFi
 
   try {
     return await prisma.product.findMany({
-      where: { id: { in: uniqueIds } },
+      where: { id: { in: uniqueIds }, ...(storeId ? { storeId } : {}) },
       select: PICKUP_PRODUCT_SELECT,
     })
   } catch (error) {
@@ -175,11 +178,11 @@ export async function loadPickupProducts(ids: string[]): Promise<PickupProductFi
   }
 }
 
-export async function resolvePickupForProductIds(ids: string[]) {
+export async function resolvePickupForProductIds(ids: string[], storeId?: string) {
   const uniqueIds = Array.from(
     new Set(ids.map((id) => baseProductId(id)).filter(Boolean))
   )
-  const products = await loadPickupProducts(uniqueIds)
+  const products = await loadPickupProducts(uniqueIds, storeId)
   const capable = products.filter((product) => pickupLocationOf(product) != null)
 
   if (capable.length === 0) {

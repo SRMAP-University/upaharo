@@ -237,6 +237,9 @@ export default function AdminSettingsPage() {
           1_000_000
         ),
         homepageShowSpinBanner: Boolean(data.homepageShowSpinBanner ?? true),
+        featureGiftOptions: Boolean(data.featureGiftOptions ?? true),
+        featureAiAssistant: Boolean(data.featureAiAssistant ?? true),
+        featureWishlist: Boolean(data.featureWishlist ?? true),
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
         homeSectionLayout: normalizeHomeSections(data.homeSectionLayout),
@@ -545,6 +548,22 @@ export default function AdminSettingsPage() {
                 checked={formData.homepageShowSpinBanner}
                 onChange={(checked) => set('homepageShowSpinBanner', checked)}
               />
+              <Toggle
+                label="Enable gift checkout options"
+                hint="Shows gift wrap, recipient, occasion and greeting fields at checkout."
+                checked={formData.featureGiftOptions}
+                onChange={(checked) => set('featureGiftOptions', checked)}
+              />
+              <Toggle
+                label="Enable AI shopping assistant"
+                checked={formData.featureAiAssistant}
+                onChange={(checked) => set('featureAiAssistant', checked)}
+              />
+              <Toggle
+                label="Enable wishlist"
+                checked={formData.featureWishlist}
+                onChange={(checked) => set('featureWishlist', checked)}
+              />
 
               <div className="md:col-span-2 rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-4">
                 <div>
@@ -555,7 +574,8 @@ export default function AdminSettingsPage() {
                     <a href="/admin/mini-banners" className="text-wine underline">
                       Mini Banners
                     </a>
-                    . Rename or reorder the row in Home section order above.
+                    . The row has no heading — reorder or hide it in Home section
+                    order above.
                   </p>
                 </div>
                 <RangeField

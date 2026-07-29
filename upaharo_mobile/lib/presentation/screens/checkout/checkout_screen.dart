@@ -115,6 +115,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Admin-configured windows; falls back to defaults until settings load.
   DeliverySchedule get _schedule =>
       context.read<SettingsProvider>().settings.deliverySchedule;
+  bool get _giftOptionsEnabled =>
+      context.read<SettingsProvider>().settings.featureGiftOptions;
 
   /// Null means "deliver now". A window the admin removed (or that has since
   /// passed its cut-off) also collapses to ASAP rather than being rejected
@@ -133,14 +135,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   /// Set when at least one cart line shares a pickup pin.
   PickupLocation? _pickupLocation;
   bool _wantsPickup = false;
+
   /// Base product ids eligible for the resolved pickup location.
   Set<String> _pickupBaseIds = {};
+
   /// Cart line ids the user chose to pick up (subset of eligible).
   Set<String> _chosenPickupIds = {};
+
   /// Eligible lines (can be toggled to pickup or delivery).
   List<CartItem> _pickupEligibleProducts = const [];
+
   /// Lines currently assigned to pickup (user choice).
   List<CartItem> _pickupProducts = const [];
+
   /// Lines currently assigned to delivery (forced + opted-out of pickup).
   List<CartItem> _deliveryOnlyProducts = const [];
 
@@ -161,9 +168,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    _pickupEligibleProducts = cart.items
-        .where(_isPickupEligible)
-        .toList();
+    _pickupEligibleProducts = cart.items.where(_isPickupEligible).toList();
 
     final validIds = cart.items.map((item) => item.id).toSet();
     _chosenPickupIds.removeWhere((id) => !validIds.contains(id));
@@ -183,10 +188,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       _chosenPickupIds = _pickupEligibleProducts.map((item) => item.id).toSet();
     }
 
-    _pickupProducts =
-        cart.items.where((item) => _chosenPickupIds.contains(item.id)).toList();
-    _deliveryOnlyProducts =
-        cart.items.where((item) => !_chosenPickupIds.contains(item.id)).toList();
+    _pickupProducts = cart.items
+        .where((item) => _chosenPickupIds.contains(item.id))
+        .toList();
+    _deliveryOnlyProducts = cart.items
+        .where((item) => !_chosenPickupIds.contains(item.id))
+        .toList();
 
     if (_pickupProducts.isEmpty) {
       _wantsPickup = false;
@@ -198,8 +205,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() {
       _wantsPickup = value;
       if (value) {
-        _chosenPickupIds =
-            _pickupEligibleProducts.map((item) => item.id).toSet();
+        _chosenPickupIds = _pickupEligibleProducts
+            .map((item) => item.id)
+            .toSet();
         if (_chosenPickupIds.isEmpty) {
           // Recompute eligible from cart in case lists are stale.
           _chosenPickupIds = cart.items
@@ -259,7 +267,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool get _isPickup => _usingPickup && _deliveryOnlyProducts.isEmpty;
 
   /// Variant cart ids are `productId::vN` — pickup APIs need the base product id.
-  String _baseProductId(String cartItemId) => CartProvider.baseProductId(cartItemId);
+  String _baseProductId(String cartItemId) =>
+      CartProvider.baseProductId(cartItemId);
 
   @override
   void initState() {
@@ -461,7 +470,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() {
       _appliedCouponCode = result.code ?? code.toUpperCase();
       _couponDiscount = result.discount;
-      _couponMessage = 'Coupon applied! You save ${PriceFormatter.format(result.discount)}';
+      _couponMessage =
+          'Coupon applied! You save ${PriceFormatter.format(result.discount)}';
       _applyingCoupon = false;
     });
   }
@@ -505,6 +515,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     await settings.load();
     await location.loadSavedLocation();
+    final giftOptionsEnabled = settings.settings.featureGiftOptions;
 
     final savedCoupon = couponProvider.appliedCode;
     if (savedCoupon != null && savedCoupon.isNotEmpty) {
@@ -514,36 +525,49 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       final results = await Future.wait([
         _addressRepo.getAddresses(),
-        _giftRepo.getGiftWraps(),
-        _giftRepo.getOccasions(),
-        _giftRepo.getRecipients().catchError((_) => <GiftRecipient>[]),
+        if (giftOptionsEnabled)
+          _giftRepo.getGiftWraps()
+        else
+          Future.value(<GiftWrap>[]),
+        if (giftOptionsEnabled)
+          _giftRepo.getOccasions()
+        else
+          Future.value(<Occasion>[]),
+        if (giftOptionsEnabled)
+          _giftRepo.getRecipients().catchError((_) => <GiftRecipient>[])
+        else
+          Future.value(<GiftRecipient>[]),
         _walletRepo.getWallet(limit: 1),
       ]);
 
       if (!mounted) return;
 
       _addresses = results[0] as List<Address>;
-      _giftWraps = (results[1] as List<GiftWrap>).where((w) => w.isActive).toList();
-      _occasions = (results[2] as List<Occasion>).where((o) => o.isActive).toList();
+      _giftWraps = (results[1] as List<GiftWrap>)
+          .where((w) => w.isActive)
+          .toList();
+      _occasions = (results[2] as List<Occasion>)
+          .where((o) => o.isActive)
+          .toList();
       _recipients = results[3] as List<GiftRecipient>;
       _wallet = results[4] as WalletSummary;
 
       // Prefer default / first saved address
       final defaultAddr = _addresses.cast<Address?>().firstWhere(
-            (a) => a!.isDefault,
-            orElse: () => _addresses.isNotEmpty ? _addresses.first : null,
-          );
+        (a) => a!.isDefault,
+        orElse: () => _addresses.isNotEmpty ? _addresses.first : null,
+      );
       _selectedAddressId = defaultAddr?.id;
 
       // Seed gift options from cart if any
       final gift = cart.giftOptions;
-      _isGift = gift.isGift;
-      _occasionId = gift.occasionId;
-      _recipientId = gift.recipientId;
-      _giftWrapId = gift.giftWrapId;
-      _greetingController.text = gift.greetingMessage ?? '';
-      _senderController.text = gift.senderName ?? '';
-      _showSenderName = gift.showSenderName;
+      _isGift = giftOptionsEnabled && gift.isGift;
+      _occasionId = _isGift ? gift.occasionId : null;
+      _recipientId = _isGift ? gift.recipientId : null;
+      _giftWrapId = _isGift ? gift.giftWrapId : null;
+      _greetingController.text = _isGift ? gift.greetingMessage ?? '' : '';
+      _senderController.text = _isGift ? gift.senderName ?? '' : '';
+      _showSenderName = _isGift && gift.showSenderName;
 
       final cartItems = cart.items;
       final pickup = await _pickupRepo.resolveForProducts(
@@ -587,9 +611,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final street = (loc.street?.trim().isNotEmpty ?? false)
         ? loc.street!.trim()
         : loc.address.trim();
-    final city = (loc.city?.trim().isNotEmpty ?? false) ? loc.city!.trim() : 'Kathmandu';
-    final state = (loc.state?.trim().isNotEmpty ?? false) ? loc.state!.trim() : 'Bagmati';
-    final pincode = (loc.pincode?.trim().isNotEmpty ?? false) ? loc.pincode!.trim() : '44600';
+    final city = (loc.city?.trim().isNotEmpty ?? false)
+        ? loc.city!.trim()
+        : 'Kathmandu';
+    final state = (loc.state?.trim().isNotEmpty ?? false)
+        ? loc.state!.trim()
+        : 'Bagmati';
+    final pincode = (loc.pincode?.trim().isNotEmpty ?? false)
+        ? loc.pincode!.trim()
+        : '44600';
 
     if (street.isEmpty || loc.latitude == 0 || loc.longitude == 0) return;
 
@@ -597,7 +627,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final created = await _addressRepo.createAddress(
         Address(
           id: '',
-          label: loc.label?.trim().isNotEmpty == true ? loc.label!.trim() : 'Home',
+          label: loc.label?.trim().isNotEmpty == true
+              ? loc.label!.trim()
+              : 'Home',
           street: street,
           apartment: loc.apartment,
           landmark: loc.landmark,
@@ -620,7 +652,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     try {
       _addresses = await _addressRepo.getAddresses();
       if (_selectedAddressId == null && _addresses.isNotEmpty) {
-        _selectedAddressId = _addresses.firstWhere((a) => a.isDefault, orElse: () => _addresses.first).id;
+        _selectedAddressId = _addresses
+            .firstWhere((a) => a.isDefault, orElse: () => _addresses.first)
+            .id;
       }
       setState(() {});
     } catch (_) {}
@@ -645,21 +679,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   void _syncGiftToCart() {
+    final isGift = _giftOptionsEnabled && _isGift;
     context.read<CartProvider>().setGiftOptions(
-          GiftOptions(
-            isGift: _isGift,
-            recipientId: _isGift ? _recipientId : null,
-            occasionId: _isGift ? _occasionId : null,
-            giftWrapId: _isGift ? _giftWrapId : null,
-            greetingMessage: _isGift && _greetingController.text.trim().isNotEmpty
-                ? _greetingController.text.trim()
-                : null,
-            senderName: _isGift && _senderController.text.trim().isNotEmpty
-                ? _senderController.text.trim()
-                : null,
-            showSenderName: _showSenderName,
-          ),
-        );
+      GiftOptions(
+        isGift: isGift,
+        recipientId: isGift ? _recipientId : null,
+        occasionId: isGift ? _occasionId : null,
+        giftWrapId: isGift ? _giftWrapId : null,
+        greetingMessage: isGift && _greetingController.text.trim().isNotEmpty
+            ? _greetingController.text.trim()
+            : null,
+        senderName: isGift && _senderController.text.trim().isNotEmpty
+            ? _senderController.text.trim()
+            : null,
+        showSenderName: isGift && _showSenderName,
+      ),
+    );
   }
 
   _CheckoutTotals _computeTotals(CartProvider cart) {
@@ -668,21 +703,25 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Delivery fee applies only to items that will be delivered.
     final deliveryGoods = _usingPickup
         ? (_isMixed
-            ? _deliveryOnlyProducts.fold<double>(
-                  0,
-                  (sum, item) => sum + item.price * item.quantity,
-                ) +
-                wrapPrice
-            : 0.0)
+              ? _deliveryOnlyProducts.fold<double>(
+                      0,
+                      (sum, item) => sum + item.price * item.quantity,
+                    ) +
+                    wrapPrice
+              : 0.0)
         : cart.totalPrice + wrapPrice;
     final goodsTotal = cart.totalPrice + wrapPrice;
-    final deliveryFee =
-        deliveryGoods > 0 ? _wallet.deliveryFeeFor(deliveryGoods) : 0.0;
-    final totalBeforeWallet =
-        (goodsTotal + deliveryFee - _couponDiscount).clamp(0.0, double.infinity);
+    final deliveryFee = deliveryGoods > 0
+        ? _wallet.deliveryFeeFor(deliveryGoods)
+        : 0.0;
+    final totalBeforeWallet = (goodsTotal + deliveryFee - _couponDiscount)
+        .clamp(0.0, double.infinity);
     final maxWalletSpend = _wallet.maxSpendFor(totalBeforeWallet);
     final walletApplied = _useWallet ? maxWalletSpend : 0.0;
-    final total = (totalBeforeWallet - walletApplied).clamp(0.0, double.infinity);
+    final total = (totalBeforeWallet - walletApplied).clamp(
+      0.0,
+      double.infinity,
+    );
 
     return _CheckoutTotals(
       wrapPrice: wrapPrice,
@@ -755,19 +794,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             (sum, item) => sum + item.price * item.quantity,
           ),
         );
-        final pickupResult = await _orderRepo.createOrderWithPayment(pickupPayload);
+        final pickupResult = await _orderRepo.createOrderWithPayment(
+          pickupPayload,
+        );
 
         // 2) Delivery order for the rest — gift / coupon / wallet / online pay.
         final deliverySubtotal = _deliveryOnlyProducts.fold<double>(
           0,
           (sum, item) => sum + item.price * item.quantity,
         );
-        final deliveryTotal = (deliverySubtotal +
-                totals.wrapPrice +
-                totals.deliveryFee -
-                _couponDiscount -
-                totals.walletApplied)
-            .clamp(0.0, double.infinity);
+        final deliveryTotal =
+            (deliverySubtotal +
+                    totals.wrapPrice +
+                    totals.deliveryFee -
+                    _couponDiscount -
+                    totals.walletApplied)
+                .clamp(0.0, double.infinity);
         final deliveryPayload = cart.toCheckoutPayload(
           addressId: address?.id,
           fulfillmentType: 'DELIVERY',
@@ -784,7 +826,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           includeGift: true,
           scheduledFor: _scheduledFor,
         );
-        final deliveryResult = await _orderRepo.createOrderWithPayment(deliveryPayload);
+        final deliveryResult = await _orderRepo.createOrderWithPayment(
+          deliveryPayload,
+        );
 
         primaryOrder = deliveryResult.order;
         secondaryOrder = pickupResult.order;
@@ -811,7 +855,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         checkoutSessionId = result.checkoutSessionId;
       }
 
-      if (_paymentMethod == 'ONLINE' && (!_isSplit || primaryOrder.fulfillmentType != 'PICKUP')) {
+      if (_paymentMethod == 'ONLINE' &&
+          (!_isSplit || primaryOrder.fulfillmentType != 'PICKUP')) {
         if (paymentUrl == null || paymentUrl.isEmpty) {
           throw const ApiException(
             message: 'Online payment URL was not returned. Please try again.',
@@ -847,8 +892,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ? primaryOrder.couponDiscount
           : (_couponDiscount > 0 ? _couponDiscount : primaryOrder.discount);
       final couponCode = primaryOrder.couponCode ?? _appliedCouponCode;
-      final combinedTotal =
-          primaryOrder.total + (secondaryOrder?.total ?? 0);
+      final combinedTotal = primaryOrder.total + (secondaryOrder?.total ?? 0);
       cart.clearCart();
       await couponProvider.clearApplied();
       await ordersProvider.refreshAfterPlaceOrder();
@@ -900,8 +944,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final scheduledSummary = _scheduledFor != null
         ? 'Arriving ${slotSummary(_scheduleDayIndex!, _scheduleSlot!)}'
         : null;
-    final deliveryLabel = scheduledSummary ??
-        (estimate.isNotEmpty ? estimate : 'Fast delivery');
+    final deliveryLabel =
+        scheduledSummary ?? (estimate.isNotEmpty ? estimate : 'Fast delivery');
     final showSuperfast = scheduledSummary == null && estimate.isNotEmpty;
 
     return Scaffold(
@@ -917,10 +961,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
                     children: [
                       if (_error != null) ...[
-                        _thinBanner(
-                          text: _error!,
-                          tone: _BannerTone.error,
-                        ),
+                        _thinBanner(text: _error!, tone: _BannerTone.error),
                         const SizedBox(height: 10),
                       ],
 
@@ -994,8 +1035,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       _couponCompactRow(),
                       const SizedBox(height: 8),
 
-                      _giftCompactRow(),
-                      const SizedBox(height: 8),
+                      if (_giftOptionsEnabled) ...[
+                        _giftCompactRow(),
+                        const SizedBox(height: 8),
+                      ],
 
                       _billDetailsTile(
                         cart: cart,
@@ -1009,7 +1052,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 _stickyBottomBar(
                   total: total,
                   cashback: totals.cashback,
-                  enabled: !_placing &&
+                  enabled:
+                      !_placing &&
                       cart.items.isNotEmpty &&
                       (!_needsAddress || _selectedAddressId != null) &&
                       !(_wallet.checkoutMinOrderAmount > 0 &&
@@ -1029,8 +1073,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final subtitle = address?.displayAddress.trim().isNotEmpty == true
         ? address!.displayAddress.trim()
         : (_usingPickup && !_needsAddress
-            ? (_pickupLocation?.displayAddress ?? 'Pickup')
-            : 'Add delivery address');
+              ? (_pickupLocation?.displayAddress ?? 'Pickup')
+              : 'Add delivery address');
 
     return Material(
       color: AppTheme.cardSurface,
@@ -1043,7 +1087,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             children: [
               IconButton(
                 onPressed: () => Navigator.maybePop(context),
-                icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: AppTheme.ink),
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 18,
+                  color: AppTheme.ink,
+                ),
                 visualDensity: VisualDensity.compact,
               ),
               Expanded(
@@ -1051,10 +1099,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onTap: _onHeaderAddressTap,
                   borderRadius: BorderRadius.circular(10),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 2,
+                    ),
                     child: Row(
                       children: [
-                        Icon(Icons.home_outlined, size: 20, color: AppTheme.wine),
+                        Icon(
+                          Icons.home_outlined,
+                          size: 20,
+                          color: AppTheme.wine,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Column(
@@ -1260,7 +1315,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.bolt, size: 13, color: Color(0xFF2E7D32)),
+                            Icon(
+                              Icons.bolt,
+                              size: 13,
+                              color: Color(0xFF2E7D32),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Superfast',
@@ -1387,7 +1446,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             onTap: () => setState(() => _addressExpanded = !_addressExpanded),
             child: Row(
               children: [
-                Icon(Icons.location_on_outlined, size: 18, color: AppTheme.wine),
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 18,
+                  color: AppTheme.wine,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -1436,7 +1499,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               _selectedAddress!.displayAddress,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: AppTheme.charcoal, height: 1.3),
+              style: TextStyle(
+                fontSize: 12,
+                color: AppTheme.charcoal,
+                height: 1.3,
+              ),
             ),
           ],
         ],
@@ -1457,10 +1524,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final slots = schedule.bookableSlots(activeDay);
 
     // A custom date sits outside the quick chips, so surface it as its own.
-    final days = [
-      ...chipDays,
-      if (!chipDays.contains(activeDay)) activeDay,
-    ]..sort();
+    final days = [...chipDays, if (!chipDays.contains(activeDay)) activeDay]
+      ..sort();
 
     return Container(
       width: double.infinity,
@@ -1695,8 +1760,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     } else if (freeDelivery || totals.deliveryFee <= 0) {
       stripText = 'FREE Delivery on this order';
     } else {
-      final remaining =
-          (_wallet.freeDeliveryMinAmount - totals.goodsTotal).clamp(0.0, double.infinity);
+      final remaining = (_wallet.freeDeliveryMinAmount - totals.goodsTotal)
+          .clamp(0.0, double.infinity);
       if (remaining > 0 && _wallet.freeDeliveryMinAmount > 0) {
         stripText =
             'Add ${PriceFormatter.format(remaining)} more for FREE delivery';
@@ -1864,7 +1929,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               child: Row(
                 children: [
-                  Icon(Icons.local_offer_outlined, size: 18, color: AppTheme.wine),
+                  Icon(
+                    Icons.local_offer_outlined,
+                    size: 18,
+                    color: AppTheme.wine,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1948,8 +2017,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 child: const Text('Remove'),
                               )
                             : ElevatedButton(
-                                onPressed:
-                                    _applyingCoupon ? null : _applyCoupon,
+                                onPressed: _applyingCoupon
+                                    ? null
+                                    : _applyCoupon,
                                 child: _applyingCoupon
                                     ? const SizedBox(
                                         width: 18,
@@ -2045,9 +2115,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                         title: Text(r.name),
                         subtitle: Text(
-                          [r.phone, r.relationship]
-                              .where((e) => e.isNotEmpty)
-                              .join(' · '),
+                          [
+                            r.phone,
+                            r.relationship,
+                          ].where((e) => e.isNotEmpty).join(' · '),
                         ),
                         onTap: () => setState(() => _recipientId = r.id),
                       );
@@ -2089,9 +2160,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   TextField(
                     controller: _senderController,
-                    decoration: const InputDecoration(
-                      labelText: 'Sender name',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Sender name'),
                   ),
                   CheckboxListTile(
                     contentPadding: EdgeInsets.zero,
@@ -2381,10 +2450,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: compact ? 7 : 9,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: compact ? 7 : 9),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(10),
@@ -2623,9 +2689,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open maps')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open maps')));
     }
   }
 

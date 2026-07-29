@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolveUserId } from '@/lib/request-auth'
+import { resolveStoreContext } from '@/lib/store-context'
 
 const SEGMENTS = [
   { percent: 5, weight: 28 },
@@ -35,10 +36,11 @@ function randomCode(percent: number, userId: string) {
   return `SPIN${percent}-${tail}${rand}`
 }
 
-async function todaysPlay(userId: string) {
+async function todaysPlay(storeId: string, userId: string) {
   const { start, end } = dayBounds()
   return prisma.spinPlay.findFirst({
     where: {
+      storeId,
       userId,
       playedAt: { gte: start, lt: end },
     },
@@ -49,12 +51,15 @@ async function todaysPlay(userId: string) {
 /** GET — can the user spin today? Returns today's prize if already played. */
 export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { store } = storeContext
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
-    const play = await todaysPlay(userId)
+    const play = await todaysPlay(store.id, userId)
     if (!play) {
       return NextResponse.json({
         canSpin: true,
@@ -64,8 +69,8 @@ export async function GET(request: NextRequest) {
 
     let code: string | null = null
     if (play.couponId) {
-      const coupon = await prisma.coupon.findUnique({
-        where: { id: play.couponId },
+      const coupon = await prisma.coupon.findFirst({
+        where: { id: play.couponId, storeId: store.id },
         select: { code: true, value: true, endAt: true },
       })
       code = coupon?.code ?? null
@@ -93,18 +98,21 @@ export async function GET(request: NextRequest) {
 /** POST — spin once per UTC day; awards a single-use PERCENTAGE coupon. */
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { store } = storeContext
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
-    const existing = await todaysPlay(userId)
+    const existing = await todaysPlay(store.id, userId)
     if (existing) {
       let code: string | null = null
       let endAt: string | null = null
       if (existing.couponId) {
-        const coupon = await prisma.coupon.findUnique({
-          where: { id: existing.couponId },
+        const coupon = await prisma.coupon.findFirst({
+          where: { id: existing.couponId, storeId: store.id },
           select: { code: true, endAt: true },
         })
         code = coupon?.code ?? null
@@ -127,6 +135,7 @@ export async function POST(request: NextRequest) {
 
     const coupon = await prisma.coupon.create({
       data: {
+        storeId: store.id,
         code,
         description: `Spin & Win — ${percent}% off (1 use)`,
         type: 'PERCENTAGE',
@@ -143,6 +152,7 @@ export async function POST(request: NextRequest) {
 
     await prisma.spinPlay.create({
       data: {
+        storeId: store.id,
         userId,
         couponId: coupon.id,
         percent,

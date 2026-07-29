@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../config/api_endpoints.dart';
+import '../../config/flavor.dart';
 import '../storage/token_storage.dart';
 import 'api_exception.dart';
 
@@ -39,6 +40,7 @@ class DioClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          options.headers['X-Store'] = FlavorConfig.storeSlug;
           if (kDebugMode) {
             debugPrint('REQUEST: ${options.method} ${options.uri}');
             debugPrint('HEADERS: ${options.headers}');
@@ -48,7 +50,9 @@ class DioClient {
         },
         onResponse: (response, handler) {
           if (kDebugMode) {
-            debugPrint('RESPONSE: ${response.statusCode} ${response.requestOptions.uri}');
+            debugPrint(
+              'RESPONSE: ${response.statusCode} ${response.requestOptions.uri}',
+            );
             debugPrint('BODY:    ${response.data}');
           }
           return handler.next(response);
@@ -125,7 +129,10 @@ class DioClient {
     if (data == null) return null;
     if (data is String) {
       final text = data.trim();
-      if (text.isEmpty || text.length > 160 || text.contains('<html') || text.contains('<!DOCTYPE')) {
+      if (text.isEmpty ||
+          text.length > 160 ||
+          text.contains('<html') ||
+          text.contains('<!DOCTYPE')) {
         return null;
       }
       return text;

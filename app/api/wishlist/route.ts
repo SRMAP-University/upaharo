@@ -3,10 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { PRODUCT_CARD_SELECT } from '@/lib/product-db'
 import { resolveUserId } from '@/lib/request-auth'
+import { resolveStoreContext } from '@/lib/store-context'
 
 /** Saved products for the authenticated user, newest first. */
 export async function GET(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -16,6 +21,7 @@ export async function GET(request: NextRequest) {
       where: {
         userId,
         product: {
+          storeId: storeContext.store.id,
           NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
         },
       },
@@ -36,6 +42,10 @@ export async function GET(request: NextRequest) {
 /** Save a product. Body: { productId } */
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -47,8 +57,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
+    const product = await prisma.product.findFirst({
+      where: { id: productId, storeId: storeContext.store.id },
       select: { id: true },
     })
     if (!product) {
@@ -72,6 +82,10 @@ export async function POST(request: NextRequest) {
 /** Remove a saved product. Query: ?productId= */
 export async function DELETE(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -83,7 +97,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
 
-    await prisma.wishlistItem.deleteMany({ where: { userId, productId } })
+    await prisma.wishlistItem.deleteMany({
+      where: {
+        userId,
+        productId,
+        product: { storeId: storeContext.store.id },
+      },
+    })
 
     return NextResponse.json({ ok: true })
   } catch (error) {

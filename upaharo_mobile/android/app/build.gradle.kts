@@ -40,6 +40,18 @@ android {
         versionName = flutter.versionName
     }
 
+    flavorDimensions += "store"
+    productFlavors {
+        create("gifts") {
+            dimension = "store"
+            // Retains com.upaharo.upaharo_mobile for the existing Play app.
+        }
+        create("grocery") {
+            dimension = "store"
+            applicationIdSuffix = ".grocery"
+        }
+    }
+
     signingConfigs {
         if (hasReleaseKeystore) {
             create("release") {
@@ -72,4 +84,15 @@ dependencies {
 
 flutter {
     source = "../.."
+}
+
+// Keep `flutter run` / `assembleDebug` usable for the established gifts app
+// before the separate grocery Firebase app has been provisioned. Once the real
+// src/grocery/google-services.json exists, the plugin processes it normally.
+tasks.matching {
+    it.name.startsWith("processGrocery") && it.name.endsWith("GoogleServices")
+}.configureEach {
+    onlyIf {
+        project.file("src/grocery/google-services.json").isFile
+    }
 }

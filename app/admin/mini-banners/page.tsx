@@ -255,7 +255,8 @@ export default function AdminMiniBanners() {
                   className={INPUT_CLASS}
                 />
                 <p className="mt-1 text-xs text-ink/45">
-                  Shown under the tile and used for accessibility.
+                  Not drawn on the tile — used to label it here and for screen
+                  readers. Put visible copy in the artwork.
                 </p>
               </div>
               <div>

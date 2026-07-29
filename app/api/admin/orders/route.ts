@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { requireAdmin } from '@/lib/request-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     // Hide ONLINE checkouts that are still unpaid — they are not real orders yet.
     const orders = await prisma.order.findMany({
       where: {
@@ -11,6 +15,12 @@ export async function GET() {
         },
       },
       include: {
+        store: {
+          select: {
+            slug: true,
+            name: true,
+          },
+        },
         user: {
           select: {
             name: true,

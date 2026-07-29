@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
+import { requireAdmin } from '@/lib/request-auth'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     // Get total orders
     const totalOrders = await prisma.order.count()
 

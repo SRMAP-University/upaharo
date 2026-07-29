@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
+import { resolveStoreContext } from '@/lib/store-context'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,7 @@ interface RecommendPayload {
 }
 
 type CatalogSnapshot = {
+  storeId: string
   categoryList: string
   categoryNames: string[]
   catalogMin: number
@@ -46,11 +48,17 @@ type CatalogSnapshot = {
   fetchedAt: number
 }
 
-let catalogCache: CatalogSnapshot | null = null
+const catalogCacheByStore = new Map<string, CatalogSnapshot>()
 const CATALOG_TTL_MS = 10 * 60 * 1000
 
 export async function POST(request: NextRequest) {
   try {
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+    const storeId = storeContext.store.id
+
     const accountId = process.env.CF_ACCOUNT_ID
     const apiToken = process.env.CF_API_TOKEN
 
@@ -71,14 +79,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const catalog = await getCatalogSnapshot()
+    const catalog = await getCatalogSnapshot(storeId)
     const lastUser = [...incomingMessages].reverse().find((m) => m.role === 'user')?.content ?? ''
 
-    const systemPrompt = `You are Upaharo's friendly gifting assistant for delivery in Kathmandu Valley.
+    const systemPrompt = `You are Upaharo's friendly shopping assistant for delivery in Kathmandu Valley.
 Speak like a helpful shop associate: warm, natural, and concise (usually 1-3 sentences).
 Understand casual questions ("do you have anything?", "show me options", "for my mom") — do not echo the customer's sentence as a product search.
 
-Catalog: about ${catalog.catalogCount} gifts, roughly NPR ${Math.round(catalog.catalogMin)}–${Math.round(catalog.catalogMax)}.
+Catalog: about ${catalog.catalogCount} items, roughly NPR ${Math.round(catalog.catalogMin)}–${Math.round(catalog.catalogMax)}.
 Categories we carry: ${catalog.categoryList}.
 
 How to help:
@@ -123,7 +131,7 @@ Filter rules (NPR):
     const [aiResponse, earlyProducts] = await Promise.all([
       fetchCloudflareAI(accountId, apiToken, messages),
       canPrefetch && earlyFilters
-        ? fetchRecommendedProducts(earlyFilters)
+        ? fetchRecommendedProducts(earlyFilters, storeId)
         : Promise.resolve([] as any[]),
     ])
 
@@ -143,12 +151,12 @@ Filter rules (NPR):
 
       products = sameAsEarly && earlyProducts.length > 0
         ? earlyProducts
-        : await fetchRecommendedProducts(filters)
+        : await fetchRecommendedProducts(filters, storeId)
     }
 
     let content =
       cleanedText ||
-      "Happy to help you find a gift! What's the occasion, who is it for, or what's your budget?"
+      "Happy to help you find something! What's the occasion, who is it for, or what's your budget?"
 
     // Soften empty recommend results without sounding robotic.
     if (filters && hasAnyFilter(filters) && products.length === 0) {
@@ -171,20 +179,22 @@ Filter rules (NPR):
   }
 }
 
-async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
-  if (catalogCache && Date.now() - catalogCache.fetchedAt < CATALOG_TTL_MS) {
-    return catalogCache
+async function getCatalogSnapshot(storeId: string): Promise<CatalogSnapshot> {
+  const cached = catalogCacheByStore.get(storeId)
+  if (cached && Date.now() - cached.fetchedAt < CATALOG_TTL_MS) {
+    return cached
   }
 
   const [categories, priceStats] = await Promise.all([
     prisma.category.findMany({
-      where: { type: 'PRODUCT', isActive: true },
+      where: { storeId, type: 'PRODUCT', isActive: true },
       select: { name: true },
       orderBy: { name: 'asc' },
       take: 40,
     }),
     prisma.product.aggregate({
       where: {
+        storeId,
         isAvailable: true,
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
       },
@@ -195,7 +205,8 @@ async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
   ])
 
   const categoryNames = categories.map((c) => c.name)
-  catalogCache = {
+  const snapshot: CatalogSnapshot = {
+    storeId,
     categoryList: categoryNames.join(', ') || 'flowers, cakes, gifts, plants',
     categoryNames,
     catalogMin: Number(priceStats._min.price ?? 0),
@@ -203,7 +214,8 @@ async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
     catalogCount: priceStats._count,
     fetchedAt: Date.now(),
   }
-  return catalogCache
+  catalogCacheByStore.set(storeId, snapshot)
+  return snapshot
 }
 
 /** Safe server-side cues only — never turns chatter into a search query. */
@@ -500,7 +512,7 @@ function inferBudgetFromText(text: string): {
   return {}
 }
 
-async function fetchRecommendedProducts(filters: RecommendFilters) {
+async function fetchRecommendedProducts(filters: RecommendFilters, storeId: string) {
   const attempts: RecommendFilters[] = [filters]
 
   if (filters.search && (filters.minPrice != null || filters.maxPrice != null)) {
@@ -518,14 +530,14 @@ async function fetchRecommendedProducts(filters: RecommendFilters) {
   }
 
   for (const attempt of attempts) {
-    const products = await queryProducts(attempt)
+    const products = await queryProducts(attempt, storeId)
     if (products.length > 0) return products
   }
 
   return []
 }
 
-async function queryProducts(filters: RecommendFilters) {
+async function queryProducts(filters: RecommendFilters, storeId: string) {
   const searchTerms = (filters.search ?? '')
     .split(/\s+/)
     .filter(Boolean)
@@ -533,6 +545,7 @@ async function queryProducts(filters: RecommendFilters) {
     .slice(0, 5)
 
   const where: any = {
+    storeId,
     isAvailable: true,
     NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
   }

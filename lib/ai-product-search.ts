@@ -22,6 +22,7 @@ export type SearchFilters = {
 }
 
 type CatalogSnapshot = {
+  storeId: string
   categoryList: string
   categoryNames: string[]
   catalogMin: number
@@ -30,7 +31,7 @@ type CatalogSnapshot = {
   fetchedAt: number
 }
 
-let catalogCache: CatalogSnapshot | null = null
+const catalogCacheByStore = new Map<string, CatalogSnapshot>()
 const CATALOG_TTL_MS = 10 * 60 * 1000
 
 export type AiProductSearchResult = {
@@ -45,7 +46,10 @@ export type AiProductSearchResult = {
  * Uses Cloudflare Workers AI to map the query → filters, then Prisma.
  * Falls back to keyword contains-search when AI is unavailable.
  */
-export async function searchProductsWithAi(rawQuery: string): Promise<AiProductSearchResult> {
+export async function searchProductsWithAi(
+  rawQuery: string,
+  storeId = 'store_gifts'
+): Promise<AiProductSearchResult> {
   const query = String(rawQuery || '').trim().slice(0, 200)
   if (!query) {
     return { products: [], filters: null, interpretation: null, source: 'keyword' }
@@ -55,7 +59,7 @@ export async function searchProductsWithAi(rawQuery: string): Promise<AiProductS
   const apiToken = process.env.CF_API_TOKEN
 
   if (!accountId || !apiToken) {
-    const products = await keywordSearch(query)
+    const products = await keywordSearch(query, storeId)
     return {
       products,
       filters: { search: query },
@@ -65,7 +69,7 @@ export async function searchProductsWithAi(rawQuery: string): Promise<AiProductS
   }
 
   try {
-    const catalog = await getCatalogSnapshot()
+    const catalog = await getCatalogSnapshot(storeId)
     const systemPrompt = `You are Upaharo's gift search parser for Kathmandu Valley.
 Turn the shopper's search into product filters. Do not chat — only output one JSON block.
 
@@ -113,11 +117,11 @@ Rules (NPR):
 
     let products: Array<Record<string, unknown>> = []
     if (filters && hasAnyFilter(filters)) {
-      products = await fetchProducts(filters)
+      products = await fetchProducts(filters, storeId)
     }
 
     if (products.length === 0) {
-      products = await keywordSearch(query)
+      products = await keywordSearch(query, storeId)
       return {
         products,
         filters: filters ?? { search: query },
@@ -134,7 +138,7 @@ Rules (NPR):
     }
   } catch (error) {
     console.error('AI product search failed, using keyword fallback:', error)
-    const products = await keywordSearch(query)
+    const products = await keywordSearch(query, storeId)
     return {
       products,
       filters: { search: query },
@@ -159,20 +163,22 @@ function formatInterpretation(filters?: SearchFilters | null): string | null {
   return parts.length > 0 ? `Showing ${parts.join(' · ')}` : null
 }
 
-async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
-  if (catalogCache && Date.now() - catalogCache.fetchedAt < CATALOG_TTL_MS) {
-    return catalogCache
+async function getCatalogSnapshot(storeId: string): Promise<CatalogSnapshot> {
+  const cached = catalogCacheByStore.get(storeId)
+  if (cached && Date.now() - cached.fetchedAt < CATALOG_TTL_MS) {
+    return cached
   }
 
   const [categories, priceStats] = await Promise.all([
     prisma.category.findMany({
-      where: { type: 'PRODUCT', isActive: true },
+      where: { storeId, type: 'PRODUCT', isActive: true },
       select: { name: true },
       orderBy: { name: 'asc' },
       take: 40,
     }),
     prisma.product.aggregate({
       where: {
+        storeId,
         isAvailable: true,
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
       },
@@ -183,7 +189,8 @@ async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
   ])
 
   const categoryNames = categories.map((c) => c.name)
-  catalogCache = {
+  const snapshot: CatalogSnapshot = {
+    storeId,
     categoryList: categoryNames.join(', ') || 'flowers, cakes, gifts, plants',
     categoryNames,
     catalogMin: Number(priceStats._min.price ?? 0),
@@ -191,7 +198,8 @@ async function getCatalogSnapshot(): Promise<CatalogSnapshot> {
     catalogCount: priceStats._count,
     fetchedAt: Date.now(),
   }
-  return catalogCache
+  catalogCacheByStore.set(storeId, snapshot)
+  return snapshot
 }
 
 function inferSafeFilters(text: string, categoryNames: string[]): SearchFilters | undefined {
@@ -433,7 +441,7 @@ function inferBudgetFromText(text: string): {
   return {}
 }
 
-async function fetchProducts(filters: SearchFilters) {
+async function fetchProducts(filters: SearchFilters, storeId: string) {
   const attempts: SearchFilters[] = [filters]
 
   if (filters.search && (filters.minPrice != null || filters.maxPrice != null)) {
@@ -451,18 +459,18 @@ async function fetchProducts(filters: SearchFilters) {
   }
 
   for (const attempt of attempts) {
-    const products = await queryProducts(attempt)
+    const products = await queryProducts(attempt, storeId)
     if (products.length > 0) return products
   }
 
   return []
 }
 
-async function keywordSearch(query: string) {
-  return queryProducts({ search: query })
+async function keywordSearch(query: string, storeId: string) {
+  return queryProducts({ search: query }, storeId)
 }
 
-async function queryProducts(filters: SearchFilters) {
+async function queryProducts(filters: SearchFilters, storeId: string) {
   const searchTerms = (filters.search ?? '')
     .split(/\s+/)
     .filter(Boolean)
@@ -470,6 +478,7 @@ async function queryProducts(filters: SearchFilters) {
     .slice(0, 5)
 
   const where: Record<string, unknown> = {
+    storeId,
     isAvailable: true,
     NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
   }

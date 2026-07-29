@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../config/flavor.dart';
 import '../../config/routes.dart';
 import '../../config/theme.dart';
 import '../../core/utils/image_resolver.dart';
@@ -12,6 +13,7 @@ import '../../data/models/product.dart';
 import '../../data/repositories/product_repository.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/settings_provider.dart';
 import '../providers/wishlist_provider.dart';
 import 'cart_fly_animator.dart';
 import 'mini_cart_bar.dart';
@@ -41,10 +43,8 @@ Future<void> showProductQuickSheet(
     useSafeArea: false,
     isDismissible: true,
     enableDrag: false,
-    builder: (context) => ProductQuickSheet(
-      initialProduct: product,
-      peers: peerList,
-    ),
+    builder: (context) =>
+        ProductQuickSheet(initialProduct: product, peers: peerList),
   );
 }
 
@@ -175,7 +175,8 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
   }
 
   double _effectivePrice(Product product) {
-    final variant = _selectedVariantIndex != null &&
+    final variant =
+        _selectedVariantIndex != null &&
             _selectedVariantIndex! < product.variants.length
         ? product.variants[_selectedVariantIndex!]
         : null;
@@ -185,16 +186,19 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
   void _addToCart(Product product, {BuildContext? originContext}) {
     final variants = product.variants;
     final selectedVariant =
-        _selectedVariantIndex != null && _selectedVariantIndex! < variants.length
-            ? variants[_selectedVariantIndex!]
-            : null;
+        _selectedVariantIndex != null &&
+            _selectedVariantIndex! < variants.length
+        ? variants[_selectedVariantIndex!]
+        : null;
 
-    final label = [selectedVariant?.color, selectedVariant?.size]
-        .where((value) => value != null && value.isNotEmpty)
-        .join(' / ');
+    final label = [
+      selectedVariant?.color,
+      selectedVariant?.size,
+    ].where((value) => value != null && value.isNotEmpty).join(' / ');
 
-    final imageUrl =
-        ImageResolver.resolve(selectedVariant?.image ?? product.image);
+    final imageUrl = ImageResolver.resolve(
+      selectedVariant?.image ?? product.image,
+    );
 
     final item = CartItem(
       id: product.id,
@@ -245,9 +249,9 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
   }
 
   void _shareProduct(Product product) {
-    final url = 'https://www.upaharo.com/products/${product.id}';
+    final url = '${FlavorConfig.shareDomain}/products/${product.id}';
     Share.share(
-      'Check out ${product.name} on Upaharo\n$url',
+      'Check out ${product.name} on ${FlavorConfig.appName}\n$url',
       subject: product.name,
     );
   }
@@ -298,12 +302,15 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
     final media = MediaQuery.of(context);
     final bottomInset = media.padding.bottom;
     // Keep reserved height stable so the sheet doesn't jump during the swap.
-    final peerSpace =
-        _isFullPage ? 0.0 : _kPeerStripHeight + bottomInset + 14;
+    final peerSpace = _isFullPage ? 0.0 : _kPeerStripHeight + bottomInset + 14;
     final sideInset = _isFullPage ? 0.0 : _kSideInset;
     final product = _display;
     final unitPrice = _effectivePrice(product);
     final cart = context.watch<CartProvider>();
+    final wishlistEnabled = context
+        .watch<SettingsProvider>()
+        .settings
+        .featureWishlist;
     final showPeers = !_showCartPreview && _peers.length > 1;
 
     return PopScope(
@@ -386,7 +393,8 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                         key: _heroFlyKey,
                                         child: _HeroGallery(
                                           key: ValueKey(
-                                              '${product.id}_$_selectedVariantIndex'),
+                                            '${product.id}_$_selectedVariantIndex',
+                                          ),
                                           images: _allImages(product),
                                           selectedIndex: _selectedImageIndex,
                                           discount: product.discount,
@@ -395,26 +403,32 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                               : 10,
                                           cartCount: cart.totalItems,
                                           showCart: _isFullPage,
-                                          isWishlisted: context
-                                              .watch<WishlistProvider>()
-                                              .contains(product.id),
+                                          showWishlist: wishlistEnabled,
+                                          isWishlisted:
+                                              wishlistEnabled &&
+                                              context
+                                                  .watch<WishlistProvider>()
+                                                  .contains(product.id),
                                           onImageChanged: (i) => setState(
-                                              () => _selectedImageIndex = i),
+                                            () => _selectedImageIndex = i,
+                                          ),
                                           onClose: _isFullPage
                                               ? _collapseOrClose
                                               : () =>
-                                                  Navigator.of(context).pop(),
+                                                    Navigator.of(context).pop(),
                                           onWishlist: () =>
                                               _toggleWishlist(product),
-                                          onShare: () =>
-                                              _shareProduct(product),
+                                          onShare: () => _shareProduct(product),
                                           onCart: () => Navigator.pushNamed(
-                                              context, AppRoutes.cart),
+                                            context,
+                                            AppRoutes.cart,
+                                          ),
                                         ),
                                       ),
                                       AnimatedSwitcher(
-                                        duration:
-                                            const Duration(milliseconds: 220),
+                                        duration: const Duration(
+                                          milliseconds: 220,
+                                        ),
                                         switchInCurve: Curves.easeOut,
                                         switchOutCurve: Curves.easeIn,
                                         child: Column(
@@ -425,23 +439,29 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                             if (_loadingDetail &&
                                                 _detail == null)
                                               Padding(
-                                                padding: const EdgeInsets.all(20),
+                                                padding: const EdgeInsets.all(
+                                                  20,
+                                                ),
                                                 child: Center(
                                                   child: SizedBox(
                                                     width: 24,
                                                     height: 24,
                                                     child:
                                                         CircularProgressIndicator(
-                                                      strokeWidth: 2.2,
-                                                      color: AppTheme.wine,
-                                                    ),
+                                                          strokeWidth: 2.2,
+                                                          color: AppTheme.wine,
+                                                        ),
                                                   ),
                                                 ),
                                               ),
                                             Padding(
                                               padding:
                                                   const EdgeInsets.fromLTRB(
-                                                      16, 14, 16, 0),
+                                                    16,
+                                                    14,
+                                                    16,
+                                                    0,
+                                                  ),
                                               child: Column(
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
@@ -470,7 +490,8 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                                   ),
                                                   if (product.miniDescription !=
                                                           null &&
-                                                      product.miniDescription!
+                                                      product
+                                                          .miniDescription!
                                                           .isNotEmpty) ...[
                                                     const SizedBox(height: 8),
                                                     Text(
@@ -505,16 +526,22 @@ class _ProductQuickSheetState extends State<ProductQuickSheet> {
                                               Padding(
                                                 padding:
                                                     const EdgeInsets.fromLTRB(
-                                                        16, 12, 16, 0),
+                                                      16,
+                                                      12,
+                                                      16,
+                                                      0,
+                                                    ),
                                                 child: Container(
                                                   width: double.infinity,
-                                                  padding:
-                                                      const EdgeInsets.all(16),
+                                                  padding: const EdgeInsets.all(
+                                                    16,
+                                                  ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.white,
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                            14),
+                                                          14,
+                                                        ),
                                                   ),
                                                   child: Column(
                                                     crossAxisAlignment:
@@ -695,6 +722,7 @@ class _HeroGallery extends StatefulWidget {
     required this.topPad,
     required this.cartCount,
     required this.showCart,
+    required this.showWishlist,
     required this.isWishlisted,
     required this.onImageChanged,
     required this.onClose,
@@ -709,6 +737,7 @@ class _HeroGallery extends StatefulWidget {
   final double topPad;
   final int cartCount;
   final bool showCart;
+  final bool showWishlist;
   final bool isWishlisted;
   final ValueChanged<int> onImageChanged;
   final VoidCallback onClose;
@@ -731,8 +760,7 @@ class _HeroGalleryState extends State<_HeroGallery> {
     );
   }
 
-  int get _lastIndex =>
-      widget.images.isEmpty ? 0 : widget.images.length - 1;
+  int get _lastIndex => widget.images.isEmpty ? 0 : widget.images.length - 1;
 
   @override
   void didUpdateWidget(covariant _HeroGallery oldWidget) {
@@ -766,8 +794,10 @@ class _HeroGalleryState extends State<_HeroGallery> {
             color: Colors.white,
             child: images.isEmpty
                 ? Center(
-                    child: Icon(Icons.image_not_supported,
-                        color: AppTheme.charcoal),
+                    child: Icon(
+                      Icons.image_not_supported,
+                      color: AppTheme.charcoal,
+                    ),
                   )
                 : PageView.builder(
                     controller: _pageController,
@@ -818,14 +848,16 @@ class _HeroGalleryState extends State<_HeroGallery> {
                   onPressed: widget.onClose,
                 ),
                 const Spacer(),
-                _OverlayIconButton(
-                  icon: widget.isWishlisted
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: widget.isWishlisted ? const Color(0xFFB42318) : null,
-                  onPressed: widget.onWishlist,
-                ),
-                const SizedBox(width: 8),
+                if (widget.showWishlist) ...[
+                  _OverlayIconButton(
+                    icon: widget.isWishlisted
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: widget.isWishlisted ? const Color(0xFFB42318) : null,
+                    onPressed: widget.onWishlist,
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 _OverlayIconButton(
                   icon: Icons.share_outlined,
                   onPressed: widget.onShare,
@@ -870,8 +902,10 @@ class _HeroGalleryState extends State<_HeroGallery> {
               left: 12,
               bottom: images.length > 1 ? 28 : 12,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.red,
                   borderRadius: BorderRadius.circular(8),
@@ -929,26 +963,28 @@ class _SheetVariantSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <({int? index, String label, String? image, double? discount})>[
-      (
-        index: null,
-        label: 'Default',
-        image: product.image,
-        discount: product.discount,
-      ),
-      ...List.generate(product.variants.length, (i) {
-        final v = product.variants[i];
-        final label = [v.color, v.size]
-            .where((s) => s != null && s.isNotEmpty)
-            .join(' / ');
-        return (
-          index: i,
-          label: label.isEmpty ? 'Option ${i + 1}' : label,
-          image: v.image,
-          discount: product.discount,
-        );
-      }),
-    ];
+    final items =
+        <({int? index, String label, String? image, double? discount})>[
+          (
+            index: null,
+            label: 'Default',
+            image: product.image,
+            discount: product.discount,
+          ),
+          ...List.generate(product.variants.length, (i) {
+            final v = product.variants[i];
+            final label = [
+              v.color,
+              v.size,
+            ].where((s) => s != null && s.isNotEmpty).join(' / ');
+            return (
+              index: i,
+              label: label.isEmpty ? 'Option ${i + 1}' : label,
+              image: v.image,
+              discount: product.discount,
+            );
+          }),
+        ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),

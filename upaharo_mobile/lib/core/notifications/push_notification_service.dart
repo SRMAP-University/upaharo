@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../../config/flavor.dart';
 import '../../data/repositories/device_repository.dart';
 import '../../firebase_options.dart';
 import 'order_progress_notification.dart';
@@ -16,16 +17,16 @@ import 'order_progress_notification.dart';
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   if (!DefaultFirebaseOptions.isConfigured) return;
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (_) {}
 
   // Keep the sticky order-progress notification in sync while backgrounded.
   try {
     final local = FlutterLocalNotificationsPlugin();
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    await local.initialize(
-      const InitializationSettings(android: androidInit),
-    );
+    await local.initialize(const InitializationSettings(android: androidInit));
     await OrderProgressNotification.instance.attach(local);
     await OrderProgressNotification.instance.syncFromPushData(message.data);
   } catch (_) {}
@@ -61,7 +62,9 @@ class PushNotificationService {
     }
 
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     } catch (e) {
       if (kDebugMode) debugPrint('[push] Firebase.initializeApp failed: $e');
       return;
@@ -84,18 +87,22 @@ class PushNotificationService {
 
     if (Platform.isAndroid) {
       const channel = AndroidNotificationChannel(
-        'upaharo_orders',
+        FlavorConfig.orderNotificationChannelId,
         'Orders & updates',
         description: 'Order status, payments, and reminders',
         importance: Importance.high,
       );
       await _local
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.createNotificationChannel(channel);
 
       // Android 13+: request notification permission via the plugin too.
       await _local
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >()
           ?.requestNotificationsPermission();
     }
 
@@ -186,7 +193,7 @@ class PushNotificationService {
       n.body,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'upaharo_orders',
+          FlavorConfig.orderNotificationChannelId,
           'Orders & updates',
           channelDescription: 'Order status, payments, and reminders',
           importance: Importance.high,

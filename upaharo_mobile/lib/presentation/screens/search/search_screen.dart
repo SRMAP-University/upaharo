@@ -8,7 +8,9 @@ import '../../../config/theme.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../data/models/product.dart';
 import '../../../data/repositories/ai_repository.dart';
+import '../../../data/repositories/product_repository.dart';
 import '../../providers/cart_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/mini_cart_bar.dart';
 import '../../widgets/product_card.dart';
@@ -26,6 +28,7 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _controller = TextEditingController();
   final _aiRepo = const AiRepository();
+  final _productRepo = const ProductRepository();
   Timer? _debounce;
 
   List<Product> _products = const [];
@@ -76,14 +79,32 @@ class _SearchScreenState extends State<SearchScreen> {
     });
 
     try {
-      final result = await _aiRepo.searchProducts(query);
-      if (!mounted || id != _requestId) return;
-      setState(() {
-        _products = result.products;
-        _interpretation = result.interpretation;
-        _source = result.source;
-        _loading = false;
-      });
+      final aiEnabled = context
+          .read<SettingsProvider>()
+          .settings
+          .featureAiAssistant;
+      if (aiEnabled) {
+        final result = await _aiRepo.searchProducts(query);
+        if (!mounted || id != _requestId) return;
+        setState(() {
+          _products = result.products;
+          _interpretation = result.interpretation;
+          _source = result.source;
+          _loading = false;
+        });
+      } else {
+        final products = await _productRepo.getProducts(
+          search: query,
+          limit: 60,
+        );
+        if (!mounted || id != _requestId) return;
+        setState(() {
+          _products = products;
+          _interpretation = null;
+          _source = 'keyword';
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (!mounted || id != _requestId) return;
       setState(() {
@@ -102,8 +123,13 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartPad =
-        context.watch<CartProvider>().totalItems > 0 ? MiniCartBar.height + 8 : 0.0;
+    final cartPad = context.watch<CartProvider>().totalItems > 0
+        ? MiniCartBar.height + 8
+        : 0.0;
+    final aiEnabled = context
+        .watch<SettingsProvider>()
+        .settings
+        .featureAiAssistant;
     final query = _controller.text.trim();
 
     return Scaffold(
@@ -127,8 +153,10 @@ class _SearchScreenState extends State<SearchScreen> {
           controller: _controller,
           autofocus: widget.showBottomNav,
           textInputAction: TextInputAction.search,
-          decoration: const InputDecoration(
-            hintText: 'Try “flowers under 2000”…',
+          decoration: InputDecoration(
+            hintText: aiEnabled
+                ? 'Try “flowers under 2000”…'
+                : 'Search products',
             border: InputBorder.none,
           ),
           onChanged: _onQueryChanged,
@@ -156,22 +184,23 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
         ],
       ),
-      body: _buildBody(cartPad),
-      bottomNavigationBar: widget.showBottomNav ? const BottomNavBar(currentIndex: 0) : null,
+      body: _buildBody(cartPad, aiEnabled),
+      bottomNavigationBar: widget.showBottomNav
+          ? const BottomNavBar(currentIndex: 0)
+          : null,
     );
   }
 
-  Widget _buildBody(double cartPad) {
+  Widget _buildBody(double cartPad, bool aiEnabled) {
     final query = _controller.text.trim();
 
     if (query.isEmpty) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          _aiHintCard(),
-          const SizedBox(height: 16),
+          if (aiEnabled) ...[_aiHintCard(), const SizedBox(height: 16)],
           Text(
-            'Try asking',
+            aiEnabled ? 'Try asking' : 'Popular searches',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -204,7 +233,7 @@ class _SearchScreenState extends State<SearchScreen> {
             CircularProgressIndicator(color: AppTheme.wine),
             const SizedBox(height: 12),
             Text(
-              'AI is finding gifts…',
+              aiEnabled ? 'AI is finding gifts…' : 'Finding products…',
               style: TextStyle(color: AppTheme.charcoal),
             ),
           ],
@@ -226,7 +255,9 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'No gifts matched. Try a different budget or gift type.',
+            aiEnabled
+                ? 'No gifts matched. Try a different budget or gift type.'
+                : 'No products matched. Try a different search.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppTheme.charcoal),
           ),
@@ -276,16 +307,13 @@ class _SearchScreenState extends State<SearchScreen> {
               crossAxisSpacing: 12,
               childAspectRatio: 0.72,
             ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final product = _products[index];
-                return ProductCard(
-                  product: product,
-                  onTap: () => showProductQuickSheet(context, product: product),
-                );
-              },
-              childCount: _products.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final product = _products[index];
+              return ProductCard(
+                product: product,
+                onTap: () => showProductQuickSheet(context, product: product),
+              );
+            }, childCount: _products.length),
           ),
         ),
       ],

@@ -9,7 +9,7 @@
  * server runs, so a "12–3 PM" slot always means noon in Kathmandu.
  */
 
-import { getAppSettings } from '@/lib/app-settings'
+import { getAppSettings, type StoreSettingsTarget } from '@/lib/app-settings'
 import type { DeliverySlotConfig } from '@/lib/app-settings-schema'
 
 const NEPAL_OFFSET_MINUTES = 5 * 60 + 45
@@ -22,8 +22,8 @@ export type ScheduleConfig = {
   maxDaysAhead: number
 }
 
-export async function getScheduleConfig(): Promise<ScheduleConfig> {
-  const settings = await getAppSettings()
+export async function getScheduleConfig(store?: StoreSettingsTarget): Promise<ScheduleConfig> {
+  const settings = await getAppSettings(store)
   return {
     slots: settings.deliverySlots,
     maxDaysAhead: settings.scheduleMaxDaysAhead,

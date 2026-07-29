@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdmin } from '@/lib/request-auth'
 
 /**
  * Proxies an image URL so the admin color picker can read pixels
  * without browser CORS blocking (e.g. ibb.co, CDN images).
  */
 export async function GET(request: NextRequest) {
+  if (!(await requireAdmin(request))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const url = request.nextUrl.searchParams.get('url')?.trim()
   if (!url) {
     return NextResponse.json({ error: 'Missing url' }, { status: 400 })

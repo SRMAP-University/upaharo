@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'config/routes.dart';
+import 'config/flavor.dart';
 import 'config/theme.dart';
 import 'core/navigation/app_navigator.dart';
 import 'presentation/providers/settings_provider.dart';
@@ -37,7 +38,7 @@ class UpaharoApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
-      title: settings.siteName,
+      title: FlavorConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: AppRoutes.main,

@@ -4,6 +4,8 @@ import { ARCHIVED_PRODUCT_TAG, appendArchivedProductTag, sanitizeProductTags } f
 import { findFirstProductCompat, withProductWriteCompatibility } from '@/lib/product-db'
 import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
+import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 type ProductVariantInput = {
   color?: unknown
@@ -41,11 +43,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const { id } = await params
 
     const product = await findFirstProductCompat({
       where: {
         id,
+        storeId: storeContext.store.id,
         NOT: {
           tags: {
             has: ARCHIVED_PRODUCT_TAG,
@@ -75,9 +83,23 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const body = await request.json()
     const { id } = await params
     const data: Record<string, unknown> = { ...body }
+    delete data.storeId
+
+    if (body?.category !== undefined) {
+      const category = String(body.category || '').trim()
+      if (!category || !(await prisma.category.findFirst({ where: { name: { equals: category, mode: 'insensitive' }, storeId: storeContext.store.id }, select: { id: true } }))) {
+        return NextResponse.json({ error: 'Invalid product category' }, { status: 400 })
+      }
+      data.category = category
+    }
 
     if (body?.variants !== undefined) {
       data.variants = normalizeVariants(body.variants)
@@ -118,6 +140,7 @@ export async function PATCH(
       prisma.product.updateMany({
         where: {
           id,
+          storeId: storeContext.store.id,
           NOT: {
             tags: {
               has: ARCHIVED_PRODUCT_TAG,
@@ -138,6 +161,7 @@ export async function PATCH(
     const updatedProduct = await findFirstProductCompat({
       where: {
         id,
+        storeId: storeContext.store.id,
         NOT: {
           tags: {
             has: ARCHIVED_PRODUCT_TAG,
@@ -146,7 +170,7 @@ export async function PATCH(
       }
     })
 
-    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(id), REDIS_KEYS.HOME)
+    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, id), REDIS_KEYS.HOME(storeContext.slug))
 
     return NextResponse.json(updatedProduct)
   } catch (error: any) {
@@ -162,11 +186,17 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const { id } = await params
 
     const product = await prisma.product.findFirst({
       where: {
         id,
+        storeId: storeContext.store.id,
         NOT: {
           tags: {
             has: ARCHIVED_PRODUCT_TAG,
@@ -200,7 +230,7 @@ export async function DELETE(
         },
       })
 
-      await redis.del(REDIS_KEYS.PRODUCT_DETAIL(product.id), REDIS_KEYS.HOME)
+      await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id), REDIS_KEYS.HOME(storeContext.slug))
 
       return NextResponse.json({ success: true, archived: true })
     }
@@ -209,7 +239,7 @@ export async function DELETE(
       where: { id: product.id }
     })
 
-    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(product.id), REDIS_KEYS.HOME)
+    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id), REDIS_KEYS.HOME(storeContext.slug))
 
     return NextResponse.json({ success: true, archived: false })
   } catch (error: any) {

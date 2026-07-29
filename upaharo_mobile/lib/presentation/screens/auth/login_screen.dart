@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../providers/auth_provider.dart';
@@ -31,9 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
     final success = await context.read<AuthProvider>().login(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
 
     if (success && mounted) {
       unawaited(context.read<WishlistProvider>().load(force: true));
@@ -47,9 +48,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final loading = auth.status == AuthStatus.loading;
 
     return AuthScaffold(
-      brandLine: 'Upaharo',
+      brandLine: FlavorConfig.appName,
       headline: 'Welcome back',
-      subtitle: 'Sign in to send flowers, cakes & thoughtful gifts',
+      subtitle: FlavorConfig.isGrocery
+          ? 'Sign in to shop fresh essentials and everyday needs.'
+          : 'Sign in to send flowers, cakes and thoughtful gifts.',
       child: AutofillGroup(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -72,31 +75,14 @@ class _LoginScreenState extends State<LoginScreen> {
               onToggleObscure: () => setState(() => _obscure = !_obscure),
             ),
             const SizedBox(height: 20),
-            if (auth.errorMessage != null) AuthErrorBanner(message: auth.errorMessage!),
+            if (auth.errorMessage != null)
+              AuthErrorBanner(message: auth.errorMessage!),
             AuthPrimaryButton(
               label: 'Sign in',
               loading: loading,
               onPressed: _login,
             ),
-            SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(child: Divider(color: AppTheme.wine.withAlpha(40))),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'or',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.charcoal.withAlpha(140),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Expanded(child: Divider(color: AppTheme.wine.withAlpha(40))),
-              ],
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             AuthLinkRow(
               prefix: 'New here? ',
               action: 'Create an account',
@@ -107,7 +93,8 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               onPressed: loading
                   ? null
-                  : () => Navigator.pushReplacementNamed(context, AppRoutes.main),
+                  : () =>
+                        Navigator.pushReplacementNamed(context, AppRoutes.main),
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.charcoal.withAlpha(160),
               ),
