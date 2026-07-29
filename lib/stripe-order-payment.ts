@@ -28,6 +28,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
       id: true,
       orderNumber: true,
       userId: true,
+      storeId: true,
       total: true,
       paymentMethod: true,
       paymentStatus: true,
@@ -140,6 +141,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
       try {
         await redeemWallet({
           userId: order.userId,
+          storeId: order.storeId,
           orderId: order.id,
           amount: order.walletDiscount,
         })
@@ -152,6 +154,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
       try {
         await createPendingCashback({
           userId: order.userId,
+          storeId: order.storeId,
           orderId: order.id,
           amount: order.cashbackAmount,
         })

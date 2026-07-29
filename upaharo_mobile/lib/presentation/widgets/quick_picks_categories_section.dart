@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../config/theme.dart';
 import '../../core/utils/category_style.dart';
-import '../../core/utils/image_resolver.dart';
 import '../../data/models/category.dart';
-import 'progressive_network_image.dart';
+import 'category_illustration.dart';
 
-/// Home "Quick picks" — horizontal category tiles with admin wash tints + images.
+/// Home "Quick picks" — horizontal category tiles with cartoon glyphs + wash tints.
 class QuickPicksCategoriesSection extends StatelessWidget {
   const QuickPicksCategoriesSection({
     super.key,
@@ -148,7 +147,6 @@ class _CategoryPickTile extends StatelessWidget {
     final wash = categoryWashFor(category);
     final light = Color.lerp(wash, Colors.white, 0.42) ?? wash;
     final accent = Color.lerp(wash, AppTheme.ink, 0.12) ?? wash;
-    final imageUrl = ImageResolver.resolve(category.image);
     final icon = categoryIconFor(category);
     final name = category.name.trim();
 
@@ -194,34 +192,12 @@ class _CategoryPickTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(230),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: accent.withAlpha(36),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: imageUrl.isNotEmpty
-                          ? ProgressiveNetworkImage(
-                              url: imageUrl,
-                              fit: BoxFit.cover,
-                              width: 52,
-                              height: 52,
-                              fadeDuration: Duration.zero,
-                              errorWidget: _iconFallback(icon, accent),
-                            )
-                          : _iconFallback(icon, accent),
+                    CategoryIllustration(
+                      icon: icon,
+                      washColor: wash,
+                      size: 56,
                     ),
                     const Spacer(),
                     Text(
@@ -242,15 +218,6 @@ class _CategoryPickTile extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _iconFallback(IconData icon, Color accent) {
-    return ColoredBox(
-      color: accent.withAlpha(22),
-      child: Center(
-        child: Icon(icon, size: 26, color: accent.withAlpha(220)),
       ),
     );
   }

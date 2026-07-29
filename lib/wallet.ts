@@ -7,6 +7,14 @@ type Tx = Prisma.TransactionClient
 
 export * from '@/lib/wallet-rules'
 
+function resolveStoreId(store: StoreSettingsTarget): string {
+  return typeof store === 'string' ? store : store.id
+}
+
+function walletWhere(userId: string, storeId: string) {
+  return { userId_storeId: { userId, storeId } }
+}
+
 export async function getWalletRules(store?: StoreSettingsTarget): Promise<WalletRules> {
   const settings = await getAppSettings(store)
   return {
@@ -28,28 +36,33 @@ export async function getDeliveryRules(store?: StoreSettingsTarget) {
   }
 }
 
-export async function getWalletBalance(userId: string): Promise<number> {
+export async function getWalletBalance(
+  userId: string,
+  store: StoreSettingsTarget
+): Promise<number> {
+  const storeId = resolveStoreId(store)
   const wallet = await prisma.walletAccount.findUnique({
-    where: { userId },
+    where: walletWhere(userId, storeId),
     select: { balance: true },
   })
   return roundMoney(wallet?.balance ?? 0)
 }
 
-async function ensureWallet(tx: Tx, userId: string) {
+async function ensureWallet(tx: Tx, userId: string, storeId: string) {
   return tx.walletAccount.upsert({
-    where: { userId },
+    where: walletWhere(userId, storeId),
     update: {},
-    create: { userId, balance: 0 },
-    select: { userId: true, balance: true },
+    create: { userId, storeId, balance: 0 },
+    select: { userId: true, storeId: true, balance: true },
   })
 }
 
-export async function getOrCreateWallet(userId: string) {
+export async function getOrCreateWallet(userId: string, store: StoreSettingsTarget) {
+  const storeId = resolveStoreId(store)
   return prisma.walletAccount.upsert({
-    where: { userId },
+    where: walletWhere(userId, storeId),
     update: {},
-    create: { userId, balance: 0 },
+    create: { userId, storeId, balance: 0 },
   })
 }
 
@@ -59,13 +72,17 @@ export async function getOrCreateWallet(userId: string) {
  */
 export async function redeemWallet(params: {
   userId: string
+  storeId: string
   orderId: string
   amount: number
   tx?: Tx
 }): Promise<{ debited: boolean; balance: number }> {
   const amount = roundMoney(params.amount)
   if (amount <= 0) {
-    return { debited: false, balance: await getWalletBalance(params.userId) }
+    return {
+      debited: false,
+      balance: await getWalletBalance(params.userId, params.storeId),
+    }
   }
 
   const run = async (tx: Tx) => {
@@ -74,23 +91,24 @@ export async function redeemWallet(params: {
       select: { id: true },
     })
     if (existing) {
-      const wallet = await ensureWallet(tx, params.userId)
+      const wallet = await ensureWallet(tx, params.userId, params.storeId)
       return { debited: false, balance: roundMoney(wallet.balance) }
     }
 
-    const wallet = await ensureWallet(tx, params.userId)
+    const wallet = await ensureWallet(tx, params.userId, params.storeId)
     if (wallet.balance + 0.001 < amount) {
       throw Object.assign(new Error('Insufficient wallet balance'), { status: 400 })
     }
 
     const balanceAfter = roundMoney(wallet.balance - amount)
     await tx.walletAccount.update({
-      where: { userId: params.userId },
+      where: walletWhere(params.userId, params.storeId),
       data: { balance: balanceAfter },
     })
     await tx.walletTransaction.create({
       data: {
         userId: params.userId,
+        storeId: params.storeId,
         orderId: params.orderId,
         type: WalletTxType.REDEEM,
         amount: -amount,
@@ -116,7 +134,7 @@ export async function refundRedeem(orderId: string): Promise<{ refunded: boolean
   return prisma.$transaction(async (tx) => {
     const redeem = await tx.walletTransaction.findUnique({
       where: { orderId_type: { orderId, type: WalletTxType.REDEEM } },
-      select: { id: true, userId: true, amount: true, status: true },
+      select: { id: true, userId: true, storeId: true, amount: true, status: true },
     })
     if (!redeem || redeem.status !== WalletTxStatus.COMPLETED) {
       return { refunded: false }
@@ -131,16 +149,17 @@ export async function refundRedeem(orderId: string): Promise<{ refunded: boolean
     const amount = roundMoney(Math.abs(redeem.amount))
     if (amount <= 0) return { refunded: false }
 
-    const wallet = await ensureWallet(tx, redeem.userId)
+    const wallet = await ensureWallet(tx, redeem.userId, redeem.storeId)
     const balanceAfter = roundMoney(wallet.balance + amount)
 
     await tx.walletAccount.update({
-      where: { userId: redeem.userId },
+      where: walletWhere(redeem.userId, redeem.storeId),
       data: { balance: balanceAfter },
     })
     await tx.walletTransaction.create({
       data: {
         userId: redeem.userId,
+        storeId: redeem.storeId,
         orderId,
         type: WalletTxType.REDEEM_REFUND,
         amount,
@@ -164,6 +183,7 @@ export async function refundRedeem(orderId: string): Promise<{ refunded: boolean
  */
 export async function createPendingCashback(params: {
   userId: string
+  storeId: string
   orderId: string
   amount: number
   tx?: Tx
@@ -172,10 +192,11 @@ export async function createPendingCashback(params: {
   if (amount <= 0) return
 
   const run = async (tx: Tx) => {
-    await ensureWallet(tx, params.userId)
+    await ensureWallet(tx, params.userId, params.storeId)
     await tx.walletTransaction.create({
       data: {
         userId: params.userId,
+        storeId: params.storeId,
         orderId: params.orderId,
         type: WalletTxType.CASHBACK_PENDING,
         amount,
@@ -195,7 +216,7 @@ export async function creditPendingCashback(orderId: string): Promise<{ credited
   return prisma.$transaction(async (tx) => {
     const pending = await tx.walletTransaction.findUnique({
       where: { orderId_type: { orderId, type: WalletTxType.CASHBACK_PENDING } },
-      select: { id: true, userId: true, amount: true, status: true },
+      select: { id: true, userId: true, storeId: true, amount: true, status: true },
     })
     if (!pending || pending.status !== WalletTxStatus.PENDING) {
       return { credited: 0 }
@@ -210,11 +231,11 @@ export async function creditPendingCashback(orderId: string): Promise<{ credited
       return { credited: 0 }
     }
 
-    const wallet = await ensureWallet(tx, pending.userId)
+    const wallet = await ensureWallet(tx, pending.userId, pending.storeId)
     const balanceAfter = roundMoney(wallet.balance + amount)
 
     await tx.walletAccount.update({
-      where: { userId: pending.userId },
+      where: walletWhere(pending.userId, pending.storeId),
       data: { balance: balanceAfter },
     })
     await tx.walletTransaction.update({
@@ -269,12 +290,16 @@ export async function voidPendingCashback(orderId: string): Promise<{ voided: bo
  */
 export async function adjustWallet(params: {
   userId: string
+  storeId: string
   amount: number
   note?: string
 }): Promise<{ balance: number; adjusted: number }> {
   const amount = roundMoney(params.amount)
   if (amount === 0) {
-    return { balance: await getWalletBalance(params.userId), adjusted: 0 }
+    return {
+      balance: await getWalletBalance(params.userId, params.storeId),
+      adjusted: 0,
+    }
   }
 
   return prisma.$transaction(async (tx) => {
@@ -286,14 +311,14 @@ export async function adjustWallet(params: {
       throw Object.assign(new Error('User not found'), { status: 404 })
     }
 
-    const wallet = await ensureWallet(tx, params.userId)
+    const wallet = await ensureWallet(tx, params.userId, params.storeId)
     if (amount < 0 && wallet.balance + amount < -0.001) {
       throw Object.assign(new Error('Insufficient wallet balance'), { status: 400 })
     }
 
     const balanceAfter = roundMoney(wallet.balance + amount)
     await tx.walletAccount.update({
-      where: { userId: params.userId },
+      where: walletWhere(params.userId, params.storeId),
       data: { balance: balanceAfter },
     })
 
@@ -304,6 +329,7 @@ export async function adjustWallet(params: {
     await tx.walletTransaction.create({
       data: {
         userId: params.userId,
+        storeId: params.storeId,
         orderId: null,
         type: WalletTxType.ADJUST,
         amount,
@@ -331,12 +357,16 @@ export type WalletSummary = {
   deliveryFeeAmount: number
 }
 
-export async function getWalletSummary(userId: string): Promise<WalletSummary> {
+export async function getWalletSummary(
+  userId: string,
+  store: StoreSettingsTarget
+): Promise<WalletSummary> {
+  const storeId = resolveStoreId(store)
   const [settings, balance, pending] = await Promise.all([
-    getAppSettings(),
-    getWalletBalance(userId),
+    getAppSettings(store),
+    getWalletBalance(userId, storeId),
     prisma.walletTransaction.aggregate({
-      where: { userId, status: WalletTxStatus.PENDING },
+      where: { userId, storeId, status: WalletTxStatus.PENDING },
       _sum: { amount: true },
     }),
   ])

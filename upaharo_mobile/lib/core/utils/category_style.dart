@@ -64,6 +64,49 @@ IconData categoryIconForName(String name) {
   if (key.contains('occasion') || key.contains('birthday')) {
     return Icons.celebration_outlined;
   }
+  // Grocery aisle heuristics — cartoon icons, not product photos.
+  if (key.contains('dairy') || key.contains('milk') || key.contains('cheese')) {
+    return Icons.egg_alt_rounded;
+  }
+  if (key.contains('rice') || key.contains('grain') || key.contains('atta') || key.contains('flour')) {
+    return Icons.grain_rounded;
+  }
+  if (key.contains('snack') || key.contains('biscuit') || key.contains('chip')) {
+    return Icons.cookie_rounded;
+  }
+  if (key.contains('fruit') || key.contains('apple') || key.contains('veg')) {
+    return Icons.eco_rounded;
+  }
+  if (key.contains('vegetable') || key.contains('green')) {
+    return Icons.grass_rounded;
+  }
+  if (key.contains('meat') || key.contains('chicken') || key.contains('fish')) {
+    return Icons.set_meal_rounded;
+  }
+  if (key.contains('drink') || key.contains('beverage') || key.contains('juice')) {
+    return Icons.local_cafe_rounded;
+  }
+  if (key.contains('frozen') || key.contains('ice')) {
+    return Icons.ac_unit_rounded;
+  }
+  if (key.contains('bakery') || key.contains('bread')) {
+    return Icons.bakery_dining_rounded;
+  }
+  if (key.contains('clean') || key.contains('detergent')) {
+    return Icons.cleaning_services_rounded;
+  }
+  if (key.contains('personal') || key.contains('care') || key.contains('soap')) {
+    return Icons.spa_rounded;
+  }
+  if (key.contains('spice') || key.contains('masala')) {
+    return Icons.ramen_dining_rounded;
+  }
+  if (key.contains('oil') || key.contains('ghee')) {
+    return Icons.water_drop_rounded;
+  }
+  if (key.contains('grocery') || key.contains('staple')) {
+    return Icons.shopping_basket_rounded;
+  }
   return Icons.shopping_bag_outlined;
 }
 

@@ -10,12 +10,19 @@ import {
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const storeContext = await resolveAdminStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const { id } = await params
     const body = await request.json()
     const updateData: Record<string, unknown> = {}
@@ -25,6 +32,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       select: {
         id: true,
         userId: true,
+        storeId: true,
         orderNumber: true,
         status: true,
         paymentStatus: true,
@@ -33,6 +41,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
 
     if (!existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
+    if (existing.storeId !== storeContext.store.id) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 

@@ -31,7 +31,7 @@ model User {
   deviceTokens       DeviceToken[]
   notifications      AppNotification[]
   businessProfile    BusinessProfile?
-  wallet             WalletAccount?
+  walletAccounts     WalletAccount[]
   walletTransactions WalletTransaction[]
   wishlistItems      WishlistItem[]
   createdAt          DateTime            @default(now())
@@ -41,8 +41,8 @@ model User {
   @@index([phone])
 }
 
-/// A customer-facing storefront. Content and configuration belong to a store,
-/// while users, their wallet and their combined order history are shared.
+/// A customer-facing storefront. Catalog, settings, orders, and wallet are
+/// scoped per store; user accounts are shared (same login across apps).
 model Store {
   id                  String                 @id @default(cuid())
   slug                String                 @unique
@@ -57,6 +57,8 @@ model Store {
   occasions           Occasion[]
   appSettings         AppSettings?
   orders              Order[]
+  walletAccounts      WalletAccount[]
+  walletTransactions  WalletTransaction[]
   spinPlays           SpinPlay[]
   productViewEvents   ProductViewEvent[]
   recommendationRules RecommendationRule[]
@@ -371,20 +373,27 @@ enum WalletTxStatus {
   VOIDED
 }
 
-/// Spendable wallet balance per customer. Ledger lives in `WalletTransaction`.
+/// Spendable wallet balance per customer per storefront.
 model WalletAccount {
-  userId    String   @id
+  userId    String
+  storeId   String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   balance   Float    @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@id([userId, storeId])
+  @@index([storeId])
 }
 
 /// Append-only wallet ledger. `amount` is signed: positive credits, negative debits.
 model WalletTransaction {
   id           String         @id @default(cuid())
   userId       String
+  storeId      String
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store        Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   orderId      String?
   type         WalletTxType
   amount       Float
@@ -396,7 +405,7 @@ model WalletTransaction {
   updatedAt    DateTime       @updatedAt
 
   @@unique([orderId, type])
-  @@index([userId, createdAt])
+  @@index([userId, storeId, createdAt])
   @@index([orderId])
 }
 

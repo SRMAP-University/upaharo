@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     const requestedWallet = Math.max(0, Number(walletAmount) || 0)
     let walletDiscount = 0
     if (walletRules.walletEnabled && requestedWallet > 0) {
-      const balance = await getWalletBalance(userId)
+      const balance = await getWalletBalance(userId, storeContext.store.id)
       walletDiscount = Math.min(
         roundMoney(requestedWallet),
         computeMaxWalletSpend(totalBeforeWallet, balance, walletRules)
@@ -332,6 +332,7 @@ export async function POST(request: NextRequest) {
       if (cashbackAmount > 0) {
         await createPendingCashback({
           userId,
+          storeId: storeContext.store.id,
           orderId: created.id,
           amount: cashbackAmount,
           tx,
@@ -341,7 +342,13 @@ export async function POST(request: NextRequest) {
       // Debit immediately so two concurrent checkouts can't spend the same
       // balance. Abandoned online payments refund it via abandonUnpaidOnlineOrder.
       if (walletDiscount > 0) {
-        await redeemWallet({ userId, orderId: created.id, amount: walletDiscount, tx })
+        await redeemWallet({
+          userId,
+          storeId: storeContext.store.id,
+          orderId: created.id,
+          amount: walletDiscount,
+          tx,
+        })
       }
 
       return created
@@ -440,8 +447,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const orders = await prisma.order.findMany({
-      where: { userId },
+      where: { userId, storeId: storeContext.store.id },
       include: {
         items: {
           include: {

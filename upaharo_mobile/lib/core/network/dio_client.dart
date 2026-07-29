@@ -43,7 +43,7 @@ class DioClient {
           options.headers['X-Store'] = FlavorConfig.storeSlug;
           // Belt-and-suspenders: some CDNs drop custom headers on cached API responses.
           options.queryParameters = {
-            ...?options.queryParameters,
+            ...options.queryParameters,
             'store': FlavorConfig.storeSlug,
           };
           if (kDebugMode) {

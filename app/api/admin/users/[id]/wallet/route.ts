@@ -2,17 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { adjustWallet, getWalletBalance, roundMoney } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 /** Current wallet balance + recent adjustments for admin user detail. */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await requireAdmin(_request))) {
+    if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const storeContext = await resolveAdminStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
+    const storeId = storeContext.store.id
     const { id: userId } = await params
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -23,13 +30,13 @@ export async function GET(
     }
 
     const [balance, pending, transactions] = await Promise.all([
-      getWalletBalance(userId),
+      getWalletBalance(userId, storeId),
       prisma.walletTransaction.aggregate({
-        where: { userId, status: 'PENDING' },
+        where: { userId, storeId, status: 'PENDING' },
         _sum: { amount: true },
       }),
       prisma.walletTransaction.findMany({
-        where: { userId },
+        where: { userId, storeId },
         orderBy: { createdAt: 'desc' },
         take: 20,
         select: {
@@ -57,7 +64,7 @@ export async function GET(
 }
 
 /**
- * Credit (or optionally debit) a customer's wallet.
+ * Credit (or optionally debit) a customer's wallet for the current admin store.
  * Body: { amount: number (>0 to add), note?: string }
  */
 export async function POST(
@@ -68,6 +75,11 @@ export async function POST(
     const admin = await requireAdmin(request)
     if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const storeContext = await resolveAdminStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
     const { id: userId } = await params
@@ -82,7 +94,6 @@ export async function POST(
       )
     }
 
-    // Admin "add money" is credit-only unless explicitly allowDebit.
     const allowDebit = Boolean(body?.allowDebit)
     if (rawAmount < 0 && !allowDebit) {
       return NextResponse.json(
@@ -98,6 +109,7 @@ export async function POST(
     const adminEmail = admin.email || 'admin'
     const result = await adjustWallet({
       userId,
+      storeId: storeContext.store.id,
       amount: rawAmount,
       note: note
         ? `${note.trim()} (by ${adminEmail})`

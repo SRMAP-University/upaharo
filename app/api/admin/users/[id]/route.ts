@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getWalletBalance, roundMoney } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -36,12 +37,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const storeContext = await resolveAdminStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
+    const storeId = storeContext.store.id
     const { id } = await params
+
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
         addresses: true,
         orders: {
+          where: { storeId },
           include: {
             items: {
               include: {
@@ -61,7 +71,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
         _count: {
           select: {
-            orders: true,
             addresses: true,
           },
         },
@@ -73,9 +82,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     const [walletBalance, pendingCashback] = await Promise.all([
-      getWalletBalance(id),
+      getWalletBalance(id, storeId),
       prisma.walletTransaction.aggregate({
-        where: { userId: id, status: 'PENDING' },
+        where: { userId: id, storeId, status: 'PENDING' },
         _sum: { amount: true },
       }),
     ])
@@ -87,6 +96,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ...user,
       totalSpent,
       completedOrders,
+      orderCount: user.orders.length,
       walletBalance,
       pendingCashback: roundMoney(pendingCashback._sum.amount ?? 0),
     })

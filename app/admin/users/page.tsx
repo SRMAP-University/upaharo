@@ -12,8 +12,8 @@ interface User {
   createdAt: string
   totalSpent: number
   lastOrderAt: string | null
+  orderCount: number
   _count: {
-    orders: number
     addresses: number
   }
 }
@@ -272,7 +272,7 @@ export default function AdminUsers() {
                       </select>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="text-sm text-ink">{user._count.orders} orders</div>
+                      <div className="text-sm text-ink">{user.orderCount} orders</div>
                       <div className="text-xs text-ink/55">{user._count.addresses} addresses</div>
                     </td>
                     <td className="px-4 py-4">
@@ -324,7 +324,7 @@ export default function AdminUsers() {
                   </div>
                   <div className="mt-2 flex items-center justify-between text-xs text-ink/55">
                     <span>{user.phone || 'No phone'}</span>
-                    <span>{user._count.orders} orders</span>
+                    <span>{user.orderCount} orders</span>
                   </div>
                   <div className="mt-1 text-xs font-semibold text-ink">
                     {formatPriceNoDecimals(user.totalSpent || 0)}

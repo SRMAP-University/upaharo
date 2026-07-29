@@ -29,6 +29,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../widgets/add_to_cart_plus.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/home_header_category_tile.dart';
 import '../../widgets/home_header_promo.dart';
 import '../../widgets/mini_cart_bar.dart';
 import '../../widgets/product_quick_sheet.dart';
@@ -987,11 +988,19 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final double? bannerProductHeight;
 
   static const double _locationHeight = 46;
-  static const double _catsExpanded = 56;
-  static const double _catsCollapsed = 44;
+  static const double _catsExpandedGifts = 56;
+  static const double _catsCollapsedGifts = 44;
+  static const double _catsExpandedGrocery = 88;
+  static const double _catsCollapsedGrocery = 48;
   static const double _searchRow = 2 + 38 + 4; // pad + search + gap before cats
   static const double _catsPromoGap = 10;
   static const double _bottomPad = 0;
+
+  double get _catsExpanded =>
+      FlavorConfig.isGrocery ? _catsExpandedGrocery : _catsExpandedGifts;
+
+  double get _catsCollapsed =>
+      FlavorConfig.isGrocery ? _catsCollapsedGrocery : _catsCollapsedGifts;
 
   double get _catsExtra => _catsExpanded - _catsCollapsed;
 
@@ -1043,16 +1052,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final iconProgress = (1 - (afterPromo / _catsExtra)).clamp(0.0, 1.0);
     final catsHeight = _catsCollapsed + (_catsExtra * iconProgress);
 
-    final tabs = <({String label, String imageUrl, IconData fallbackIcon})>[
-      (label: 'All', imageUrl: '', fallbackIcon: Icons.grid_view_rounded),
-      ...categories.map(
-        (c) => (
-          label: c.name,
-          imageUrl: ImageResolver.resolve(c.image),
-          fallbackIcon: categoryIconFor(c),
-        ),
-      ),
-    ];
+    final tabs = homeHeaderCategoryTabs(categories);
+    final illustrativeCats = FlavorConfig.isGrocery;
     final headerTint = AppTheme.headerWash;
     final headerTintDeep =
         Color.lerp(headerTint, AppTheme.wine, 0.22) ?? headerTint;
@@ -1332,14 +1333,33 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         itemCount: tabs.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 6),
+                        separatorBuilder: (_, _) => SizedBox(
+                          width: illustrativeCats ? 8 : 6,
+                        ),
                         itemBuilder: (_, index) {
                           final selected = index == selectedTab;
                           final tab = tabs[index];
+                          if (illustrativeCats) {
+                            final compact = iconProgress < 0.35;
+                            return HomeHeaderCategoryTile(
+                              label: tab.label,
+                              fallbackIcon: tab.fallbackIcon,
+                              washColor: tab.washColor,
+                              selected: selected,
+                              height: catsHeight,
+                              compact: compact,
+                              onTap: () => onSelectTab(index),
+                            );
+                          }
                           final thumb = (36 + (8 * iconProgress)).clamp(
                             36.0,
                             44.0,
                           );
+                          final imageUrl = index == 0
+                              ? ''
+                              : ImageResolver.resolve(
+                                  categories[index - 1].image,
+                                );
                           return Tooltip(
                             message: tab.label,
                             child: GestureDetector(
@@ -1368,7 +1388,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                         : null,
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: tab.imageUrl.isEmpty
+                                  child: imageUrl.isEmpty
                                       ? ColoredBox(
                                           color: selectedChipFg.withValues(
                                             alpha: 0.12,
@@ -1382,7 +1402,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                           ),
                                         )
                                       : _CategoryHeaderThumb(
-                                          url: tab.imageUrl,
+                                          url: imageUrl,
                                           size: thumb,
                                           fallbackIcon: tab.fallbackIcon,
                                           fallbackColor: selected

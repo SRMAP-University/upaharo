@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { resolveUserId } from '@/lib/request-auth'
+import { resolveStoreContext } from '@/lib/store-context'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -16,6 +17,11 @@ export async function GET(
     const userId = await resolveUserId(request)
     if (!userId) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
     const { id } = await params
@@ -52,6 +58,10 @@ export async function GET(
       )
     }
 
+    if (order.storeId !== storeContext.store.id) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+
     return NextResponse.json({ order })
   } catch (error) {
     console.error('Error fetching order:', error)
@@ -74,6 +84,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
     const { id } = await params
     const body = await request.json().catch(() => ({}))
     const action = String(body?.action ?? '').toLowerCase()
@@ -87,7 +102,7 @@ export async function PATCH(
 
     const order = await prisma.order.findUnique({
       where: { id },
-      select: { id: true, userId: true, status: true },
+      select: { id: true, userId: true, storeId: true, status: true },
     })
 
     if (!order) {
@@ -96,6 +111,10 @@ export async function PATCH(
 
     if (order.userId !== userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+    }
+
+    if (order.storeId !== storeContext.store.id) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
     if (!CANCELLABLE_STATUSES.includes(order.status)) {
