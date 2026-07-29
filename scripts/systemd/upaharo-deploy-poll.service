@@ -5,6 +5,7 @@ Description=Upaharo deploy poll (git fetch + rebuild on new commits)
 Type=oneshot
 User=ubuntu
 WorkingDirectory=/home/ubuntu/upaharo
+Environment=APP_DIR=/home/ubuntu/upaharo
 ExecStart=/bin/bash /home/ubuntu/upaharo/scripts/poll-deploy.sh
 StandardOutput=append:/home/ubuntu/upaharo-deploy-poll.log
 StandardError=append:/home/ubuntu/upaharo-deploy-poll.log
