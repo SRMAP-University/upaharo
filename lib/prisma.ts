@@ -5,14 +5,42 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /**
- * Netlify + Supabase: the transaction pooler often breaks Prisma reads.
- * Prefer DIRECT_URL in production when set (direct Supabase host, port 5432).
+ * Supabase: the direct host (db.*.supabase.co) is IPv6-only and fails on EC2 and
+ * many serverless runtimes. Prefer the pooler session URL (5432) in production.
  */
+function poolerSessionUrl(): string | undefined {
+  const pooled = process.env.DATABASE_URL?.trim()
+  if (!pooled?.includes('pooler.supabase.com')) return undefined
+  return pooled
+    .replace(':6543/', ':5432/')
+    .replace(/([?&])pgbouncer=true&?/, '$1')
+    .replace(/[?&]$/, '')
+}
+
 function databaseUrl(): string | undefined {
-  if (process.env.NODE_ENV === 'production' && process.env.DIRECT_URL) {
-    return process.env.DIRECT_URL
+  const direct = process.env.DIRECT_URL?.trim()
+  const pooled = process.env.DATABASE_URL?.trim()
+
+  if (process.env.NODE_ENV === 'production') {
+    const directIsIpv6Host =
+      !!direct &&
+      direct.includes('.supabase.co') &&
+      !direct.includes('pooler.supabase.com')
+
+    if (directIsIpv6Host) {
+      return (
+        (direct.includes('pooler.supabase.com') ? direct : undefined) ||
+        poolerSessionUrl() ||
+        pooled ||
+        direct
+      )
+    }
+    if (direct) {
+      return direct
+    }
   }
-  return process.env.DATABASE_URL
+
+  return pooled
 }
 
 function createPrismaClient() {
