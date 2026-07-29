@@ -227,6 +227,45 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
           </div>
         )
 
+      case 'bannerCarousel':
+        return (
+          <div>
+            {sectionTitle(title || 'Promo', subtitle)}
+            <div
+              style={{
+                marginTop: gap(6),
+                height: 36,
+                borderRadius: radius + 2,
+                background: `linear-gradient(120deg, ${form.brandSecondary}, ${form.brandPrimary})`,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#FFFFFF',
+                fontSize: 8,
+                fontWeight: 800,
+              }}
+            >
+              Feed banner
+            </div>
+          </div>
+        )
+
+      case 'miniBanners':
+        return (
+          <div style={{ display: 'flex', gap: gap(6) }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: Math.max(28, Math.round(form.miniBannerHeight * 0.2)),
+                  borderRadius: radius,
+                  backgroundColor: form.surfaceSoft,
+                }}
+              />
+            ))}
+          </div>
+        )
+
       default:
         return null
     }
@@ -314,7 +353,7 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
                 fontWeight: 800,
               }}
             >
-              {form.announcementText ? form.announcementText.slice(0, 42) : 'Banner'}
+              Header carousel
             </div>
           )}
         </div>
@@ -332,8 +371,10 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
               Every section is hidden.
             </p>
           ) : (
-            visible.map((section) => (
-              <div key={section.id}>{renderSection(section.id, section.title, section.subtitle)}</div>
+            visible.map((section, index) => (
+              <div key={section.key ? `${section.id}:${section.key}` : `${section.id}:${index}`}>
+                {renderSection(section.id, section.title, section.subtitle)}
+              </div>
             ))
           )}
         </div>

@@ -424,7 +424,7 @@ export default function AdminSettingsPage() {
               <>
                 <SettingsPanel
                   title="Home section order"
-                  description="Drag to reorder, rename, or hide each block of the mobile home feed."
+                  description="Sticky header carousel is separate from feed banner sections — each has its own Visible switch. Drag feed blocks to reorder."
                   action={
                     <button
                       type="button"
@@ -438,6 +438,8 @@ export default function AdminSettingsPage() {
                   <SectionLayoutEditor
                     sections={formData.homeSectionLayout}
                     onChange={(sections) => set('homeSectionLayout', sections)}
+                    homepageShowBanner={formData.homepageShowBanner}
+                    onHomepageShowBannerChange={(visible) => set('homepageShowBanner', visible)}
                   />
                 </SettingsPanel>
 
@@ -447,7 +449,8 @@ export default function AdminSettingsPage() {
                 >
                   <SettingsGrid>
                     <Toggle
-                      label="Show homepage banner"
+                      label="Show sticky header carousel"
+                      hint="Top-of-home only. Feed banner sections use their own Visible switches in Home section order."
                       checked={formData.homepageShowBanner}
                       onChange={(checked) => set('homepageShowBanner', checked)}
                     />

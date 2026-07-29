@@ -433,6 +433,8 @@ class _HomeScreenState extends State<HomeScreen>
                   // ValueNotifier so PageView is not rebuilt each lerp tick.
                   washColor: _washColor,
                   // Banner only on All — category tabs are product-only.
+                  // Sticky header carousel only — feed bannerCarousel sections
+                  // use their own layout Visible flags and ignore this toggle.
                   showPromo:
                       appSettings.homepageShowBanner && _selectedTab == 0,
                   coupons: coupons.coupons,
