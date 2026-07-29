@@ -24,6 +24,17 @@ interface Banner {
   products?: BannerProduct[]
   order: number
   isActive: boolean
+  sectionId?: string | null
+}
+
+interface BannerSection {
+  id: string
+  title: string
+  subtitle: string | null
+  height: number
+  order: number
+  isActive: boolean
+  _count?: { banners: number }
 }
 
 interface CatalogProduct {
@@ -55,10 +66,13 @@ const emptyForm = {
   spotlightMode: 'products' as SpotlightMode,
   productIds: [] as string[],
   category: '',
+  sectionId: '' as string,
 }
 
 export default function AdminBanners() {
   const [banners, setBanners] = useState<Banner[]>([])
+  const [sections, setSections] = useState<BannerSection[]>([])
+  const [activeSectionTab, setActiveSectionTab] = useState<'header' | string>('header')
   const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([])
   const [categories, setCategories] = useState<CategoryRow[]>([])
   const [productQuery, setProductQuery] = useState('')
@@ -66,11 +80,26 @@ export default function AdminBanners() {
   const [showForm, setShowForm] = useState(false)
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null)
   const [formData, setFormData] = useState(emptyForm)
+  const [newSectionTitle, setNewSectionTitle] = useState('')
+  const [sectionBusy, setSectionBusy] = useState(false)
+  const [sectionEdit, setSectionEdit] = useState({ title: '', subtitle: '', height: 160 })
 
   useEffect(() => {
-    fetchBanners()
-    fetchCatalog()
+    void fetchBanners()
+    void fetchSections()
+    void fetchCatalog()
   }, [])
+
+  useEffect(() => {
+    if (activeSectionTab === 'header') return
+    const section = sections.find((s) => s.id === activeSectionTab)
+    if (!section) return
+    setSectionEdit({
+      title: section.title,
+      subtitle: section.subtitle || '',
+      height: section.height || 160,
+    })
+  }, [activeSectionTab, sections])
 
   const fetchBanners = async () => {
     try {
@@ -83,6 +112,17 @@ export default function AdminBanners() {
       console.error('Error fetching banners:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSections = async () => {
+    try {
+      const res = await fetch('/api/admin/banner-sections')
+      if (!res.ok) return
+      const data = await res.json()
+      setSections(Array.isArray(data?.sections) ? data.sections : [])
+    } catch (error) {
+      console.error('Error fetching banner sections:', error)
     }
   }
 
@@ -152,6 +192,106 @@ export default function AdminBanners() {
     })
   }
 
+  const filteredBanners = useMemo(() => {
+    if (activeSectionTab === 'header') {
+      return banners.filter((b) => !b.sectionId)
+    }
+    return banners.filter((b) => b.sectionId === activeSectionTab)
+  }, [activeSectionTab, banners])
+
+  const createSection = async () => {
+    const title = newSectionTitle.trim()
+    if (!title) return
+    setSectionBusy(true)
+    try {
+      const res = await fetch('/api/admin/banner-sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        alert(data?.error || 'Failed to create section')
+        return
+      }
+      setNewSectionTitle('')
+      await fetchSections()
+      if (data?.section?.id) setActiveSectionTab(data.section.id)
+    } catch {
+      alert('Failed to create section')
+    } finally {
+      setSectionBusy(false)
+    }
+  }
+
+  const moveSection = async (sectionId: string, direction: -1 | 1) => {
+    const sorted = [...sections].sort((a, b) => a.order - b.order)
+    const index = sorted.findIndex((s) => s.id === sectionId)
+    const target = index + direction
+    if (index < 0 || target < 0 || target >= sorted.length) return
+    ;[sorted[index], sorted[target]] = [sorted[target], sorted[index]]
+    const order = sorted.map((s, i) => ({ id: s.id, order: i }))
+    setSectionBusy(true)
+    try {
+      await fetch('/api/admin/banner-sections', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order }),
+      })
+      await fetchSections()
+    } finally {
+      setSectionBusy(false)
+    }
+  }
+
+  const deleteSection = async (sectionId: string) => {
+    if (!confirm('Delete this banner section and its slides?')) return
+    setSectionBusy(true)
+    try {
+      const res = await fetch(`/api/admin/banner-sections?id=${encodeURIComponent(sectionId)}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        alert('Failed to delete section')
+        return
+      }
+      if (activeSectionTab === sectionId) setActiveSectionTab('header')
+      await Promise.all([fetchSections(), fetchBanners()])
+    } finally {
+      setSectionBusy(false)
+    }
+  }
+
+  const saveSectionMeta = async () => {
+    if (activeSectionTab === 'header') return
+    const title = sectionEdit.title.trim()
+    if (!title) {
+      alert('Section title is required')
+      return
+    }
+    setSectionBusy(true)
+    try {
+      const res = await fetch('/api/admin/banner-sections', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: activeSectionTab,
+          title,
+          subtitle: sectionEdit.subtitle,
+          height: sectionEdit.height,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        alert(data?.error || 'Failed to update section')
+        return
+      }
+      await fetchSections()
+    } finally {
+      setSectionBusy(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -168,6 +308,7 @@ export default function AdminBanners() {
         bgColor: formData.bgColor,
         order: formData.order,
         isActive: formData.isActive,
+        sectionId: formData.sectionId || null,
         productIds:
           formData.spotlightMode === 'products' ? formData.productIds.slice(0, 3) : [],
         category:
@@ -213,8 +354,18 @@ export default function AdminBanners() {
       spotlightMode: hasProducts ? 'products' : 'category',
       productIds: banner.productIds?.slice(0, 3) ?? [],
       category: banner.category || '',
+      sectionId: banner.sectionId || '',
     })
     setProductQuery('')
+    setShowForm(true)
+  }
+
+  const openNewBanner = () => {
+    setFormData({
+      ...emptyForm,
+      sectionId: activeSectionTab === 'header' ? '' : activeSectionTab,
+    })
+    setEditingBanner(null)
     setShowForm(true)
   }
 
@@ -227,19 +378,150 @@ export default function AdminBanners() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Banners</h1>
           <p className="text-ink/55 mt-1">
-            Homepage banners with up to 3 spotlight products each
+            Header carousel plus extra feed banner sections (great for grocery promos). Reorder sections here; home feed placement is also in Settings → Home.
           </p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => (showForm ? resetForm() : openNewBanner())}
           className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold"
         >
           {showForm ? 'Cancel' : '+ Add Banner'}
         </button>
+      </div>
+
+      <div className="mb-4 rounded-[22px] border border-wine/10 bg-white p-4">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-[200px] flex-1">
+            <label className="mb-1 block text-xs font-medium text-ink/60">New feed banner section</label>
+            <input
+              type="text"
+              value={newSectionTitle}
+              onChange={(e) => setNewSectionTitle(e.target.value)}
+              placeholder="e.g. Weekend offers"
+              className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={sectionBusy || !newSectionTitle.trim()}
+            onClick={() => void createSection()}
+            className="rounded-full bg-wine px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Add section
+          </button>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveSectionTab('header')}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              activeSectionTab === 'header'
+                ? 'bg-wine text-white'
+                : 'border border-wine/15 bg-cream text-ink/70'
+            }`}
+          >
+            Header carousel
+          </button>
+          {[...sections]
+            .sort((a, b) => a.order - b.order)
+            .map((section) => (
+              <div key={section.id} className="inline-flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveSectionTab(section.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                    activeSectionTab === section.id
+                      ? 'bg-wine text-white'
+                      : 'border border-wine/15 bg-cream text-ink/70'
+                  }`}
+                >
+                  {section.title}
+                  <span className="ml-1 opacity-70">({section._count?.banners ?? 0})</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={sectionBusy}
+                  onClick={() => void moveSection(section.id, -1)}
+                  className="rounded-lg border border-wine/15 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
+                  title="Move section up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  disabled={sectionBusy}
+                  onClick={() => void moveSection(section.id, 1)}
+                  className="rounded-lg border border-wine/15 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
+                  title="Move section down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  disabled={sectionBusy}
+                  onClick={() => void deleteSection(section.id)}
+                  className="rounded-lg border border-red-200 px-1.5 py-1 text-[10px] text-red-600 disabled:opacity-40"
+                  title="Delete section"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+        </div>
+
+        {activeSectionTab !== 'header' && (
+          <div className="mt-4 grid gap-3 rounded-2xl border border-wine/10 bg-cream/40 p-3 md:grid-cols-[1fr_1fr_120px_auto]">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink/60">Section title</label>
+              <input
+                type="text"
+                value={sectionEdit.title}
+                onChange={(e) => setSectionEdit((prev) => ({ ...prev, title: e.target.value }))}
+                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink/60">Subtitle</label>
+              <input
+                type="text"
+                value={sectionEdit.subtitle}
+                onChange={(e) => setSectionEdit((prev) => ({ ...prev, subtitle: e.target.value }))}
+                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-ink/60">Height (px)</label>
+              <input
+                type="number"
+                min={80}
+                max={400}
+                value={sectionEdit.height}
+                onChange={(e) =>
+                  setSectionEdit((prev) => ({
+                    ...prev,
+                    height: Math.min(400, Math.max(80, parseInt(e.target.value, 10) || 160)),
+                  }))
+                }
+                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                type="button"
+                disabled={sectionBusy}
+                onClick={() => void saveSectionMeta()}
+                className="w-full rounded-full border border-wine/20 bg-white px-4 py-2 text-sm font-semibold text-wine disabled:opacity-50"
+              >
+                Save section
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {showForm && (
@@ -249,6 +531,21 @@ export default function AdminBanners() {
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-ink/70 mb-1">Banner section</label>
+                <select
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
+                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                >
+                  <option value="">Header carousel (sticky top)</option>
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      Feed · {section.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-ink/70 mb-1">Title*</label>
                 <input
@@ -498,10 +795,12 @@ export default function AdminBanners() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
           <div className="col-span-2 p-8 text-center text-ink/55">Loading...</div>
-        ) : banners.length === 0 ? (
-          <div className="col-span-2 p-8 text-center text-ink/55">No banners yet</div>
+        ) : filteredBanners.length === 0 ? (
+          <div className="col-span-2 p-8 text-center text-ink/55">
+            No banners in this section yet.
+          </div>
         ) : (
-          banners.map((banner) => (
+          filteredBanners.map((banner) => (
             <div
               key={banner.id}
               className="bg-white rounded-[22px] border border-wine/10 overflow-hidden"

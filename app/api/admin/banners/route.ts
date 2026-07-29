@@ -38,21 +38,32 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const productIds = normalizeBannerProductIds(body.productIds)
     const category = productIds.length > 0 ? null : normalizeBannerCategory(body.category)
-    const [products, categoryRow] = await Promise.all([
+    const sectionIdRaw = body.sectionId === null || body.sectionId === '' ? null : String(body.sectionId || '').trim() || null
+    const [products, categoryRow, sectionRow] = await Promise.all([
       productIds.length
         ? prisma.product.findMany({ where: { id: { in: productIds }, storeId: storeContext.store.id }, select: { id: true } })
         : Promise.resolve([]),
       category
         ? prisma.category.findFirst({ where: { storeId: storeContext.store.id, name: { equals: category, mode: 'insensitive' } }, select: { id: true } })
         : Promise.resolve(null),
+      sectionIdRaw
+        ? prisma.bannerSection.findFirst({
+            where: { id: sectionIdRaw, storeId: storeContext.store.id },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
     ])
     if (products.length !== productIds.length || (category && !categoryRow)) {
       return NextResponse.json({ error: 'Invalid banner product or category' }, { status: 400 })
+    }
+    if (sectionIdRaw && !sectionRow) {
+      return NextResponse.json({ error: 'Invalid banner section' }, { status: 400 })
     }
 
     const banner = await prisma.banner.create({
       data: {
         storeId: storeContext.store.id,
+        sectionId: sectionIdRaw,
         title: body.title,
         subtitle: body.subtitle || null,
         image: body.image,

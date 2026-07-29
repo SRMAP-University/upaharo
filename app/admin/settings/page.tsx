@@ -939,14 +939,7 @@ export default function AdminSettingsPage() {
               </>
             )}
 
-            <StickySaveBar
-              saving={saving}
-              message={
-                message.includes('success')
-                  ? message
-                  : 'All tabs share one save — your changes apply to the mobile app after save.'
-              }
-            />
+            <StickySaveBar saving={saving} />
           </form>
         </div>
 

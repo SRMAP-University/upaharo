@@ -29,6 +29,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../widgets/add_to_cart_plus.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/home_feed_banner_carousel.dart';
 import '../../widgets/home_header_category_tile.dart';
 import '../../widgets/home_header_promo.dart';
 import '../../widgets/mini_cart_bar.dart';
@@ -618,6 +619,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
     final miniBanners = context.watch<MiniBannerProvider>().banners;
+    final bannerSections = context.watch<BannerProvider>().sections;
 
     // Admin owns order + copy; each builder still gates on its own data/toggle.
     final builders = <String, List<Widget> Function(HomeSectionConfig)>{
@@ -651,6 +653,35 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
             ],
+      'bannerCarousel': (section) {
+        final key = section.key?.trim() ?? '';
+        if (key.isEmpty) return const [];
+        BannerSectionModel? match;
+        for (final s in bannerSections) {
+          if (s.id == key) {
+            match = s;
+            break;
+          }
+        }
+        if (match == null || match.banners.isEmpty) return const [];
+        final title = section.title.trim().isNotEmpty
+            ? section.title
+            : match.title;
+        final subtitle = section.subtitle.trim().isNotEmpty
+            ? section.subtitle
+            : (match.subtitle ?? '');
+        return [
+          _pad(
+            HomeFeedBannerCarousel(
+              banners: match.banners,
+              height: match.height.toDouble(),
+              title: title,
+              subtitle: subtitle,
+              onBannerTap: _openBannerLink,
+            ),
+          ),
+        ];
+      },
       'quickPicks': (section) =>
           settings.homepageShowTopCategories && data.categories.isNotEmpty
           ? [

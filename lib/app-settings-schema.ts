@@ -12,12 +12,15 @@ export const HOME_SECTION_IDS = [
   'miniBanners',
   'quickPicks',
   'productGrid',
+  'bannerCarousel',
 ] as const
 
 export type HomeSectionId = (typeof HOME_SECTION_IDS)[number]
 
 export type HomeSectionConfig = {
   id: HomeSectionId
+  /** Unique instance key — required for repeatable `bannerCarousel` sections. */
+  key?: string
   title: string
   subtitle: string
   visible: boolean
@@ -31,6 +34,11 @@ export const DEFAULT_HOME_SECTIONS: HomeSectionConfig[] = [
   { id: 'quickPicks', title: 'Quick picks', subtitle: '', visible: true },
   { id: 'productGrid', title: 'All gifts', subtitle: '', visible: true },
 ]
+
+/** Sections that may appear more than once (keyed by BannerSection id). */
+export const REPEATABLE_HOME_SECTION_IDS = new Set<HomeSectionId>(['bannerCarousel'])
+
+export const MAX_BANNER_CAROUSEL_SECTIONS = 12
 
 /** One bookable scheduled-delivery window, in store-local (Nepal) hours. */
 export type DeliverySlotConfig = {
@@ -254,31 +262,89 @@ export function normalizeDensity(value: unknown, fallback: string): string {
  * layout saved before the release doesn't bury it below the product grid.
  */
 export function normalizeHomeSections(raw: unknown): HomeSectionConfig[] {
-  const seen = new Map<HomeSectionId, HomeSectionConfig>()
+  const uniqueSeen = new Map<HomeSectionId, HomeSectionConfig>()
+  const ordered: HomeSectionConfig[] = []
+  let carouselCount = 0
 
   if (Array.isArray(raw)) {
     for (const item of raw) {
       const entry = (item ?? {}) as Record<string, unknown>
       const id = String(entry.id ?? '') as HomeSectionId
+      if (!(HOME_SECTION_IDS as readonly string[]).includes(id)) continue
+
+      if (id === 'bannerCarousel') {
+        if (carouselCount >= MAX_BANNER_CAROUSEL_SECTIONS) continue
+        const key = String(entry.key ?? '').trim()
+        if (!key) continue
+        const title = String(entry.title ?? 'Promo banners').trim() || 'Promo banners'
+        ordered.push({
+          id,
+          key,
+          title,
+          subtitle: String(entry.subtitle ?? '').trim(),
+          visible: typeof entry.visible === 'boolean' ? entry.visible : true,
+        })
+        carouselCount += 1
+        continue
+      }
+
       const fallback = DEFAULT_HOME_SECTIONS.find((section) => section.id === id)
-      if (!fallback || seen.has(id)) continue
+      if (!fallback || uniqueSeen.has(id)) continue
 
       const title = String(entry.title ?? fallback.title).trim()
-      seen.set(id, {
+      const config: HomeSectionConfig = {
         id,
         title: title || fallback.title,
         subtitle: String(entry.subtitle ?? fallback.subtitle).trim(),
         visible: typeof entry.visible === 'boolean' ? entry.visible : fallback.visible,
-      })
+      }
+      uniqueSeen.set(id, config)
+      ordered.push(config)
     }
   }
 
-  const ordered = [...seen.values()]
   DEFAULT_HOME_SECTIONS.forEach((fallback, defaultIndex) => {
-    if (seen.has(fallback.id)) return
-    ordered.splice(Math.min(defaultIndex, ordered.length), 0, { ...fallback })
+    if (uniqueSeen.has(fallback.id)) return
+    const insertAt = Math.min(defaultIndex, ordered.length)
+    ordered.splice(insertAt, 0, { ...fallback })
+    uniqueSeen.set(fallback.id, fallback)
   })
+
   return ordered
+}
+
+/** Ensure a banner-carousel layout entry exists for a BannerSection. */
+export function upsertBannerCarouselInLayout(
+  layout: HomeSectionConfig[],
+  section: { id: string; title: string; subtitle?: string | null }
+): HomeSectionConfig[] {
+  const next = normalizeHomeSections(layout)
+  const existing = next.findIndex((s) => s.id === 'bannerCarousel' && s.key === section.id)
+  const entry: HomeSectionConfig = {
+    id: 'bannerCarousel',
+    key: section.id,
+    title: section.title.trim() || 'Promo banners',
+    subtitle: String(section.subtitle ?? '').trim(),
+    visible: true,
+  }
+  if (existing >= 0) {
+    next[existing] = { ...next[existing], title: entry.title, subtitle: entry.subtitle }
+    return next
+  }
+  // Insert before product grid when present, otherwise append.
+  const gridIndex = next.findIndex((s) => s.id === 'productGrid')
+  if (gridIndex >= 0) next.splice(gridIndex, 0, entry)
+  else next.push(entry)
+  return next
+}
+
+export function removeBannerCarouselFromLayout(
+  layout: HomeSectionConfig[],
+  sectionId: string
+): HomeSectionConfig[] {
+  return normalizeHomeSections(layout).filter(
+    (s) => !(s.id === 'bannerCarousel' && s.key === sectionId)
+  )
 }
 
 function hour12(hour: number): number {

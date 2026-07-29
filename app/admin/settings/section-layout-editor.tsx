@@ -34,6 +34,12 @@ const SECTION_META: Record<
     subtitleLabel: null,
     hint: 'Every remaining product, using the card settings below.',
   },
+  bannerCarousel: {
+    label: 'Feed banner carousel',
+    titleLabel: 'Section title',
+    subtitleLabel: 'Subtitle',
+    hint: 'Slides are managed under Admin → Banners in this section. Create more sections there.',
+  },
 }
 
 const FIELD_CLASS =
@@ -59,6 +65,12 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
     onChange(sections.map((section, i) => (i === index ? { ...section, ...patch } : section)))
   }
 
+  const removeAt = (index: number) => {
+    const section = sections[index]
+    if (section.id !== 'bannerCarousel') return
+    onChange(sections.filter((_, i) => i !== index))
+  }
+
   return (
     <ol className="mt-4 space-y-3">
       {sections.map((section, index) => {
@@ -69,10 +81,11 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
         }
         const titleLabel = meta.titleLabel === undefined ? 'Title' : meta.titleLabel
         const dragging = dragIndex === index
+        const rowKey = section.key ? `${section.id}:${section.key}` : section.id
 
         return (
           <li
-            key={section.id}
+            key={rowKey}
             draggable
             onDragStart={() => setDragIndex(index)}
             onDragEnd={() => setDragIndex(null)}
@@ -96,6 +109,11 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
               </span>
               <span className="text-xs font-semibold text-ink/40">{index + 1}</span>
               <span className="font-display text-sm font-semibold text-ink">{meta.label}</span>
+              {section.id === 'bannerCarousel' && section.key ? (
+                <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-medium text-ink/45">
+                  {section.key.slice(0, 8)}
+                </span>
+              ) : null}
 
               <div className="ml-auto flex items-center gap-1">
                 <button
@@ -125,6 +143,15 @@ export function SectionLayoutEditor({ sections, onChange }: Props) {
                   />
                   Visible
                 </label>
+                {section.id === 'bannerCarousel' ? (
+                  <button
+                    type="button"
+                    onClick={() => removeAt(index)}
+                    className="ml-2 rounded-lg border border-red-200 px-2 py-1 text-xs text-red-600"
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </div>
             </div>
 

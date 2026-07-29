@@ -51,6 +51,7 @@ model Store {
   products            Product[]
   categories          Category[]
   banners             Banner[]
+  bannerSections      BannerSection[]
   miniBanners         MiniBanner[]
   coupons             Coupon[]
   giftWraps           GiftWrap[]
@@ -178,6 +179,26 @@ model Address {
   @@index([userId])
 }
 
+/// Named group of hero banner slides. `sectionId` null on Banner = sticky header
+/// carousel; a set sectionId places those slides in a reorderable feed block.
+model BannerSection {
+  id        String   @id @default(cuid())
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  title     String
+  subtitle  String?
+  /// Feed carousel height in logical pixels (header uses AppSettings heights).
+  height    Int      @default(160)
+  order     Int      @default(0)
+  isActive  Boolean  @default(true)
+  banners   Banner[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, isActive])
+  @@index([storeId, order])
+}
+
 /// Compact banner tile for the `miniBanners` home row, where several sit side
 /// by side. Unlike `Banner` these carry no product strip — just an image that
 /// deep-links to a product or category.
@@ -201,9 +222,12 @@ model MiniBanner {
 }
 
 model Banner {
-  id         String   @id @default(cuid())
+  id         String         @id @default(cuid())
   storeId    String
-  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  /// Null = sticky home header carousel; otherwise a feed BannerSection.
+  sectionId  String?
+  section    BannerSection? @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   title      String
   subtitle   String?
   image      String
@@ -211,16 +235,17 @@ model Banner {
   /// Soft background tint for the app/home when this banner is active (hex, e.g. #FFE0E8).
   bgColor    String?
   /// Up to 3 product IDs shown in the banner strip (takes priority over category).
-  productIds String[] @default([])
+  productIds String[]       @default([])
   /// When set (and productIds empty), show up to 3 products from this category name.
   category   String?
-  order      Int      @default(0)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  order      Int            @default(0)
+  isActive   Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([storeId, isActive])
   @@index([storeId, order])
+  @@index([sectionId, order])
 }
 
 model Product {

@@ -23,7 +23,13 @@ export async function PATCH(
     const body = await request.json()
     const productIds = normalizeBannerProductIds(body.productIds)
     const category = productIds.length > 0 ? null : normalizeBannerCategory(body.category)
-    const [existing, products, categoryRow] = await Promise.all([
+    const sectionIdRaw =
+      body.sectionId === undefined
+        ? undefined
+        : body.sectionId === null || body.sectionId === ''
+          ? null
+          : String(body.sectionId || '').trim() || null
+    const [existing, products, categoryRow, sectionRow] = await Promise.all([
       prisma.banner.findFirst({ where: { id, storeId: storeContext.store.id }, select: { id: true } }),
       productIds.length
         ? prisma.product.findMany({ where: { id: { in: productIds }, storeId: storeContext.store.id }, select: { id: true } })
@@ -31,10 +37,19 @@ export async function PATCH(
       category
         ? prisma.category.findFirst({ where: { storeId: storeContext.store.id, name: { equals: category, mode: 'insensitive' } }, select: { id: true } })
         : Promise.resolve(null),
+      sectionIdRaw
+        ? prisma.bannerSection.findFirst({
+            where: { id: sectionIdRaw, storeId: storeContext.store.id },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
     ])
     if (!existing) return NextResponse.json({ error: 'Banner not found' }, { status: 404 })
     if (products.length !== productIds.length || (category && !categoryRow)) {
       return NextResponse.json({ error: 'Invalid banner product or category' }, { status: 400 })
+    }
+    if (sectionIdRaw && !sectionRow) {
+      return NextResponse.json({ error: 'Invalid banner section' }, { status: 400 })
     }
 
     const banner = await prisma.banner.update({
@@ -49,6 +64,7 @@ export async function PATCH(
         category,
         order: body.order,
         isActive: body.isActive,
+        ...(sectionIdRaw !== undefined ? { sectionId: sectionIdRaw } : {}),
       },
     })
     await redis.del(REDIS_KEYS.HOME_BANNERS(storeContext.slug))

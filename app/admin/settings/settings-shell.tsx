@@ -339,22 +339,19 @@ export function SettingsAccordion({
 
 export function StickySaveBar({
   saving,
-  message,
 }: {
   saving: boolean
-  message: string
+  message?: string
 }) {
   return (
     <>
-      {/* Keeps page content from sitting under the fixed bar */}
-      <div className="h-24 md:h-20" aria-hidden />
-      <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-wine/10 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5 md:py-3.5">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3 md:pl-[4.5rem]">
-          <p className="text-sm text-ink/55">{message || 'Changes apply to the mobile app after save.'}</p>
+      <div className="h-20 md:h-16" aria-hidden />
+      <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-wine/10 bg-white/95 px-4 py-2.5 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5">
+        <div className="mx-auto flex w-full max-w-[1600px] justify-end md:pl-[4.5rem]">
           <button
             type="submit"
             disabled={saving}
-            className="min-h-11 w-full rounded-full bg-wine px-8 py-2.5 font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50 sm:w-auto"
+            className="min-h-10 rounded-full bg-wine px-8 py-2 text-sm font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Save settings'}
           </button>

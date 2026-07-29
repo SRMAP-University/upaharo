@@ -4,12 +4,15 @@ import '../../config/flavor.dart';
 /// One reorderable mobile home section, configured from the admin panel.
 class HomeSectionConfig {
   final String id;
+  /// Unique instance key for repeatable sections (e.g. bannerCarousel → BannerSection id).
+  final String? key;
   final String title;
   final String subtitle;
   final bool visible;
 
   const HomeSectionConfig({
     required this.id,
+    this.key,
     required this.title,
     this.subtitle = '',
     this.visible = true,
@@ -18,6 +21,7 @@ class HomeSectionConfig {
   factory HomeSectionConfig.fromJson(Map<String, dynamic> json) {
     return HomeSectionConfig(
       id: json['id'] as String? ?? '',
+      key: json['key'] as String?,
       title: json['title'] as String? ?? '',
       subtitle: json['subtitle'] as String? ?? '',
       visible: json['visible'] as bool? ?? true,
@@ -26,6 +30,7 @@ class HomeSectionConfig {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    if (key != null) 'key': key,
     'title': title,
     'subtitle': subtitle,
     'visible': visible,
@@ -177,15 +182,13 @@ class AppSettings {
         : scheduleMaxDaysAhead,
   );
 
-  /// Ordered, de-duplicated sections; unknown ids are dropped and any section
-  /// missing from the server payload is slotted in at its position in
-  /// [defaultHomeSections] rather than appended, so a stale layout cannot bury
-  /// a newly shipped section at the bottom of the feed.
+  /// Ordered sections from admin. Unique ids appear once; `bannerCarousel`
+  /// may repeat when each entry has a distinct [HomeSectionConfig.key].
   static List<HomeSectionConfig> _parseSections(dynamic raw) {
     if (raw is! List) return defaultHomeSections;
 
     final known = {for (final s in defaultHomeSections) s.id: s};
-    final seen = <String>{};
+    final seenUnique = <String>{};
     final out = <HomeSectionConfig>[];
 
     for (final item in raw) {
@@ -193,8 +196,23 @@ class AppSettings {
       final section = HomeSectionConfig.fromJson(
         Map<String, dynamic>.from(item),
       );
+      if (section.id == 'bannerCarousel') {
+        final key = section.key?.trim() ?? '';
+        if (key.isEmpty) continue;
+        out.add(
+          HomeSectionConfig(
+            id: section.id,
+            key: key,
+            title: section.title.trim().isEmpty ? 'Promo' : section.title,
+            subtitle: section.subtitle,
+            visible: section.visible,
+          ),
+        );
+        continue;
+      }
+
       final fallback = known[section.id];
-      if (fallback == null || !seen.add(section.id)) continue;
+      if (fallback == null || !seenUnique.add(section.id)) continue;
       out.add(
         HomeSectionConfig(
           id: section.id,
@@ -207,7 +225,7 @@ class AppSettings {
 
     for (var i = 0; i < defaultHomeSections.length; i++) {
       final fallback = defaultHomeSections[i];
-      if (seen.contains(fallback.id)) continue;
+      if (seenUnique.contains(fallback.id)) continue;
       out.insert(i < out.length ? i : out.length, fallback);
     }
     return out.isEmpty ? defaultHomeSections : out;
