@@ -11,6 +11,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Requires GitHub Actions billing on the org account. If blocked, EC2 uses
+    # systemd timer (scripts/systemd/upaharo-deploy-poll.timer) as fallback.
     runs-on: ubuntu-latest
     timeout-minutes: 25
 

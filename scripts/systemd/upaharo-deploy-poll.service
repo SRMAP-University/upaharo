@@ -1,0 +1,13 @@
+[Unit]
+Description=Upaharo deploy poll (git fetch + rebuild on new commits)
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/home/ubuntu/upaharo
+ExecStart=/bin/bash /home/ubuntu/upaharo/scripts/poll-deploy.sh
+StandardOutput=append:/home/ubuntu/upaharo-deploy-poll.log
+StandardError=append:/home/ubuntu/upaharo-deploy-poll.log
+
+[Install]
+WantedBy=multi-user.target
