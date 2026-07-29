@@ -59,7 +59,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       banners: withProducts.map(({ productIds: _ids, ...rest }) => rest),
-    }, { headers: storeAwareJsonHeaders() })
+    }, {
+      headers: storeAwareJsonHeaders({
+        'Cache-Control': 'private, no-store',
+      }),
+    })
   } catch (error) {
     console.error('Error listing banners:', error)
     return NextResponse.json({ banners: [] }, { status: 200 })

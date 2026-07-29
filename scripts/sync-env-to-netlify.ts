@@ -36,6 +36,9 @@ const PROTECT_IF_LOCAL = new Set([
   'NEXT_PUBLIC_SOCKET_URL',
 ])
 
+/** Local DATABASE_URL is direct Supabase; Netlify needs the pooler — set manually on Netlify. */
+const SKIP_ON_NETLIFY = new Set(['DATABASE_URL'])
+
 function parseEnv(text: string): Record<string, string> {
   const out: Record<string, string> = {}
   for (const raw of text.split(/\r?\n/)) {
@@ -92,6 +95,11 @@ function main() {
   for (const [key, value] of Object.entries(env)) {
     if (SKIP.has(key)) {
       console.log(`SKIP ${key} (managed/local-only)`)
+      skipped++
+      continue
+    }
+    if (SKIP_ON_NETLIFY.has(key)) {
+      console.log(`SKIP ${key} (use Supabase pooler URL on Netlify dashboard)`)
       skipped++
       continue
     }

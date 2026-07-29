@@ -103,6 +103,8 @@ const toEstimatedTimeMinutes = (rawValue: string, unit: EstimatedTimeUnit): numb
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [selectedStoreName, setSelectedStoreName] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
@@ -138,14 +140,34 @@ export default function AdminOrders() {
   }, [selectedOrder])
 
   const fetchOrders = async () => {
+    setLoading(true)
+    setLoadError('')
     try {
-      const res = await fetch('/api/admin/orders')
-      if (res.ok) {
-        const data = await res.json()
-        setOrders(data)
+      const storeRes = await fetch('/api/admin/store', { cache: 'no-store' })
+      if (storeRes.ok) {
+        const storeData = (await storeRes.json()) as {
+          selectedSlug?: string
+          stores?: Array<{ slug: string; name: string }>
+        }
+        const slug = storeData.selectedSlug || 'gifts'
+        setSelectedStoreName(
+          storeData.stores?.find((store) => store.slug === slug)?.name || slug
+        )
       }
+
+      const res = await fetch('/api/admin/orders', { cache: 'no-store' })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        setOrders([])
+        setLoadError(data?.error || `Failed to load orders (${res.status})`)
+        return
+      }
+
+      setOrders(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching orders:', error)
+      setOrders([])
+      setLoadError('Failed to load orders. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -263,8 +285,22 @@ export default function AdminOrders() {
     <div>
       <div className="mb-6">
         <h1 className="font-display text-2xl md:text-3xl font-semibold text-ink">Orders</h1>
-        <p className="text-ink/55 mt-1">Manage customer orders and deliveries</p>
+        <p className="text-ink/55 mt-1">
+          Manage customer orders and deliveries
+          {selectedStoreName ? (
+            <>
+              {' '}
+              for <span className="font-semibold text-ink">{selectedStoreName}</span>
+            </>
+          ) : null}
+        </p>
       </div>
+
+      {loadError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
 
       {/* Search */}
       <div className="mb-6">
@@ -282,7 +318,12 @@ export default function AdminOrders() {
         {loading ? (
           <div className="p-8 text-center text-ink/55">Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
-          <div className="p-8 text-center text-ink/55">No orders found</div>
+          <div className="p-8 text-center text-ink/55">
+            No orders found for {selectedStoreName || 'this store'}.
+            <div className="mt-2 text-sm text-ink/45">
+              Unpaid online checkouts are hidden until payment completes. Switch stores in the header if needed.
+            </div>
+          </div>
         ) : (
           <>
             <div className="overflow-x-auto hidden md:block">

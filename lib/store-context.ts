@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import {
@@ -62,7 +62,17 @@ export async function resolveStoreContext(
 
 export async function resolveAdminStoreSlug(): Promise<string> {
   const cookieStore = await cookies()
-  return normalizeStoreSlug(cookieStore.get(ADMIN_STORE_COOKIE)?.value)
+  const rawCookie = cookieStore.get(ADMIN_STORE_COOKIE)?.value
+  if (rawCookie) {
+    return normalizeStoreSlug(rawCookie)
+  }
+
+  const host = (await headers()).get('host')?.toLowerCase() || ''
+  if (host.startsWith('grocery.') || host.includes('grocery.upaharo')) {
+    return 'grocery'
+  }
+
+  return DEFAULT_STORE_SLUG
 }
 
 export async function resolveAdminStoreContext(): Promise<StoreContext | null> {

@@ -31,7 +31,7 @@ class DioClient {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           // Keep base URL current — singleton Dio can outlive hot-reload
-          // const changes (e.g. Netlify → Vercel switch).
+          // FlavorConfig may resolve after first frame (package name detection).
           if (options.baseUrl != ApiEndpoints.baseUrl) {
             options.baseUrl = ApiEndpoints.baseUrl;
             _dio.options.baseUrl = ApiEndpoints.baseUrl;

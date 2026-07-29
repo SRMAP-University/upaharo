@@ -32,23 +32,48 @@ const EMPTY_FORM = {
 export default function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [selectedStore, setSelectedStore] = useState('')
+  const [selectedStoreName, setSelectedStoreName] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
-    fetchCategories()
+    void fetchCategories()
   }, [])
 
   const fetchCategories = async () => {
+    setLoading(true)
+    setLoadError('')
     try {
-      const res = await fetch('/api/admin/categories')
-      if (res.ok) {
-        const data = await res.json()
-        setCategories(data)
+      const storeRes = await fetch('/api/admin/store', { cache: 'no-store' })
+      if (storeRes.ok) {
+        const storeData = (await storeRes.json()) as {
+          selectedSlug?: string
+          stores?: Array<{ slug: string; name: string }>
+        }
+        const slug = storeData.selectedSlug || 'gifts'
+        setSelectedStore(slug)
+        setSelectedStoreName(
+          storeData.stores?.find((store) => store.slug === slug)?.name || slug
+        )
       }
+
+      const res = await fetch('/api/admin/categories', { cache: 'no-store' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setCategories([])
+        setLoadError(data?.error || `Failed to load categories (${res.status})`)
+        return
+      }
+
+      const data = await res.json()
+      setCategories(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching categories:', error)
+      setCategories([])
+      setLoadError('Failed to load categories. Please refresh the page.')
     } finally {
       setLoading(false)
     }
@@ -117,7 +142,20 @@ export default function AdminCategories() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-semibold text-ink">Categories</h1>
-          <p className="text-ink/55 mt-1">Manage product, recipient & occasion categories</p>
+          <p className="text-ink/55 mt-1">
+            Manage product, recipient & occasion categories
+            {selectedStoreName ? (
+              <>
+                {' '}
+                for <span className="font-semibold text-ink">{selectedStoreName}</span>
+              </>
+            ) : null}
+          </p>
+          {selectedStore === 'grocery' && (
+            <p className="text-xs text-ink/45 mt-1">
+              Grocery uses PRODUCT categories only (no recipient or occasion tabs on the storefront).
+            </p>
+          )}
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
@@ -263,12 +301,29 @@ export default function AdminCategories() {
         </div>
       )}
 
+      {loadError && (
+        <div className="mb-6 rounded-[18px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {loadError}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-[22px] border border-wine/10 bg-white px-6 py-12 text-center text-ink/55">
+          Loading categories…
+        </div>
+      ) : null}
+
       {/* Categories List */}
       <div className="space-y-6">
         {CATEGORY_TYPES.map(type => (
           <div key={type}>
             <h2 className="font-display text-xl font-semibold mb-3 text-ink">{type} Categories</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {categories.filter(cat => cat.type === type).length === 0 && !loading && (
+                <div className="col-span-full rounded-[18px] border border-dashed border-wine/15 bg-white px-4 py-8 text-center text-sm text-ink/50">
+                  No {type.toLowerCase()} categories for {selectedStoreName || 'this store'} yet.
+                </div>
+              )}
               {categories.filter(cat => cat.type === type).map(category => (
                 <div key={category.id} className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
                   <div

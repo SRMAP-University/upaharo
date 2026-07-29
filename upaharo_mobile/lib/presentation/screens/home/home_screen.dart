@@ -102,13 +102,14 @@ class _HomeScreenState extends State<HomeScreen>
 
     setState(() {
       _selectedTab = index;
-      if (index == 0) {
-        _bannerWash = null;
-      }
     });
 
     if (index == 0) {
-      _animateWashTo(_bannerWash);
+      final bannerWash = context.read<BannerProvider>().banners.isEmpty
+          ? null
+          : context.read<BannerProvider>().banners.first.backgroundColor;
+      _bannerWash = bannerWash;
+      _animateWashTo(bannerWash);
       // All uses the mixed home feed — reload if a stale cakes-only cache stuck.
       final catalog = context.read<CatalogProvider>();
       if (catalog.homeLooksNarrow || catalog.products.isEmpty) {
@@ -1084,12 +1085,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Color.lerp(headerTintDeep, washTarget, 0.45) ??
+                        Color.lerp(headerTintDeep, washTarget, 0.78) ??
                             headerTintDeep,
-                        Color.lerp(headerTintMid, washTarget, 0.5) ??
+                        Color.lerp(headerTintMid, washTarget, 0.82) ??
                             headerTintMid,
-                        Color.lerp(headerTint, washTarget, 0.55) ?? headerTint,
-                        Color.lerp(washTarget, pageBg, 0.75) ?? pageBg,
+                        Color.lerp(headerTint, washTarget, 0.85) ?? headerTint,
+                        Color.lerp(washTarget, pageBg, 0.55) ?? pageBg,
                         pageBg,
                         pageBg,
                       ],

@@ -23,13 +23,17 @@ class BannerProvider extends ChangeNotifier {
   Future<void> load({bool force = false}) async {
     if (_loading && !force) return;
 
+    if (force) {
+      await AppCache.invalidate(_cacheKey);
+    }
+
     if (!force && !_loadedOnce) {
       final cached = await AppCache.read<List<BannerModel>>(
         _cacheKey,
         (json) => (json as List)
             .map((e) => BannerModel.fromJson(e as Map<String, dynamic>))
             .toList(),
-        maxAge: const Duration(hours: 6),
+        maxAge: const Duration(minutes: 30),
       );
       if (cached != null && cached.isNotEmpty) {
         _banners = cached;

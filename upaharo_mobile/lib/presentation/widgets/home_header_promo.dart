@@ -400,8 +400,10 @@ class _PromoBannerCard extends StatelessWidget {
     final products = banner.products.take(3).toList();
     const radius = 18.0;
 
+    final cardBg = banner.backgroundColor ?? const Color(0xFFF0F0F0);
+
     return Material(
-      color: Colors.white,
+      color: cardBg,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
@@ -412,6 +414,7 @@ class _PromoBannerCard extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            ColoredBox(color: cardBg),
             if (imageUrl.isNotEmpty)
               ProgressiveNetworkImage(
                 url: imageUrl,

@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const search = searchParams.get('search')
     const idsParam = searchParams.get('ids')
-    const limitParam = Number(searchParams.get('limit'))
 
     const where: any = {
       storeId: storeContext.store.id,
@@ -91,13 +90,36 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    const products = await findManyProductsCompat({
-      where,
-      orderBy: { createdAt: 'desc' },
-      ...(Number.isFinite(limitParam) && limitParam > 0 ? { take: Math.min(limitParam, 100) } : {}),
-    })
+    const page = Math.max(1, Math.round(toNumber(searchParams.get('page'), 1)))
+    const limit = Math.min(100, Math.max(1, Math.round(toNumber(searchParams.get('limit'), 50))))
+    const skip = (page - 1) * limit
 
-    return NextResponse.json({ products })
+    const [products, total] = await Promise.all([
+      findManyProductsCompat({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+    ])
+
+    return NextResponse.json(
+      {
+        products,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        storeSlug: storeContext.slug,
+      },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
+          Vary: 'Cookie',
+        },
+      }
+    )
   } catch (error) {
     console.error('Error fetching admin products:', error)
     return NextResponse.json(

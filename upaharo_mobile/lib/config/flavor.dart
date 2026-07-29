@@ -48,6 +48,10 @@ class FlavorConfig {
       ? 'https://grocery.upaharo.com'
       : 'https://www.upaharo.com';
 
+  /// API host — always www so requests work even when the grocery subdomain
+  /// is not configured; tenant is selected via the X-Store header.
+  static String get apiBaseUrl => 'https://www.upaharo.com';
+
   /// Android notification channels are immutable once created, so each store
   /// needs a unique prefix even when both apps are installed on one device.
   static String get notificationChannelPrefix =>

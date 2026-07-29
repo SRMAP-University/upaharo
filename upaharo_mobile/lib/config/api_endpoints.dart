@@ -1,8 +1,9 @@
+import 'flavor.dart';
+
 /// Production API endpoints extracted from the Upaharo Next.js website.
 ///
-/// Base URL uses the Vercel deployment while Cloudflare/apex still fronts
-/// Netlify. Netlify CDN was caching `/api/products` and `/api/uploads` without
-/// varying on query params (every category showed the same products/images).
+/// Base URL is the Netlify-hosted site (www.upaharo.com / grocery.upaharo.com).
+/// Store separation is handled by the `X-Store` header from [FlavorConfig].
 ///
 /// Authentication is handled via JWT. After login/signup the backend returns
 /// a `token` which must be sent as `Authorization: Bearer token` for
@@ -11,7 +12,7 @@ class ApiEndpoints {
   ApiEndpoints._();
 
   /// Production base URL for the Upaharo backend / API.
-  static const String baseUrl = 'https://upaharo.vercel.app';
+  static String get baseUrl => FlavorConfig.apiBaseUrl;
 
   /// ------------------------------------------------------------------------
   /// Public / unauthenticated endpoints
