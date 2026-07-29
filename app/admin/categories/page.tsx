@@ -188,7 +188,7 @@ export default function AdminCategories() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Categories</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Categories</h1>
           <p className="text-ink/55 mt-1">
             Manage product, recipient & occasion categories
             {selectedStoreName ? (

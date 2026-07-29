@@ -161,7 +161,7 @@ export function SettingsTabNav({
 }) {
   if (variant === 'horizontal') {
     return (
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide lg:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide xl:hidden">
         {SETTINGS_TABS.map((tab) => {
           const selected = tab.id === active
           return (
@@ -184,7 +184,7 @@ export function SettingsTabNav({
   }
 
   return (
-    <nav className="hidden flex-col gap-1 lg:flex">
+    <nav className="hidden flex-col gap-1 xl:flex">
       {SETTINGS_TABS.map((tab) => {
         const selected = tab.id === active
         return (
@@ -195,7 +195,7 @@ export function SettingsTabNav({
             className={`rounded-2xl px-4 py-3 text-left transition-colors ${
               selected
                 ? 'bg-wine text-white shadow-sm'
-                : 'text-ink/70 hover:bg-cream hover:text-ink'
+                : 'bg-white/70 text-ink/70 hover:bg-cream hover:text-ink'
             }`}
           >
             <span className="block text-sm font-semibold">{tab.label}</span>
@@ -345,15 +345,15 @@ export function StickySaveBar({
   message: string
 }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-1 mt-8 rounded-2xl border border-wine/10 bg-white/95 px-5 py-4 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/90">
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 -mx-1 mt-8 rounded-2xl border border-wine/10 bg-white/95 px-4 py-3.5 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5 md:py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink/55">
           {message || 'Changes apply to the mobile app after save.'}
         </p>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-full bg-wine px-8 py-2.5 font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50"
+          className="min-h-11 w-full rounded-full bg-wine px-8 py-2.5 font-semibold text-white transition-colors hover:bg-wine-deep disabled:opacity-50 sm:w-auto"
         >
           {saving ? 'Saving…' : 'Save settings'}
         </button>

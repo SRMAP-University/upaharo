@@ -97,7 +97,7 @@ export default function AdminOccasions() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Occasions</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Occasions</h1>
           <p className="text-ink/55 mt-1">Manage special occasion categories</p>
         </div>
         <button

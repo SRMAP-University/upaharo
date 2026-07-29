@@ -212,7 +212,7 @@ export default function AdminCoupons() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Coupons</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Coupons</h1>
           <p className="text-ink/55 mt-1">Create discount codes for customers</p>
         </div>
         <button

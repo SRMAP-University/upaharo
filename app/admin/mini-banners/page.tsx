@@ -211,7 +211,7 @@ export default function AdminMiniBanners() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Mini banners</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Mini banners</h1>
           <p className="mt-1 text-ink/55">
             Small tiles shown side by side in the app&apos;s home row. Each links to a
             product or a category.

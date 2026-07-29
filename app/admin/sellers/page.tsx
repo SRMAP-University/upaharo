@@ -92,7 +92,7 @@ export default function SellersPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="font-display text-2xl font-semibold text-ink">Sellers Management</h1>
+          <h1 className="hidden font-display text-2xl font-semibold text-ink md:block">Sellers Management</h1>
           <p className="text-ink/55">Manage sellers and their products</p>
         </div>
         <button

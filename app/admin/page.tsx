@@ -63,19 +63,19 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      <header>
+    <div className="space-y-5 md:space-y-6">
+      <header className="hidden md:block">
         <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
-        <p className="text-sm text-ink/50 mt-0.5">Overview of your store</p>
+        <p className="mt-0.5 text-sm text-ink/50">Overview of your store</p>
       </header>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4 md:gap-3">
         {quickLinks.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className="flex items-center gap-3 rounded-xl border border-wine/10 bg-white px-4 py-3 text-sm font-medium text-ink hover:border-wine/30 hover:bg-cream transition-colors"
+            className="flex min-h-[72px] items-center gap-3 rounded-2xl border border-wine/10 bg-white px-4 py-3.5 text-sm font-semibold text-ink shadow-[0_8px_24px_-20px_rgba(43,29,34,0.35)] transition-colors active:scale-[0.98] hover:border-wine/30 hover:bg-cream"
           >
             <span className="text-xl">{link.icon}</span>
             {link.label}
@@ -84,7 +84,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 md:gap-4">
         <StatCard label="Orders" value={stats?.totalOrders || 0} />
         <StatCard label="Revenue" value={formatPriceNoDecimals(stats?.totalRevenue || 0)} />
         <StatCard label="Products" value={stats?.totalProducts || 0} />
@@ -92,10 +92,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* Recent orders */}
-      <section className="bg-white rounded-2xl border border-wine/10 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-4 border-b border-wine/10">
+      <section className="overflow-hidden rounded-2xl border border-wine/10 bg-white shadow-[0_8px_24px_-20px_rgba(43,29,34,0.35)]">
+        <div className="flex items-center justify-between border-b border-wine/10 px-4 py-3.5">
           <h2 className="font-medium text-ink">Recent Orders</h2>
-          <Link href="/admin/orders" className="text-sm text-wine hover:underline font-medium">
+          <Link href="/admin/orders" className="text-sm font-semibold text-wine hover:underline">
             View all
           </Link>
         </div>
@@ -103,12 +103,13 @@ export default function AdminDashboard() {
         {stats?.recentOrders && stats.recentOrders.length > 0 ? (
           <div className="divide-y divide-wine/10">
             {stats.recentOrders.map((order) => (
-              <div
+              <Link
                 key={order.id}
-                className="flex items-center justify-between px-4 py-3 hover:bg-cream/40 transition-colors"
+                href="/admin/orders"
+                className="flex items-center justify-between px-4 py-3.5 transition-colors active:bg-cream/70 hover:bg-cream/40"
               >
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink truncate">{order.orderNumber}</p>
+                  <p className="truncate text-sm font-medium text-ink">{order.orderNumber}</p>
                   <p className="text-xs text-ink/50">
                     {new Date(order.createdAt).toLocaleDateString(undefined, {
                       month: 'short',
@@ -121,14 +122,14 @@ export default function AdminDashboard() {
                     {formatPriceNoDecimals(order.total || 0)}
                   </span>
                   <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       statusStyle[order.status] || 'bg-gray-100 text-gray-700'
                     }`}
                   >
                     {order.status.toLowerCase().replace(/_/g, ' ')}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -141,9 +142,9 @@ export default function AdminDashboard() {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-2xl border border-wine/10 bg-white p-4">
-      <p className="text-xs text-ink/50 uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-ink">{value}</p>
+    <div className="rounded-2xl border border-wine/10 bg-white p-4 shadow-[0_8px_24px_-20px_rgba(43,29,34,0.35)]">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink/45">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tracking-tight text-ink">{value}</p>
     </div>
   )
 }

@@ -106,7 +106,7 @@ export default function AdminNotificationsPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <header>
-        <h1 className="text-2xl font-semibold text-ink">Marketing push</h1>
+        <h1 className="hidden text-2xl font-semibold text-ink md:block">Marketing push</h1>
         <p className="text-sm text-ink/50 mt-0.5">
           Send promos, offers, and announcements to the mobile app
         </p>

@@ -204,7 +204,7 @@ export default function AdminUsers() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-semibold text-ink">Users</h1>
+        <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Users</h1>
         <p className="text-ink/55 mt-1">Manage customer and admin accounts</p>
       </div>
 

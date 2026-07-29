@@ -229,7 +229,7 @@ export default function AdminBanners() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Banners</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Banners</h1>
           <p className="text-ink/55 mt-1">
             Homepage banners with up to 3 spotlight products each
           </p>

@@ -100,7 +100,7 @@ export default function AdminGiftWraps() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-ink">Gift Wraps</h1>
+          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Gift Wraps</h1>
           <p className="text-ink/55 mt-1">Manage gift wrapping options</p>
         </div>
         <button

@@ -284,7 +284,7 @@ export default function AdminOrders() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-semibold text-ink">Orders</h1>
+        <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Orders</h1>
         <p className="text-ink/55 mt-1">
           Manage customer orders and deliveries
           {selectedStoreName ? (

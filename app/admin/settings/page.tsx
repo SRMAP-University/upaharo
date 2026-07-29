@@ -231,7 +231,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-7xl">
-      <div className="mb-6">
+      <div className="mb-5 hidden md:mb-6 md:block">
         <h1 className="font-display text-3xl font-semibold text-ink">Settings</h1>
         <p className="mt-1 max-w-2xl text-ink/55">
           Configure your mobile app by category. Changes apply after you save.
@@ -250,13 +250,11 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-        <aside className="xl:w-56 xl:shrink-0">
-          <div className="xl:sticky xl:top-24">
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
+        <aside className="z-20 xl:w-56 xl:shrink-0">
+          <div className="sticky top-[4.25rem] z-20 -mx-4 border-b border-wine/10 bg-cream/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-cream/90 md:top-[6.5rem] md:-mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none xl:top-[6.5rem]">
             <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="horizontal" />
-            <div className="mt-4">
-              <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="sidebar" />
-            </div>
+            <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="sidebar" />
           </div>
         </aside>
 
@@ -950,8 +948,10 @@ export default function AdminSettingsPage() {
         </div>
 
         {(activeTab === 'appearance' || activeTab === 'home' || activeTab === 'navigation') && (
-          <div className="hidden xl:sticky xl:top-24 xl:block xl:w-[300px] xl:shrink-0">
-            <MobilePreview form={formData} />
+          <div className="hidden xl:block xl:w-[300px] xl:shrink-0">
+            <div className="xl:sticky xl:top-[88px]">
+              <MobilePreview form={formData} />
+            </div>
           </div>
         )}
       </div>

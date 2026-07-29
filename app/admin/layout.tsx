@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useUserStore } from '@/lib/store/user'
@@ -94,15 +94,52 @@ function BellIcon({ className }: { className?: string }) {
   )
 }
 
+function GridIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 018.25 20.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+    </svg>
+  )
+}
+
+function CloseIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
 interface MenuItem {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
+  shortLabel?: string
   href: string
 }
 
 type StoreOption = {
   slug: string
   name: string
+}
+
+const PAGE_TITLES: Array<{ match: (path: string) => boolean; title: string }> = [
+  { match: (p) => p === '/admin', title: 'Dashboard' },
+  { match: (p) => p.startsWith('/admin/orders'), title: 'Orders' },
+  { match: (p) => p.startsWith('/admin/products'), title: 'Products' },
+  { match: (p) => p.startsWith('/admin/categories'), title: 'Categories' },
+  { match: (p) => p.startsWith('/admin/banners') && !p.includes('mini'), title: 'Banners' },
+  { match: (p) => p.startsWith('/admin/mini-banners'), title: 'Mini Banners' },
+  { match: (p) => p.startsWith('/admin/users'), title: 'Users' },
+  { match: (p) => p.startsWith('/admin/sellers'), title: 'Sellers' },
+  { match: (p) => p.startsWith('/admin/gift-wraps'), title: 'Gift Wraps' },
+  { match: (p) => p.startsWith('/admin/occasions'), title: 'Occasions' },
+  { match: (p) => p.startsWith('/admin/coupons'), title: 'Coupons' },
+  { match: (p) => p.startsWith('/admin/notifications'), title: 'Push' },
+  { match: (p) => p.startsWith('/admin/settings'), title: 'Settings' },
+]
+
+function pageTitleFor(pathname: string) {
+  return PAGE_TITLES.find((entry) => entry.match(pathname))?.title || 'Admin'
 }
 
 export default function AdminLayout({
@@ -117,6 +154,7 @@ export default function AdminLayout({
   const [stores, setStores] = useState<StoreOption[]>([])
   const [selectedStore, setSelectedStore] = useState('gifts')
   const [switchingStore, setSwitchingStore] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -124,7 +162,6 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (!_hasHydrated) return
-    
     if (mounted && (!user || user.role !== 'ADMIN')) {
       router.push('/login')
     }
@@ -146,6 +183,19 @@ export default function AdminLayout({
       .catch(() => undefined)
   }, [mounted, _hasHydrated, user?.role])
 
+  useEffect(() => {
+    setMoreOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [moreOpen])
+
   const switchStore = async (slug: string) => {
     if (!slug || slug === selectedStore || switchingStore) return
     setSwitchingStore(true)
@@ -166,56 +216,86 @@ export default function AdminLayout({
     }
   }
 
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      { icon: <ChartIcon className="w-5 h-5" />, label: 'Dashboard', shortLabel: 'Home', href: '/admin' },
+      { icon: <BoxIcon className="w-5 h-5" />, label: 'Orders', href: '/admin/orders' },
+      { icon: <GiftIcon className="w-5 h-5" />, label: 'Products', href: '/admin/products' },
+      { icon: <FolderIcon className="w-5 h-5" />, label: 'Categories', href: '/admin/categories' },
+      { icon: <ImageIcon className="w-5 h-5" />, label: 'Banners', href: '/admin/banners' },
+      { icon: <ImageIcon className="w-5 h-5" />, label: 'Mini Banners', href: '/admin/mini-banners' },
+      { icon: <UsersIcon className="w-5 h-5" />, label: 'Users', href: '/admin/users' },
+      { icon: <StoreIcon className="w-5 h-5" />, label: 'Sellers', href: '/admin/sellers' },
+      { icon: <GiftIcon className="w-5 h-5" />, label: 'Gift Wraps', href: '/admin/gift-wraps' },
+      { icon: <SparklesIcon className="w-5 h-5" />, label: 'Occasions', href: '/admin/occasions' },
+      { icon: <TicketIcon className="w-5 h-5" />, label: 'Coupons', href: '/admin/coupons' },
+      { icon: <BellIcon className="w-5 h-5" />, label: 'Push / Marketing', shortLabel: 'Push', href: '/admin/notifications' },
+      { icon: <CogIcon className="w-5 h-5" />, label: 'Settings', href: '/admin/settings' },
+    ],
+    []
+  )
+
+  const primaryTabs = useMemo(
+    () => [
+      menuItems[0], // Dashboard
+      menuItems[1], // Orders
+      menuItems[2], // Products
+      menuItems[3], // Categories
+    ],
+    [menuItems]
+  )
+
+  const moreItems = useMemo(() => menuItems.slice(4), [menuItems])
+
+  const isActive = (href: string) =>
+    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+
+  const moreActive = moreItems.some((item) => isActive(item.href))
+  const pageTitle = pageTitleFor(pathname)
+  const storeName =
+    stores.find((store) => store.slug === selectedStore)?.name ||
+    (selectedStore === 'grocery' ? 'Grocery' : 'Gifts')
+
   if (!mounted || !_hasHydrated || !user || user.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-cream">
         <div className="text-center">
-          <div className="text-6xl mb-4">🔒</div>
-          <p className="text-ink/55">Checking access...</p>
+          <div className="mx-auto mb-3 h-10 w-10 animate-pulse rounded-full bg-wine/15" />
+          <p className="text-sm text-ink/55">Checking access...</p>
         </div>
       </div>
     )
   }
 
-  const isActive = (href: string) =>
-    href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
-
-  const menuItems: MenuItem[] = [
-    { icon: <ChartIcon className="w-5 h-5" />, label: 'Dashboard', href: '/admin' },
-    { icon: <ImageIcon className="w-5 h-5" />, label: 'Banners', href: '/admin/banners' },
-    { icon: <ImageIcon className="w-5 h-5" />, label: 'Mini Banners', href: '/admin/mini-banners' },
-    { icon: <GiftIcon className="w-5 h-5" />, label: 'Products', href: '/admin/products' },
-    { icon: <FolderIcon className="w-5 h-5" />, label: 'Categories', href: '/admin/categories' },
-    { icon: <BoxIcon className="w-5 h-5" />, label: 'Orders', href: '/admin/orders' },
-    { icon: <UsersIcon className="w-5 h-5" />, label: 'Users', href: '/admin/users' },
-    { icon: <StoreIcon className="w-5 h-5" />, label: 'Sellers', href: '/admin/sellers' },
-    { icon: <GiftIcon className="w-5 h-5" />, label: 'Gift Wraps', href: '/admin/gift-wraps' },
-    { icon: <SparklesIcon className="w-5 h-5" />, label: 'Occasions', href: '/admin/occasions' },
-    { icon: <TicketIcon className="w-5 h-5" />, label: 'Coupons', href: '/admin/coupons' },
-    { icon: <BellIcon className="w-5 h-5" />, label: 'Push / Marketing', href: '/admin/notifications' },
-    { icon: <CogIcon className="w-5 h-5" />, label: 'Settings', href: '/admin/settings' },
-  ]
-
   return (
-    <div className="min-h-screen bg-cream">
-      {/* Header */}
-      <div className="bg-white border-b border-wine/10 sticky top-0 z-40">
-        <div className="px-4 py-3 md:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link href="/" className="font-display text-lg md:text-2xl font-semibold text-wine">
+    <div className="min-h-[100dvh] bg-cream text-ink antialiased">
+      {/* App header */}
+      <header className="sticky top-0 z-40 border-b border-wine/10 bg-white/92 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80">
+        <div className="px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-5 md:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="hidden font-display text-xl font-semibold text-wine md:block">
                 Upaharo <span className="text-gold">Admin</span>
-              </Link>
+              </p>
+              <div className="md:hidden">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/40">
+                  Upaharo Admin
+                </p>
+                <h1 className="truncate font-display text-xl font-semibold leading-tight text-ink">
+                  {pageTitle}
+                </h1>
+              </div>
             </div>
-            <div className="flex items-center gap-3 md:gap-4">
+
+            <div className="flex shrink-0 items-center gap-2">
               {stores.length > 0 && (
-                <label className="flex items-center gap-2 text-xs font-semibold text-ink/65">
-                  <span className="hidden lg:inline">Managing</span>
+                <label className="relative">
+                  <span className="sr-only">Store to manage</span>
                   <select
                     value={selectedStore}
                     onChange={(event) => void switchStore(event.target.value)}
                     disabled={switchingStore}
-                    className="rounded-lg border border-wine/20 bg-cream px-2 py-1.5 text-xs font-semibold text-ink outline-none focus:border-wine disabled:opacity-60"
+                    className="appearance-none rounded-full border border-wine/15 bg-cream px-3 py-2 pr-8 text-xs font-semibold text-ink outline-none focus:border-wine disabled:opacity-60"
                     aria-label="Store to manage"
                   >
                     {stores.map((store) => (
@@ -224,43 +304,31 @@ export default function AdminLayout({
                       </option>
                     ))}
                   </select>
+                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-ink/45">
+                    ▾
+                  </span>
                 </label>
               )}
-              <span className="hidden md:inline text-sm text-ink/55">{user?.name || 'Admin'}</span>
-              <Link href="/" className="text-xs md:text-sm text-wine hover:text-wine-deep font-semibold">
-                View Site →
+
+              <Link
+                href="/"
+                className="hidden rounded-full border border-wine/15 px-3 py-2 text-xs font-semibold text-wine hover:bg-cream md:inline-flex"
+              >
+                View site
               </Link>
             </div>
           </div>
+
+          <p className="mt-2 hidden text-sm text-ink/50 md:block">
+            Managing <span className="font-semibold text-ink/70">{storeName}</span>
+            {user?.name ? ` · ${user.name}` : ''}
+          </p>
         </div>
-        {/* Mobile quick pills */}
-        <div className="md:hidden border-t border-wine/10 px-3 py-2">
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-            {menuItems.map((item) => {
-              const active = isActive(item.href)
-              return (
-                <Link
-                  key={`${item.href}-mobile-pill`}
-                  href={item.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                    active
-                      ? 'border-transparent bg-wine text-white'
-                      : 'border-wine/15 bg-white text-ink/70'
-                  }`}
-                >
-                  {item.icon}
-                  <span>{item.label}</span>
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      </div>
+      </header>
 
       <div className="md:pl-64">
-        {/* Sidebar — fixed on desktop so it stays visible while main content scrolls */}
-        <aside className="hidden md:fixed md:left-0 md:top-[57px] md:z-30 md:block md:h-[calc(100vh-57px)] md:w-64 md:overflow-y-auto bg-white border-r border-wine/10">
+        {/* Desktop sidebar */}
+        <aside className="hidden md:fixed md:left-0 md:top-[89px] md:z-30 md:block md:h-[calc(100dvh-89px)] md:w-64 md:overflow-y-auto md:border-r md:border-wine/10 md:bg-white">
           <nav className="p-4">
             <ul className="space-y-1">
               {menuItems.map((item) => {
@@ -270,7 +338,7 @@ export default function AdminLayout({
                     <Link
                       href={item.href}
                       aria-current={active ? 'page' : undefined}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                         active
                           ? 'bg-wine text-white shadow-sm'
                           : 'text-ink/70 hover:bg-cream hover:text-ink'
@@ -286,34 +354,133 @@ export default function AdminLayout({
           </nav>
         </aside>
 
-        {/* Main Content */}
-        <main className="p-4 md:p-6 pb-24 md:pb-6">
-          {children}
+        <main className="min-w-0 px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4 md:p-6 md:pb-6">
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
 
-      {/* Mobile App Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-wine/10 bg-white/95 backdrop-blur md:hidden">
-        <div className="grid grid-cols-5 py-2">
-          {menuItems.slice(0, 5).map((item) => {
+      {/* Mobile bottom tab bar */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-wine/10 bg-white/95 backdrop-blur-xl md:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="grid grid-cols-5 px-1 pt-1.5">
+          {primaryTabs.map((item) => {
             const active = isActive(item.href)
             return (
               <Link
-                key={`${item.href}-mobile-tab`}
+                key={item.href}
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${
-                  active ? 'text-wine' : 'text-ink/50'
+                className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-colors ${
+                  active ? 'text-wine' : 'text-ink/45'
                 }`}
               >
-                {item.icon}
-                <span>{item.label}</span>
+                <span
+                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                    active ? 'bg-wine/10' : ''
+                  }`}
+                >
+                  {item.icon}
+                </span>
+                <span className="text-[10px] font-semibold tracking-wide">
+                  {item.shortLabel || item.label}
+                </span>
               </Link>
             )
           })}
+
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            className={`flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-colors ${
+              moreActive || moreOpen ? 'text-wine' : 'text-ink/45'
+            }`}
+            aria-label="More admin pages"
+          >
+            <span
+              className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                moreActive || moreOpen ? 'bg-wine/10' : ''
+              }`}
+            >
+              <GridIcon className="h-5 w-5" />
+            </span>
+            <span className="text-[10px] font-semibold tracking-wide">More</span>
+          </button>
         </div>
-      </div>
+      </nav>
+
+      {/* Mobile More sheet */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-[60] md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-[2px]"
+            aria-label="Close menu"
+            onClick={() => setMoreOpen(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 max-h-[82dvh] overflow-hidden rounded-t-[28px] bg-white shadow-[0_-20px_60px_-30px_rgba(43,29,34,0.45)]">
+            <div className="flex items-center justify-between border-b border-wine/10 px-5 pb-3 pt-4">
+              <div>
+                <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-ink/15" />
+                <h2 className="font-display text-lg font-semibold text-ink">More</h2>
+                <p className="text-xs text-ink/50">Marketing, people, and store setup</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-cream text-ink/60"
+                aria-label="Close"
+              >
+                <CloseIcon className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-4 py-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+              <div className="grid grid-cols-2 gap-2.5">
+                {moreItems.map((item) => {
+                  const active = isActive(item.href)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex min-h-[88px] flex-col items-start justify-between rounded-2xl border p-3.5 transition-colors ${
+                        active
+                          ? 'border-wine bg-wine text-white'
+                          : 'border-wine/10 bg-cream/60 text-ink hover:border-wine/25'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                          active ? 'bg-white/15' : 'bg-white text-wine'
+                        }`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="text-sm font-semibold leading-snug">
+                        {item.shortLabel || item.label}
+                      </span>
+                    </Link>
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 space-y-2 rounded-2xl border border-wine/10 bg-cream/50 p-3">
+                <Link
+                  href="/"
+                  className="flex items-center justify-between rounded-xl bg-white px-3.5 py-3 text-sm font-semibold text-wine"
+                >
+                  View live site
+                  <span aria-hidden>→</span>
+                </Link>
+                <p className="px-1 text-xs text-ink/45">
+                  Signed in as {user?.name || user?.email || 'Admin'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
