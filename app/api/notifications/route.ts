@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolveUserId } from '@/lib/request-auth'
+import { resolveStoreContext } from '@/lib/store-context'
 
-/** List in-app notification inbox for the authenticated user. */
+/** List in-app notification inbox for the authenticated user (current store). */
 export async function GET(request: NextRequest) {
   try {
     const userId = await resolveUserId(request)
@@ -10,13 +11,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Unknown store' }, { status: 400 })
+    }
+
     const { searchParams } = new URL(request.url)
     const limit = Math.min(Number(searchParams.get('limit') || 40), 100)
     const unreadOnly = searchParams.get('unread') === '1'
+    const storeFilter = { userId, storeId: storeContext.store.id }
 
     const notifications = await prisma.appNotification.findMany({
       where: {
-        userId,
+        ...storeFilter,
         ...(unreadOnly ? { readAt: null } : {}),
       },
       orderBy: { createdAt: 'desc' },
@@ -24,7 +31,7 @@ export async function GET(request: NextRequest) {
     })
 
     const unreadCount = await prisma.appNotification.count({
-      where: { userId, readAt: null },
+      where: { ...storeFilter, readAt: null },
     })
 
     return NextResponse.json({ notifications, unreadCount })
@@ -42,17 +49,27 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const storeContext = await resolveStoreContext(request)
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Unknown store' }, { status: 400 })
+    }
+
     const body = await request.json()
     const now = new Date()
+    const storeId = storeContext.store.id
 
     if (body.all) {
       await prisma.appNotification.updateMany({
-        where: { userId, readAt: null },
+        where: { userId, storeId, readAt: null },
         data: { readAt: now },
       })
     } else if (Array.isArray(body.ids) && body.ids.length) {
       await prisma.appNotification.updateMany({
-        where: { userId, id: { in: body.ids.map(String) } },
+        where: {
+          userId,
+          storeId,
+          id: { in: body.ids.map(String) },
+        },
         data: { readAt: now },
       })
     } else {

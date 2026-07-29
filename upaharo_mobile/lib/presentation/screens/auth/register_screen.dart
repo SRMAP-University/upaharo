@@ -53,17 +53,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
       showBack: true,
       brandLine: FlavorConfig.appName,
       headline: 'Create your account',
-      subtitle: 'Track orders, save addresses and keep your favourites.',
+      subtitle: FlavorConfig.isGrocery
+          ? 'Order groceries, track delivery and save your favourites.'
+          : 'Track orders, save addresses and keep your favourites.',
       child: AutofillGroup(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AuthPerkStrip(
-              perks: [
-                (Icons.local_shipping_outlined, 'Track orders'),
-                (Icons.place_outlined, 'Saved addresses'),
-                (Icons.account_balance_wallet_outlined, 'Wallet'),
-              ],
+            AuthPerkStrip(
+              perks: FlavorConfig.isGrocery
+                  ? const [
+                      (Icons.shopping_basket_outlined, 'Easy reorder'),
+                      (Icons.place_outlined, 'Saved addresses'),
+                      (Icons.local_offer_outlined, 'Deals & offers'),
+                    ]
+                  : const [
+                      (Icons.local_shipping_outlined, 'Track orders'),
+                      (Icons.place_outlined, 'Saved addresses'),
+                      (Icons.account_balance_wallet_outlined, 'Wallet'),
+                    ],
             ),
             const SizedBox(height: 20),
             AuthField(

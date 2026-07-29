@@ -22,6 +22,21 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     );
   } catch (_) {}
 
+  try {
+    await FlavorConfig.initialize();
+  } catch (_) {}
+
+  // Drop pushes meant for the other storefront.
+  final slug = message.data['storeSlug']?.toString().trim().toLowerCase();
+  if (slug != null &&
+      slug.isNotEmpty &&
+      slug != FlavorConfig.storeSlug) {
+    return;
+  }
+  if ((slug == null || slug.isEmpty) && FlavorConfig.isGrocery) {
+    return;
+  }
+
   // Keep the sticky order-progress notification in sync while backgrounded.
   try {
     final local = FlutterLocalNotificationsPlugin();
@@ -175,6 +190,9 @@ class PushNotificationService {
   }
 
   Future<void> _showForeground(RemoteMessage message) async {
+    // Ignore pushes meant for the other storefront app.
+    if (!_isForThisStore(message.data)) return;
+
     // Always refresh sticky progress when order push data is present.
     final type = message.data['type']?.toString();
     if (type == 'ORDER_UPDATE' || type == 'ORDER_PLACED') {
@@ -206,6 +224,15 @@ class PushNotificationService {
     );
   }
 
+  bool _isForThisStore(Map<String, dynamic> data) {
+    final slug = data['storeSlug']?.toString().trim().toLowerCase();
+    if (slug == null || slug.isEmpty) {
+      // Legacy pushes without storeSlug — only gifts app should accept them.
+      return FlavorConfig.isGifts;
+    }
+    return slug == FlavorConfig.storeSlug;
+  }
+
   void _handlePayload(String? payload) {
     if (payload == null || payload.isEmpty) return;
     try {
@@ -215,6 +242,8 @@ class PushNotificationService {
   }
 
   void _handleData(Map<String, dynamic> data) {
+    if (!_isForThisStore(data)) return;
+
     final route = data['route']?.toString();
     final orderId = data['orderId']?.toString();
     final nav = _navigatorKey?.currentState;

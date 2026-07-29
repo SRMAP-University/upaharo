@@ -5,8 +5,7 @@ import 'package:flutter/material.dart';
 import '../../config/flavor.dart';
 import '../../config/theme.dart';
 
-/// Shared shell for login / register: warm brand wash, a painted gift scene,
-/// then the form.
+/// Shared shell for login / register: warm brand wash, flavor artwork, then form.
 ///
 /// The scene collapses while the keyboard is up so short screens never have to
 /// scroll past artwork to reach the fields.
@@ -113,11 +112,12 @@ class _AuthScaffoldState extends State<AuthScaffold>
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final compact = constraints.maxHeight < 660;
+                      final groceryScene = FlavorConfig.isGrocery;
                       final sceneHeight = keyboardOpen
                           ? 0.0
                           : compact
-                          ? 128.0
-                          : 172.0;
+                          ? (groceryScene ? 140.0 : 128.0)
+                          : (groceryScene ? 188.0 : 172.0);
 
                       return SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
@@ -148,7 +148,7 @@ class _AuthScaffoldState extends State<AuthScaffold>
                                         ? null
                                         : _entrance(
                                             _scene,
-                                            const _AuthGiftScene(),
+                                            const _AuthIllustrationScene(),
                                           ),
                                   ),
                                 ),
@@ -600,15 +600,20 @@ class _Bloom extends StatelessWidget {
   }
 }
 
-/// Painted gift scene: a ribboned box flanked by a candle-lit cake and blooms.
-class _AuthGiftScene extends StatelessWidget {
-  const _AuthGiftScene();
+/// Flavor-aware hero illustration above the login / register form.
+class _AuthIllustrationScene extends StatelessWidget {
+  const _AuthIllustrationScene();
 
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
       child: CustomPaint(
-        painter: _GiftScenePainter(wine: AppTheme.wine, gold: AppTheme.gold),
+        painter: FlavorConfig.isGrocery
+            ? _GroceryScenePainter(
+                primary: AppTheme.wine,
+                accent: AppTheme.gold,
+              )
+            : _GiftScenePainter(wine: AppTheme.wine, gold: AppTheme.gold),
       ),
     );
   }
@@ -843,4 +848,506 @@ class _GiftScenePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GiftScenePainter oldDelegate) =>
       oldDelegate.wine != wine || oldDelegate.gold != gold;
+}
+
+/// Soft still-life grocery scene — volume, weave, and natural produce (not flat cartoon).
+class _GroceryScenePainter extends CustomPainter {
+  _GroceryScenePainter({required this.primary, required this.accent});
+
+  final Color primary;
+  final Color accent;
+
+  static const _wicker = Color(0xFFB8956A);
+  static const _wickerDeep = Color(0xFF8A6A45);
+  static const _wickerLight = Color(0xFFD4B896);
+  static const _appleRed = Color(0xFFC44B3C);
+  static const _appleShadow = Color(0xFF8E2F28);
+  static const _citrus = Color(0xFFE89A3C);
+  static const _citrusDeep = Color(0xFFC77820);
+  static const _leafDeep = Color(0xFF4A7A48);
+  static const _leafMid = Color(0xFF6B9A5E);
+  static const _leafPale = Color(0xFF8FBA7A);
+  static const _grape = Color(0xFF6B4C7A);
+  static const _grapeLite = Color(0xFF8E6A9A);
+
+  Color _mix(Color a, Color b, [double t = 0.5]) => Color.lerp(a, b, t)!;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final h = size.height;
+    if (h < 40) return;
+
+    final cx = size.width / 2;
+    final baseY = h * 0.88;
+    final scale = h * 0.58;
+
+    _castShadow(canvas, Offset(cx, baseY + h * 0.01), h * 1.65, h * 0.13);
+    _apple(canvas, Offset(cx - scale * 0.92, baseY - scale * 0.02), scale * 0.34);
+    _citrusFruit(canvas, Offset(cx + scale * 0.88, baseY - scale * 0.01), scale * 0.30);
+    _marketBasket(canvas, Offset(cx, baseY), scale);
+    _ambientLight(canvas, size);
+  }
+
+  void _castShadow(Canvas canvas, Offset center, double w, double h) {
+    canvas.drawOval(
+      Rect.fromCenter(center: center, width: w, height: h),
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            primary.withAlpha(38),
+            primary.withAlpha(12),
+            primary.withAlpha(0),
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromCenter(center: center, width: w, height: h)),
+    );
+  }
+
+  void _ambientLight(Canvas canvas, Size size) {
+    // Soft top wash — no cartoon sparkles.
+    canvas.drawCircle(
+      Offset(size.width * 0.5, size.height * 0.08),
+      size.height * 0.35,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.white.withAlpha(28),
+            Colors.white.withAlpha(0),
+          ],
+        ).createShader(
+          Rect.fromCircle(
+            center: Offset(size.width * 0.5, size.height * 0.08),
+            radius: size.height * 0.35,
+          ),
+        ),
+    );
+  }
+
+  void _sphere(
+    Canvas canvas,
+    Offset c,
+    double r, {
+    required Color base,
+    required Color shadow,
+    required Color highlight,
+    Offset? lightBias,
+  }) {
+    final bias = lightBias ?? const Offset(-0.28, -0.32);
+    final rect = Rect.fromCircle(center: c, radius: r);
+
+    canvas.drawCircle(
+      c,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          center: Alignment(bias.dx, bias.dy),
+          radius: 1.05,
+          colors: [highlight, base, shadow],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(rect),
+    );
+
+    // Specular glint.
+    canvas.drawCircle(
+      Offset(c.dx + bias.dx * r * 0.55, c.dy + bias.dy * r * 0.55),
+      r * 0.16,
+      Paint()
+        ..color = Colors.white.withAlpha(90)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.08),
+    );
+
+    // Soft contact shadow under fruit.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(c.dx + r * 0.08, c.dy + r * 0.82),
+        width: r * 1.5,
+        height: r * 0.28,
+      ),
+      Paint()
+        ..color = Colors.black.withAlpha(28)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.12),
+    );
+  }
+
+  void _apple(Canvas canvas, Offset c, double r) {
+    _sphere(
+      canvas,
+      c,
+      r,
+      base: _appleRed,
+      shadow: _appleShadow,
+      highlight: _mix(_appleRed, const Color(0xFFE88A7A), 0.55),
+    );
+
+    // Indent at stem.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(c.dx + r * 0.04, c.dy - r * 0.72),
+        width: r * 0.38,
+        height: r * 0.16,
+      ),
+      Paint()..color = _appleShadow.withAlpha(120),
+    );
+
+    final stem = Path()
+      ..moveTo(c.dx + r * 0.02, c.dy - r * 0.78)
+      ..quadraticBezierTo(
+        c.dx + r * 0.08,
+        c.dy - r * 1.05,
+        c.dx + r * 0.14,
+        c.dy - r * 1.12,
+      );
+    canvas.drawPath(
+      stem,
+      Paint()
+        ..color = const Color(0xFF5C4634)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.07
+        ..strokeCap = StrokeCap.round,
+    );
+
+    _leafBlade(
+      canvas,
+      Offset(c.dx + r * 0.28, c.dy - r * 1.0),
+      length: r * 0.55,
+      width: r * 0.28,
+      angle: -0.85,
+      color: _leafMid,
+    );
+  }
+
+  void _citrusFruit(Canvas canvas, Offset c, double r) {
+    _sphere(
+      canvas,
+      c,
+      r,
+      base: _citrus,
+      shadow: _citrusDeep,
+      highlight: _mix(_citrus, const Color(0xFFF5D08A), 0.5),
+      lightBias: const Offset(-0.22, -0.28),
+    );
+
+    // Subtle peel texture rings.
+    final peel = Paint()
+      ..color = _citrusDeep.withAlpha(35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.03;
+    for (var i = 1; i <= 3; i++) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(c.dx + r * 0.05, c.dy + r * 0.02),
+          width: r * (0.55 + i * 0.22),
+          height: r * (0.42 + i * 0.16),
+        ),
+        peel,
+      );
+    }
+
+    _leafBlade(
+      canvas,
+      Offset(c.dx - r * 0.18, c.dy - r * 0.95),
+      length: r * 0.48,
+      width: r * 0.24,
+      angle: 0.55,
+      color: _leafDeep,
+    );
+  }
+
+  void _leafBlade(
+    Canvas canvas,
+    Offset tip, {
+    required double length,
+    required double width,
+    required double angle,
+    required Color color,
+  }) {
+    canvas.save();
+    canvas.translate(tip.dx, tip.dy);
+    canvas.rotate(angle);
+
+    final leaf = Path()
+      ..moveTo(0, 0)
+      ..quadraticBezierTo(width * 0.55, length * 0.35, 0, length)
+      ..quadraticBezierTo(-width * 0.55, length * 0.35, 0, 0)
+      ..close();
+
+    canvas.drawPath(
+      leaf,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            _mix(color, Colors.black, 0.18),
+            color,
+            _mix(color, Colors.white, 0.22),
+          ],
+        ).createShader(Rect.fromLTWH(-width, 0, width * 2, length)),
+    );
+
+    canvas.drawLine(
+      Offset.zero,
+      Offset(0, length * 0.92),
+      Paint()
+        ..color = _mix(color, Colors.black, 0.25).withAlpha(140)
+        ..strokeWidth = width * 0.08
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.restore();
+  }
+
+  void _marketBasket(Canvas canvas, Offset base, double w) {
+    final bodyH = w * 0.58;
+    final rimY = base.dy - bodyH;
+    final left = base.dx - w / 2;
+
+    // Produce rising behind the rim (drawn first).
+    _greensCluster(canvas, Offset(base.dx - w * 0.08, rimY - w * 0.02), w * 0.48);
+    _grapeBunch(canvas, Offset(base.dx + w * 0.22, rimY + w * 0.02), w * 0.16);
+    _appleInBasket(canvas, Offset(base.dx - w * 0.22, rimY + w * 0.04), w * 0.15);
+    _citrusInBasket(canvas, Offset(base.dx + w * 0.02, rimY + w * 0.06), w * 0.13);
+
+    // Back rim.
+    final backRim = RRect.fromLTRBR(
+      left - w * 0.03,
+      rimY - w * 0.04,
+      left + w + w * 0.03,
+      rimY + w * 0.08,
+      Radius.circular(w * 0.05),
+    );
+    canvas.drawRRect(
+      backRim,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_wickerDeep, _wicker],
+        ).createShader(backRim.outerRect),
+    );
+
+    // Basket body with soft volume.
+    final body = Path()
+      ..moveTo(left + w * 0.05, rimY + w * 0.05)
+      ..lineTo(left + w * 0.10, base.dy)
+      ..quadraticBezierTo(base.dx, base.dy + w * 0.04, left + w * 0.90, base.dy)
+      ..lineTo(left + w * 0.95, rimY + w * 0.05)
+      ..close();
+
+    final bodyBounds = Rect.fromLTRB(left, rimY, left + w, base.dy + w * 0.04);
+    canvas.drawPath(
+      body,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            _wickerLight,
+            _wicker,
+            _wickerDeep,
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(bodyBounds),
+    );
+
+    // Wicker weave — crossed lattice, soft.
+    _drawWeave(canvas, body, left, rimY, base.dy, w);
+
+    // Front rim with highlight edge.
+    final frontRim = RRect.fromLTRBR(
+      left - w * 0.015,
+      rimY,
+      left + w + w * 0.015,
+      rimY + w * 0.10,
+      Radius.circular(w * 0.045),
+    );
+    canvas.drawRRect(
+      frontRim,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [_wickerLight, _wicker, _wickerDeep],
+        ).createShader(frontRim.outerRect),
+    );
+    canvas.drawLine(
+      Offset(left + w * 0.08, rimY + w * 0.02),
+      Offset(left + w * 0.92, rimY + w * 0.02),
+      Paint()
+        ..color = Colors.white.withAlpha(70)
+        ..strokeWidth = w * 0.012
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Arc handle with thickness + highlight.
+    _basketHandle(canvas, Offset(base.dx, rimY + w * 0.02), w);
+
+    // Soft inner shade under produce.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(base.dx, rimY + w * 0.14),
+        width: w * 0.72,
+        height: w * 0.12,
+      ),
+      Paint()
+        ..color = Colors.black.withAlpha(35)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.04),
+    );
+
+    // Small brand accent (subtle, not cartoon badge).
+    canvas.drawRRect(
+      RRect.fromLTRBR(
+        base.dx - w * 0.10,
+        rimY + bodyH * 0.42,
+        base.dx + w * 0.10,
+        rimY + bodyH * 0.52,
+        Radius.circular(w * 0.02),
+      ),
+      Paint()..color = accent.withAlpha(150),
+    );
+  }
+
+  void _drawWeave(
+    Canvas canvas,
+    Path clip,
+    double left,
+    double rimY,
+    double baseY,
+    double w,
+  ) {
+    canvas.save();
+    canvas.clipPath(clip);
+
+    final dark = Paint()
+      ..color = _wickerDeep.withAlpha(75)
+      ..strokeWidth = w * 0.012
+      ..style = PaintingStyle.stroke;
+    final light = Paint()
+      ..color = _wickerLight.withAlpha(90)
+      ..strokeWidth = w * 0.008
+      ..style = PaintingStyle.stroke;
+
+    // Horizontal bands.
+    for (var i = 1; i <= 7; i++) {
+      final t = i / 8;
+      final y = rimY + (baseY - rimY) * t;
+      final inset = w * (0.08 + t * 0.05);
+      canvas.drawLine(Offset(left + inset, y), Offset(left + w - inset, y), dark);
+      canvas.drawLine(
+        Offset(left + inset, y - w * 0.008),
+        Offset(left + w - inset, y - w * 0.008),
+        light,
+      );
+    }
+
+    // Vertical stakes.
+    for (var i = 1; i <= 8; i++) {
+      final t = i / 9;
+      final xTop = left + w * (0.08 + t * 0.84);
+      final xBot = left + w * (0.12 + t * 0.76);
+      canvas.drawLine(Offset(xTop, rimY + w * 0.06), Offset(xBot, baseY), dark);
+    }
+
+    canvas.restore();
+  }
+
+  void _basketHandle(Canvas canvas, Offset hinge, double w) {
+    final rect = Rect.fromCenter(
+      center: Offset(hinge.dx, hinge.dy - w * 0.02),
+      width: w * 0.52,
+      height: w * 0.34,
+    );
+
+    canvas.drawArc(
+      rect,
+      math.pi * 1.08,
+      math.pi * 0.84,
+      false,
+      Paint()
+        ..color = _wickerDeep
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.055
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawArc(
+      rect.translate(0, -w * 0.012),
+      math.pi * 1.12,
+      math.pi * 0.76,
+      false,
+      Paint()
+        ..color = _wickerLight.withAlpha(160)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.018
+        ..strokeCap = StrokeCap.round,
+    );
+  }
+
+  void _greensCluster(Canvas canvas, Offset center, double w) {
+    void frond(double dx, double dy, double ang, double len, Color c) {
+      _leafBlade(
+        canvas,
+        Offset(center.dx + dx, center.dy + dy),
+        length: len,
+        width: len * 0.38,
+        angle: ang,
+        color: c,
+      );
+    }
+
+    frond(-w * 0.12, w * 0.05, -2.2, w * 0.55, _leafDeep);
+    frond(w * 0.06, 0, -1.6, w * 0.62, _leafMid);
+    frond(w * 0.22, w * 0.04, -1.05, w * 0.48, _leafPale);
+    frond(-w * 0.02, -w * 0.02, -1.9, w * 0.42, _leafPale);
+    frond(w * 0.14, w * 0.08, -1.35, w * 0.36, _leafDeep);
+  }
+
+  void _appleInBasket(Canvas canvas, Offset c, double r) {
+    _sphere(
+      canvas,
+      c,
+      r,
+      base: _appleRed,
+      shadow: _appleShadow,
+      highlight: _mix(_appleRed, const Color(0xFFE88A7A), 0.45),
+    );
+  }
+
+  void _citrusInBasket(Canvas canvas, Offset c, double r) {
+    _sphere(
+      canvas,
+      c,
+      r,
+      base: _citrus,
+      shadow: _citrusDeep,
+      highlight: _mix(_citrus, const Color(0xFFF5D08A), 0.4),
+    );
+  }
+
+  void _grapeBunch(Canvas canvas, Offset c, double r) {
+    final offsets = <Offset>[
+      Offset(0, -r * 0.35),
+      Offset(-r * 0.55, 0),
+      Offset(r * 0.5, -r * 0.05),
+      Offset(-r * 0.15, r * 0.45),
+      Offset(r * 0.35, r * 0.4),
+      Offset(r * 0.05, r * 0.85),
+    ];
+    for (var i = 0; i < offsets.length; i++) {
+      final o = offsets[i];
+      final berryR = r * (0.42 - i * 0.015);
+      canvas.drawCircle(
+        c + o,
+        berryR,
+        Paint()
+          ..shader = RadialGradient(
+            center: const Alignment(-0.35, -0.4),
+            colors: [_grapeLite, _grape, _mix(_grape, Colors.black, 0.25)],
+            stops: const [0.0, 0.55, 1.0],
+          ).createShader(Rect.fromCircle(center: c + o, radius: berryR)),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GroceryScenePainter oldDelegate) =>
+      oldDelegate.primary != primary || oldDelegate.accent != accent;
 }

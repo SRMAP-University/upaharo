@@ -162,6 +162,8 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       orderId: order.id,
       orderNumber: order.orderNumber,
+      storeId: storeContext.store.id,
+      storeSlug: storeContext.slug,
     }).catch((err) => console.error('B2B order notify failed:', err))
 
     return NextResponse.json(

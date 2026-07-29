@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { firebaseServiceAccount } from '@/lib/firebase-sa.generated'
+import { DEFAULT_STORE_SLUG } from '@/lib/store-constants'
 
 type PushData = Record<string, string>
 
@@ -7,6 +8,8 @@ export type PushPayload = {
   title: string
   body: string
   data?: PushData
+  /** Store slug used for Android channel + client filtering. */
+  storeSlug?: string
 }
 
 let messaging: {
@@ -99,6 +102,12 @@ async function pruneInvalidToken(token: string) {
   }
 }
 
+/** Android channel ids must match Flutter FlavorConfig.orderNotificationChannelId. */
+export function androidChannelIdForStore(storeSlug?: string | null): string {
+  const slug = (storeSlug || DEFAULT_STORE_SLUG).toLowerCase()
+  return slug === 'grocery' ? 'upaharo_grocery_orders' : 'upaharo_orders'
+}
+
 /** Send FCM to specific device tokens. Returns count of successful sends. */
 export async function sendPushToTokens(
   tokens: string[],
@@ -109,6 +118,13 @@ export async function sendPushToTokens(
 
   const fcm = getFirebaseMessaging()
   if (!fcm) return 0
+
+  const storeSlug = payload.storeSlug || payload.data?.storeSlug || DEFAULT_STORE_SLUG
+  const channelId = androidChannelIdForStore(storeSlug)
+  const data: PushData = {
+    ...(payload.data || {}),
+    storeSlug,
+  }
 
   let success = 0
 
@@ -121,11 +137,11 @@ export async function sendPushToTokens(
           title: payload.title,
           body: payload.body,
         },
-        data: payload.data || {},
+        data,
         android: {
           priority: 'high',
           notification: {
-            channelId: 'upaharo_orders',
+            channelId,
             sound: 'default',
           },
         },
@@ -161,13 +177,17 @@ export async function sendPushToTokens(
   return success
 }
 
-/** Send push to all registered devices for a user. */
+/** Send push to devices registered for this user + storefront. */
 export async function sendPushToUser(
   userId: string,
-  payload: PushPayload
+  payload: PushPayload,
+  storeId?: string | null
 ): Promise<number> {
   const devices = await prisma.deviceToken.findMany({
-    where: { userId },
+    where: {
+      userId,
+      ...(storeId ? { storeId } : {}),
+    },
     select: { token: true },
   })
   return sendPushToTokens(

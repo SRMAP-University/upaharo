@@ -1,9 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { resolveImageUrl } from '@/lib/image-url'
+import {
+  adminProductEditHref,
+  adminProductsListPath,
+} from '@/lib/admin-products-list'
 
 interface Product {
   id: string
@@ -16,12 +21,17 @@ interface Product {
   createdAt: string
 }
 
-export default function AdminProducts() {
+function AdminProductsContent() {
+  const router = useRouter()
+  const urlParams = useSearchParams()
+  const urlPage = Math.max(1, Number.parseInt(urlParams.get('page') ?? '1', 10) || 1)
+  const urlSearch = urlParams.get('search') ?? ''
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState(urlSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState(urlSearch)
+  const [currentPage, setCurrentPage] = useState(urlPage)
   const [totalProducts, setTotalProducts] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [message, setMessage] = useState('')
@@ -29,15 +39,32 @@ export default function AdminProducts() {
   const [selectedStore, setSelectedStore] = useState('')
   const [selectedStoreName, setSelectedStoreName] = useState('')
   const itemsPerPage = 50
+  const skipUrlSync = useRef(true)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
     return () => window.clearTimeout(timer)
   }, [searchQuery])
 
+  const prevDebouncedSearch = useRef(debouncedSearch)
   useEffect(() => {
-    setCurrentPage(1)
-  }, [debouncedSearch, selectedStore])
+    if (prevDebouncedSearch.current !== debouncedSearch) {
+      prevDebouncedSearch.current = debouncedSearch
+      setCurrentPage(1)
+    }
+  }, [debouncedSearch])
+
+  useEffect(() => {
+    if (skipUrlSync.current) {
+      skipUrlSync.current = false
+      return
+    }
+    const next = adminProductsListPath(currentPage, debouncedSearch)
+    const current = `${window.location.pathname}${window.location.search}`
+    if (current !== next) {
+      router.replace(next, { scroll: false })
+    }
+  }, [currentPage, debouncedSearch, router])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -254,7 +281,7 @@ export default function AdminProducts() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Link
-                            href={`/admin/products/${product.id}`}
+                            href={adminProductEditHref(product.id, currentPage, debouncedSearch)}
                             className="text-wine hover:text-wine-deep text-sm font-semibold"
                           >
                             Edit
@@ -310,7 +337,7 @@ export default function AdminProducts() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <Link
-                      href={`/admin/products/${product.id}`}
+                      href={adminProductEditHref(product.id, currentPage, debouncedSearch)}
                       className="rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-wine hover:bg-cream"
                     >
                       Edit
@@ -356,5 +383,13 @@ export default function AdminProducts() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AdminProducts() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-ink/55">Loading products...</div>}>
+      <AdminProductsContent />
+    </Suspense>
   )
 }

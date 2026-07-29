@@ -365,6 +365,7 @@ export async function POST(request: NextRequest) {
         userId: order.userId,
         orderNumber: order.orderNumber,
         couponId: couponId ?? null,
+        storeId: order.storeId,
       })
 
       return NextResponse.json(
@@ -427,6 +428,7 @@ export async function POST(request: NextRequest) {
       orderNumber: order.orderNumber,
       // Coupon already incremented in the transaction for CASH.
       couponId: null,
+      storeId: order.storeId,
     })
 
     return NextResponse.json({ order }, { status: 201 })

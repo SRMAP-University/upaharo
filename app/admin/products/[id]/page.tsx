@@ -1,7 +1,7 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, use, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ProductCategoryFields from '@/components/ProductCategoryFields'
 import ProductFoodTypeFields from '@/components/ProductFoodTypeFields'
@@ -9,6 +9,7 @@ import ImageDropUpload from '@/components/admin/ImageDropUpload'
 import SubProductSelector from '@/components/admin/SubProductSelector'
 import ProductPickupFields from '@/components/admin/ProductPickupFields'
 import { uploadProductImage } from '@/lib/upload-image'
+import { adminProductsListFromSearchParams } from '@/lib/admin-products-list'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
   buildProductTags,
@@ -28,9 +29,11 @@ type ProductVariant = {
 
 type PrepTimeUnit = 'minutes' | 'days'
 
-export default function EditProduct({ params }: { params: Promise<{ id: string }> }) {
+function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const { href: productsListHref } = adminProductsListFromSearchParams(searchParams)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [mainImageFile, setMainImageFile] = useState<File | null>(null)
@@ -335,7 +338,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
       })
 
       if (res.ok) {
-        router.push('/admin/products')
+        router.push(productsListHref)
       } else {
         alert('Failed to update product')
       }
@@ -354,7 +357,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
   return (
     <div className="max-w-4xl">
       <div className="mb-6">
-        <Link href="/admin/products" className="text-wine hover:text-wine-deep text-sm font-semibold mb-2 inline-block">
+        <Link href={productsListHref} className="text-wine hover:text-wine-deep text-sm font-semibold mb-2 inline-block">
           ← Back to Products
         </Link>
         <h1 className="font-display text-3xl font-semibold text-ink">Edit Product</h1>
@@ -713,7 +716,7 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
             {saving ? 'Saving...' : 'Save Changes'}
           </button>
           <Link
-            href="/admin/products"
+            href={productsListHref}
             className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2.5 rounded-full font-semibold"
           >
             Cancel
@@ -721,5 +724,13 @@ export default function EditProduct({ params }: { params: Promise<{ id: string }
         </div>
       </form>
     </div>
+  )
+}
+
+export default function EditProduct(props: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-ink/55">Loading...</div>}>
+      <EditProductContent {...props} />
+    </Suspense>
   )
 }

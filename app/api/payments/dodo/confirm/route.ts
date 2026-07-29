@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         userId: true,
+        storeId: true,
         total: true,
         paymentMethod: true,
         paymentStatus: true,
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
           orderId: updatedOrder.id,
           orderNumber: updatedOrder.orderNumber,
           paymentStatus: normalizedStatus,
+          storeId: order.storeId,
         }).catch((err) => console.error('Payment notification failed:', err))
       )
     }

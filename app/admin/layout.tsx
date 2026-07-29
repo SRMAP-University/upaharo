@@ -258,9 +258,9 @@ export default function AdminLayout({
         </div>
       </div>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside className="hidden w-64 bg-white border-r border-wine/10 min-h-[calc(100vh-73px)] sticky top-[73px] md:block">
+      <div className="md:pl-64">
+        {/* Sidebar — fixed on desktop so it stays visible while main content scrolls */}
+        <aside className="hidden md:fixed md:left-0 md:top-[57px] md:z-30 md:block md:h-[calc(100vh-57px)] md:w-64 md:overflow-y-auto bg-white border-r border-wine/10">
           <nav className="p-4">
             <ul className="space-y-1">
               {menuItems.map((item) => {
@@ -287,7 +287,7 @@ export default function AdminLayout({
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6">
+        <main className="p-4 md:p-6 pb-24 md:pb-6">
           {children}
         </main>
       </div>

@@ -20,6 +20,7 @@ export async function activateOrderFulfillment(order: {
   id: string
   userId: string
   orderNumber: string
+  storeId?: string | null
   couponId?: string | null
 }): Promise<void> {
   if (order.couponId) {
@@ -51,6 +52,7 @@ export async function activateOrderFulfillment(order: {
       userId: order.userId,
       orderId: order.id,
       orderNumber: order.orderNumber,
+      storeId: order.storeId,
     }).catch((err) => console.error('Order placed notification failed:', err))
   )
 }

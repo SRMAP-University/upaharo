@@ -2,23 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { notifyPromo, notifyUser } from '@/lib/notifications'
 import { requireAdmin } from '@/lib/request-auth'
+import { resolveAdminStoreContext } from '@/lib/store-context'
 
-/** Stats + recent marketing / promo notifications. */
+/** Stats + recent marketing / promo notifications for the active admin store. */
 export async function GET(request: NextRequest) {
   try {
     if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Unknown store' }, { status: 400 })
+    }
+
+    const storeId = storeContext.store.id
+
     const [deviceUsers, deviceTokens, customerCount, recent] = await Promise.all([
       prisma.deviceToken.findMany({
+        where: { storeId },
         distinct: ['userId'],
         select: { userId: true },
       }),
-      prisma.deviceToken.count(),
+      prisma.deviceToken.count({ where: { storeId } }),
       prisma.user.count({ where: { role: 'CUSTOMER' } }),
       prisma.appNotification.findMany({
-        where: { type: { in: ['PROMO', 'GENERAL'] } },
+        where: { storeId, type: { in: ['PROMO', 'GENERAL'] } },
         orderBy: { createdAt: 'desc' },
         take: 40,
         select: {
@@ -37,6 +46,7 @@ export async function GET(request: NextRequest) {
         customersWithDevices: deviceUsers.length,
         deviceTokens,
         totalCustomers: customerCount,
+        store: storeContext.slug,
       },
       recent,
     })
@@ -47,7 +57,7 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * Send marketing / general push.
+ * Send marketing / general push for the active admin store only.
  * Body:
  *  - title, body (required)
  *  - audience: "devices" | "all" | "email"  (default devices)
@@ -61,6 +71,14 @@ export async function POST(request: NextRequest) {
     if (!(await requireAdmin(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) {
+      return NextResponse.json({ error: 'Unknown store' }, { status: 400 })
+    }
+
+    const storeId = storeContext.store.id
+    const storeSlug = storeContext.slug
 
     const body = await request.json()
     const title = String(body.title || '').trim()
@@ -99,8 +117,9 @@ export async function POST(request: NextRequest) {
     } else if (Array.isArray(body.userIds)) {
       userIds = body.userIds.map(String)
     } else {
-      // Default: only customers with a registered FCM device
+      // Default: only customers with a registered FCM device for this store
       const devices = await prisma.deviceToken.findMany({
+        where: { storeId },
         distinct: ['userId'],
         select: { userId: true },
       })
@@ -108,14 +127,17 @@ export async function POST(request: NextRequest) {
     }
 
     if (!userIds.length) {
-      const tokenCount = await prisma.deviceToken.count()
+      const tokenCount = await prisma.deviceToken.count({ where: { storeId } })
       return NextResponse.json(
         {
           error:
             tokenCount === 0
-              ? 'No app devices registered yet. On the phone: open the Upaharo app, log in with a customer account, allow notifications, then pull to refresh or reopen the app. Admin stats should show at least 1 device before sending.'
+              ? `No ${storeSlug} app devices registered yet. Open the ${
+                  storeSlug === 'grocery' ? 'Upaharo Grocery' : 'Upaharo'
+                } app, log in, allow notifications, then reopen the app.`
               : 'No matching recipients for this audience. Try “Everyone with the app”, or send to the exact email used in the mobile app.',
           deviceTokens: tokenCount,
+          store: storeSlug,
         },
         { status: 400 }
       )
@@ -124,6 +146,7 @@ export async function POST(request: NextRequest) {
     const data = {
       type,
       route: deepLink,
+      storeSlug,
       ...(typeof body.data === 'object' && body.data ? body.data : {}),
     }
 
@@ -131,19 +154,28 @@ export async function POST(request: NextRequest) {
     for (const userId of userIds) {
       const result =
         type === 'PROMO'
-          ? await notifyPromo({ userId, title, body: message, data })
+          ? await notifyPromo({
+              userId,
+              title,
+              body: message,
+              data,
+              storeId,
+              storeSlug,
+            })
           : await notifyUser({
               userId,
               type: 'GENERAL',
               title,
               body: message,
               data: { type: 'GENERAL', ...data },
+              storeId,
+              storeSlug,
             })
       pushDelivered += result.pushSuccess
     }
 
     const devicesTargeted = await prisma.deviceToken.count({
-      where: { userId: { in: userIds } },
+      where: { userId: { in: userIds }, storeId },
     })
     const { firebaseServiceAccount } = await import('@/lib/firebase-sa.generated')
     const fcmConfigured = Boolean(
@@ -156,6 +188,7 @@ export async function POST(request: NextRequest) {
       devicesTargeted,
       pushDelivered,
       fcmConfigured,
+      store: storeSlug,
       warning: !fcmConfigured
         ? 'Saved to inbox, but push is disabled: FIREBASE_SERVICE_ACCOUNT_JSON is not set on the server.'
         : devicesTargeted > 0 && pushDelivered === 0

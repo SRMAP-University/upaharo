@@ -95,6 +95,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
         orderId: order.id,
         orderNumber: order.orderNumber,
         paymentStatus: 'FAILED',
+        storeId: order.storeId,
       }).catch((err) => console.error('Payment notification failed:', err))
     )
     return {
@@ -172,6 +173,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
       userId: updatedOrder.userId,
       orderNumber: updatedOrder.orderNumber,
       couponId: updatedOrder.couponId,
+      storeId: order.storeId,
     })
 
     void import('@/lib/notifications').then(({ notifyPaymentUpdate }) =>
@@ -180,6 +182,7 @@ export async function applyStripeCheckoutSessionToOrder(params: {
         orderId: updatedOrder.id,
         orderNumber: updatedOrder.orderNumber,
         paymentStatus: 'COMPLETED',
+        storeId: order.storeId,
       }).catch((err) => console.error('Payment notification failed:', err))
     )
   }

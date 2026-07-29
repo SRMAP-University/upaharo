@@ -62,6 +62,8 @@ model Store {
   spinPlays           SpinPlay[]
   productViewEvents   ProductViewEvent[]
   recommendationRules RecommendationRule[]
+  deviceTokens        DeviceToken[]
+  notifications       AppNotification[]
   createdAt           DateTime               @default(now())
   updatedAt           DateTime               @updatedAt
 }
@@ -82,18 +84,24 @@ model DeviceToken {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Which app registered this FCM token (gifts vs grocery).
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   token     String   @unique
   platform  String // android | ios | web
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
+  @@index([userId, storeId])
+  @@index([storeId])
 }
 
 model AppNotification {
   id        String           @id @default(cuid())
   userId    String
   user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   type      NotificationType
   title     String
   body      String
@@ -101,8 +109,8 @@ model AppNotification {
   readAt    DateTime?
   createdAt DateTime         @default(now())
 
-  @@index([userId, createdAt])
-  @@index([type, createdAt])
+  @@index([userId, storeId, createdAt])
+  @@index([storeId, type, createdAt])
 }
 
 enum NotificationType {

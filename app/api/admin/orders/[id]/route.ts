@@ -164,6 +164,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             orderNumber: existing.orderNumber,
             status: nextStatus,
             deliveryOtp: order.deliveryOtp || issuedOtp || undefined,
+            storeId: existing.storeId,
           })
         }
         if (body.paymentStatus && body.paymentStatus !== existing.paymentStatus) {
@@ -172,6 +173,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             orderId: existing.id,
             orderNumber: existing.orderNumber,
             paymentStatus: body.paymentStatus,
+            storeId: existing.storeId,
           })
         }
       } catch (err) {

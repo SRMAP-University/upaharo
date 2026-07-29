@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
           userId: r.userId,
           title: `${r.name}'s ${label} ${when}`,
           body: `Send a thoughtful gift for their ${label}. Browse ideas in Upaharo.`,
+          storeSlug: 'gifts',
           data: {
             recipientId: r.id,
             kind: event.kind,
