@@ -103,7 +103,7 @@ export default function ProductCategoryFields({
     !categories.productCategories.some((option) => option.name === category)
 
   return (
-    <div className="col-span-2 rounded-xl border border-wine/10 bg-cream/80 p-4 space-y-4">
+    <div className="rounded-xl border border-wine/10 bg-cream/80 p-4 space-y-4">
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label className="block text-sm font-medium text-ink/70 mb-2">Product Category*</label>

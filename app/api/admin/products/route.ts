@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive'
+import { sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
+import {
+  buildAdminProductWhere,
+  normalizeGroceryFields,
+  normalizeImagesList,
+  normalizeInventoryFields,
+  productListOrderBy,
+} from '@/lib/product-fields'
 import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
@@ -53,51 +60,40 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
+    const availability = searchParams.get('availability')
+    const archived = searchParams.get('archived') === '1'
+    const sort = searchParams.get('sort')
     const idsParam = searchParams.get('ids')
 
-    const where: any = {
-      storeId: storeContext.store.id,
-      NOT: {
-        tags: {
-          has: ARCHIVED_PRODUCT_TAG,
-        },
-      },
-    }
-
-    if (idsParam) {
-      const ids = Array.from(
-        new Set(
-          idsParam
-            .split(',')
-            .map((value) => value.trim())
-            .filter(Boolean)
+    const ids = idsParam
+      ? Array.from(
+          new Set(
+            idsParam
+              .split(',')
+              .map((value) => value.trim())
+              .filter(Boolean)
+          )
         )
-      )
+      : undefined
 
-      if (ids.length > 0) {
-        where.id = { in: ids }
-      }
-    }
-
-    if (category && category !== 'all') {
-      where.category = category
-    }
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ]
-    }
+    const where = buildAdminProductWhere({
+      storeId: storeContext.store.id,
+      category,
+      search,
+      availability,
+      archived,
+      ids,
+    })
 
     const page = Math.max(1, Math.round(toNumber(searchParams.get('page'), 1)))
     const limit = Math.min(100, Math.max(1, Math.round(toNumber(searchParams.get('limit'), 50))))
     const skip = (page - 1) * limit
+    const orderBy = productListOrderBy(sort)
 
     const [products, total] = await Promise.all([
       findManyProductsCompat({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: limit,
       }),
@@ -173,19 +169,36 @@ export async function POST(request: NextRequest) {
       wholesalePrice = wp
     }
 
-    const images = Array.isArray(body?.images)
-      ? body.images
-          .map((v: unknown) => String(v || '').trim())
-          .filter((v: string) => v.length > 0)
-      : []
-
+    const images = normalizeImagesList(body?.images)
     const tags = sanitizeProductTags(body?.tags)
-
     const variants = normalizeVariants(body?.variants)
 
     const pickup = normalizePickupInput(body)
     if (!pickup.ok) {
       return NextResponse.json({ error: pickup.error }, { status: 400 })
+    }
+
+    const inventory = normalizeInventoryFields(body)
+    if (!inventory.ok) {
+      return NextResponse.json({ error: inventory.error }, { status: 400 })
+    }
+
+    const grocery = normalizeGroceryFields(body)
+    if (!grocery.ok) {
+      return NextResponse.json({ error: grocery.error }, { status: 400 })
+    }
+
+    if (inventory.data.sku) {
+      const clash = await prisma.product.findFirst({
+        where: {
+          storeId: storeContext.store.id,
+          sku: inventory.data.sku,
+        },
+        select: { id: true },
+      })
+      if (clash) {
+        return NextResponse.json({ error: 'SKU already exists in this store' }, { status: 400 })
+      }
     }
 
     const data = {
@@ -207,6 +220,8 @@ export async function POST(request: NextRequest) {
       discount: Math.max(0, toNumber(body?.discount, 0)),
       isAvailable: body?.isAvailable !== false,
       ...pickup.data,
+      ...inventory.data,
+      ...grocery.data,
     }
 
     const product = await withProductWriteCompatibility(data, (safeData) =>

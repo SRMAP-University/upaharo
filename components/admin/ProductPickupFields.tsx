@@ -25,7 +25,7 @@ export default function ProductPickupFields({ value, onChange }: ProductPickupFi
   const hasPin = value.pickupLatitude !== null && value.pickupLongitude !== null
 
   return (
-    <div className="col-span-2 rounded-xl border border-wine/10 bg-cream/50 p-4">
+    <div className="rounded-xl border border-wine/10 bg-cream/50 p-4">
       <label className="flex cursor-pointer items-center gap-2">
         <input
           type="checkbox"

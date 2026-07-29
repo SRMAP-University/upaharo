@@ -250,12 +250,15 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-6 xl:flex-row xl:items-stretch">
-        <aside className="z-20 xl:w-56 xl:shrink-0">
-          <div className="sticky top-[4.25rem] z-20 -mx-4 border-b border-wine/10 bg-cream/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-cream/90 md:top-[6.5rem] md:-mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none xl:top-[6.5rem]">
-            <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="horizontal" />
-            <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="sidebar" />
-          </div>
+      <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+        {/* Mobile / tablet tabs — stick under header */}
+        <div className="sticky top-12 z-30 -mx-4 border-b border-wine/10 bg-cream/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-cream/90 xl:hidden">
+          <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="horizontal" />
+        </div>
+
+        {/* Desktop settings menu — stick under header while form scrolls */}
+        <aside className="hidden xl:sticky xl:top-14 xl:block xl:w-56 xl:shrink-0 xl:self-start xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto xl:pb-4">
+          <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="sidebar" />
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -949,7 +952,7 @@ export default function AdminSettingsPage() {
 
         {(activeTab === 'appearance' || activeTab === 'home' || activeTab === 'navigation') && (
           <div className="hidden xl:block xl:w-[300px] xl:shrink-0">
-            <div className="xl:sticky xl:top-[88px]">
+            <div className="xl:sticky xl:top-14 xl:pb-28">
               <MobilePreview form={formData} />
             </div>
           </div>

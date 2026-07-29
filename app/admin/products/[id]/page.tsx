@@ -6,6 +6,8 @@ import Link from 'next/link'
 import ProductCategoryFields from '@/components/ProductCategoryFields'
 import ProductFoodTypeFields from '@/components/ProductFoodTypeFields'
 import ImageDropUpload from '@/components/admin/ImageDropUpload'
+import ProductGalleryFields from '@/components/admin/ProductGalleryFields'
+import ProductInventoryFields from '@/components/admin/ProductInventoryFields'
 import SubProductSelector from '@/components/admin/SubProductSelector'
 import ProductPickupFields from '@/components/admin/ProductPickupFields'
 import { uploadProductImage } from '@/lib/upload-image'
@@ -49,6 +51,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
+  const [storeSlug, setStoreSlug] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     miniDescription: '',
@@ -66,6 +69,12 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
     tags: '',
     discount: 0,
     isAvailable: true,
+    sku: '',
+    trackStock: false,
+    stockQty: '' as number | '',
+    unit: '',
+    unitValue: '' as number | '',
+    aisle: '',
     pickupEnabled: false,
     pickupLatitude: null as number | null,
     pickupLongitude: null as number | null,
@@ -271,6 +280,16 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
           tags: tagState.customTags,
           discount: product.discount || 0,
           isAvailable: product.isAvailable,
+          sku: String(product.sku || ''),
+          trackStock: Boolean(product.trackStock),
+          stockQty:
+            product.stockQty == null || product.stockQty === undefined ? '' : Number(product.stockQty),
+          unit: String(product.unit || ''),
+          unitValue:
+            product.unitValue == null || product.unitValue === undefined
+              ? ''
+              : Number(product.unitValue),
+          aisle: String(product.aisle || ''),
           pickupEnabled: Boolean(product.pickupEnabled),
           pickupLatitude: Number.isFinite(Number(product.pickupLatitude))
             ? Number(product.pickupLatitude)
@@ -280,6 +299,13 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
             : null,
           pickupAddress: String(product.pickupAddress || ''),
         })
+        setStoreSlug(String(product.store?.slug || product.storeSlug || ''))
+        void fetch('/api/admin/store', { cache: 'no-store' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((data) => {
+            if (data?.selectedSlug) setStoreSlug(String(data.selectedSlug))
+          })
+          .catch(() => {})
         setPrepTimeUnit(
           Number(product.prepTime) >= minutesPerDay && Number(product.prepTime) % minutesPerDay === 0
             ? 'days'
@@ -318,6 +344,19 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
             formData.wholesalePrice === '' || formData.wholesalePrice == null
               ? null
               : Number(formData.wholesalePrice),
+          sku: formData.sku.trim() || null,
+          trackStock: formData.trackStock,
+          stockQty: formData.trackStock
+            ? formData.stockQty === ''
+              ? 0
+              : Number(formData.stockQty)
+            : null,
+          unit: formData.unit || null,
+          unitValue:
+            formData.unitValue === '' || formData.unitValue == null
+              ? null
+              : Number(formData.unitValue),
+          aisle: formData.aisle.trim() || null,
           tags: mergeSubProductTags(
             buildProductTags(formData.tags, recipientSelections, occasionSelections),
             subProductIds
@@ -355,373 +394,349 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   }
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-6">
-        <Link href={productsListHref} className="text-wine hover:text-wine-deep text-sm font-semibold mb-2 inline-block">
-          ← Back to Products
-        </Link>
-        <h1 className="font-display text-3xl font-semibold text-ink">Edit Product</h1>
+    <div className="w-full">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <Link href={productsListHref} className="text-wine hover:text-wine-deep text-sm font-semibold mb-2 inline-block">
+            ← Back to Products
+          </Link>
+          <h1 className="font-display text-2xl font-semibold text-ink md:text-3xl">Edit Product</h1>
+        </div>
+        <button
+          type="button"
+          onClick={applyCakeQuickSetup}
+          className="rounded-full border border-gold/40 bg-gold-soft/50 px-4 py-2 text-xs font-semibold text-ink hover:bg-gold-soft"
+        >
+          Apply Cake Starter
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-[22px] border border-wine/10 p-6">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gold/30 bg-gold-soft/40 px-4 py-3">
-          <p className="text-sm font-medium text-ink/70">Use cake starter to quickly prepare cake-ready options.</p>
-          <button
-            type="button"
-            onClick={applyCakeQuickSetup}
-            className="rounded-full bg-wine px-4 py-2 text-xs font-semibold text-white hover:bg-wine-deep"
-          >
-            Apply Cake Starter
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-6">
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-ink/70 mb-1">Name*</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12 xl:items-start">
+          {/* Left: details */}
+          <div className="space-y-5 xl:col-span-7">
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Basics</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Name*</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  />
+                </div>
 
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-ink/70 mb-1">Mini Description</label>
-            <input
-              type="text"
-              value={formData.miniDescription}
-              onChange={(e) => setFormData({ ...formData, miniDescription: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-              placeholder="Short one-line text shown above price"
-            />
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Mini Description</label>
+                  <input
+                    type="text"
+                    value={formData.miniDescription}
+                    onChange={(e) => setFormData({ ...formData, miniDescription: e.target.value })}
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    placeholder="Short one-line text shown above price"
+                  />
+                </div>
 
-          <div className="col-span-2 space-y-3">
-            <label className="block text-sm font-medium text-ink/70 mb-1">Description (Markdown)*</label>
-            <textarea
-              required
-              rows={7}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-              placeholder="# Product Highlights&#10;- Freshly baked&#10;- Same day delivery&#10;&#10;**Storage:** Keep refrigerated."
-            />
-            <div className="rounded-xl border border-wine/10 bg-cream p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Preview</p>
-              <div
-                className="space-y-3 text-sm leading-7 text-ink/70 [&_a]:text-wine [&_h1]:text-xl [&_h2]:text-lg"
-                dangerouslySetInnerHTML={{ __html: renderProductDescriptionMarkdown(formData.description) }}
-              />
-            </div>
-          </div>
-
-          <ProductCategoryFields
-            categories={categoryGroups}
-            loading={categoryGroupsLoading}
-            error={categoryError}
-            category={formData.category}
-            customTags={formData.tags}
-            recipientSelections={recipientSelections}
-            occasionSelections={occasionSelections}
-            onCategoryChange={(value) => setFormData({ ...formData, category: value })}
-            onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
-            onRecipientSelectionsChange={setRecipientSelections}
-            onOccasionSelectionsChange={setOccasionSelections}
-            accent="orange"
-          />
-
-          <SubProductSelector value={subProductIds} onChange={setSubProductIds} excludeProductId={id} />
-
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Price (NPR)*</label>
-            <input
-              type="number"
-              required
-              step="0.01"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Wholesale price (NPR)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.wholesalePrice}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  wholesalePrice: e.target.value === '' ? '' : parseFloat(e.target.value),
-                })
-              }
-              placeholder="Leave empty if not for B2B"
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-            <p className="mt-1 text-xs text-ink/40">Shown on /b2b for local businesses</p>
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-ink/70 mb-1">Main Image URL*</label>
-            <input
-              type="text"
-              required
-              value={formData.image}
-              onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-            <div className="mt-2 space-y-2">
-              <ImageDropUpload
-                label="Main product image"
-                onFileSelect={setMainImageFile}
-                disabled={uploadingMainImage}
-              />
-              <button
-                type="button"
-                onClick={handleMainImageUpload}
-                disabled={!mainImageFile || uploadingMainImage}
-                className="px-4 py-2 bg-wine text-white rounded-xl text-sm font-medium hover:bg-wine-deep disabled:opacity-50"
-              >
-                {uploadingMainImage ? 'Uploading...' : 'Upload Main Image'}
-              </button>
-            </div>
-          </div>
-
-          <div className="col-span-2">
-            <label className="block text-sm font-medium text-ink/70 mb-1">Additional Images</label>
-            {formData.images.map((img, index) => (
-              <div key={index} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  value={img}
-                  onChange={(e) => {
-                    const newImages = [...formData.images]
-                    newImages[index] = e.target.value
-                    setFormData({ ...formData, images: newImages })
-                  }}
-                  placeholder={`Image ${index + 1} URL`}
-                  className="flex-1 px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const newImages = formData.images.filter((_, i) => i !== index)
-                    setFormData({ ...formData, images: newImages })
-                  }}
-                  className="px-4 py-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200"
-                >
-                  Remove
-                </button>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-ink/70 mb-1">Description (Markdown)*</label>
+                    <textarea
+                      required
+                      rows={10}
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      placeholder="# Product Highlights&#10;- Freshly baked&#10;- Same day delivery&#10;&#10;**Storage:** Keep refrigerated."
+                    />
+                  </div>
+                  <div className="rounded-xl border border-wine/10 bg-cream p-3">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Preview</p>
+                    <div
+                      className="space-y-3 text-sm leading-7 text-ink/70 [&_a]:text-wine [&_h1]:text-xl [&_h2]:text-lg"
+                      dangerouslySetInnerHTML={{ __html: renderProductDescriptionMarkdown(formData.description) }}
+                    />
+                  </div>
+                </div>
               </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, images: [...formData.images, ''] })}
-              className="mt-2 px-4 py-2 border border-wine/20 bg-white text-wine rounded-xl hover:bg-cream text-sm font-medium"
-            >
-              + Add Another Image
-            </button>
-            <div className="mt-3 rounded-xl border border-dashed border-wine/20 p-3">
-              <ImageDropUpload
-                label="Additional gallery image"
-                onFileSelect={setAdditionalImageFile}
-                disabled={uploadingAdditionalImage}
-              />
-              <button
-                type="button"
-                onClick={handleAdditionalImageUpload}
-                disabled={!additionalImageFile || uploadingAdditionalImage}
-                className="mt-2 px-4 py-2 bg-wine text-white rounded-xl text-sm font-medium hover:bg-wine-deep disabled:opacity-50"
-              >
-                {uploadingAdditionalImage ? 'Uploading...' : 'Upload and Add'}
-              </button>
-            </div>
-          </div>
+            </section>
 
-          <div className="col-span-2">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-ink/70">Product Variants</label>
-              <button
-                type="button"
-                onClick={addVariant}
-                className="px-3 py-1.5 bg-rose-soft text-wine rounded-xl text-xs font-semibold hover:bg-rose-soft/70"
-              >
-                + Add Variant
-              </button>
-            </div>
-            {formData.variants.length === 0 && (
-              <p className="text-xs text-ink/55 border border-dashed border-wine/20 rounded-xl p-3">
-                Add color or size variants and upload a specific image for each variant.
-              </p>
-            )}
-            {formData.variants.map((variant, index) => (
-              <div key={index} className="mb-3 rounded-xl border border-wine/10 p-3">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6 space-y-4">
+              <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Category & pricing</h2>
+              <ProductCategoryFields
+                categories={categoryGroups}
+                loading={categoryGroupsLoading}
+                error={categoryError}
+                category={formData.category}
+                customTags={formData.tags}
+                recipientSelections={recipientSelections}
+                occasionSelections={occasionSelections}
+                onCategoryChange={(value) => setFormData({ ...formData, category: value })}
+                onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
+                onRecipientSelectionsChange={setRecipientSelections}
+                onOccasionSelectionsChange={setOccasionSelections}
+                accent="orange"
+              />
+
+              <SubProductSelector value={subProductIds} onChange={setSubProductIds} excludeProductId={id} />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Price (NPR)*</label>
                   <input
-                    type="text"
-                    value={variant.color}
-                    onChange={(e) => updateVariant(index, 'color', e.target.value)}
-                    placeholder="Color (e.g., Red)"
-                    className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    type="number"
+                    required
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
-                  <input
-                    type="text"
-                    value={variant.size}
-                    onChange={(e) => updateVariant(index, 'size', e.target.value)}
-                    placeholder="Size (e.g., Large)"
-                    className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                  />
-                  <input
-                    type="text"
-                    value={variant.image}
-                    onChange={(e) => updateVariant(index, 'image', e.target.value)}
-                    placeholder="Variant Image URL"
-                    className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Wholesale price (NPR)</label>
                   <input
                     type="number"
                     step="0.01"
-                    value={variant.price ?? ''}
+                    min="0"
+                    value={formData.wholesalePrice}
                     onChange={(e) =>
-                      updateVariant(
-                        index,
-                        'price',
-                        e.target.value === '' ? '' : String(Math.max(0, Number(e.target.value)))
-                      )
+                      setFormData({
+                        ...formData,
+                        wholesalePrice: e.target.value === '' ? '' : parseFloat(e.target.value),
+                      })
                     }
-                    placeholder="Variant Price"
-                    className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    placeholder="Leave empty if not for B2B"
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  />
+                  <p className="mt-1 text-xs text-ink/40">Shown on /b2b for local businesses</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Discount (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={formData.discount}
+                    onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
                 </div>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <ImageDropUpload
-                      label={`Variant ${index + 1} image`}
-                      onFileSelect={(file) =>
-                        setVariantFiles((prev) => {
-                          const nextFiles = [...prev]
-                          nextFiles[index] = file
-                          return nextFiles
-                        })
-                      }
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-ink/70 mb-1">Preparation Time*</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      required
+                      min="0"
+                      step={prepTimeUnit === 'days' ? '0.25' : '1'}
+                      value={prepTimeInputValue}
+                      onChange={(e) => handlePrepTimeValueChange(e.target.value)}
+                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
+                    <select
+                      value={prepTimeUnit}
+                      onChange={(e) => setPrepTimeUnit(e.target.value as PrepTimeUnit)}
+                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    >
+                      <option value="minutes">Minutes</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
+                  <p className="mt-1 text-xs text-ink/55">Shown on product page as: {formatTime(formData.prepTime)}</p>
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <ProductInventoryFields
+                emphasizeGrocery={storeSlug === 'grocery'}
+                values={{
+                  sku: formData.sku,
+                  trackStock: formData.trackStock,
+                  stockQty: formData.stockQty,
+                  unit: formData.unit,
+                  unitValue: formData.unitValue,
+                  aisle: formData.aisle,
+                }}
+                onChange={(patch) => setFormData((prev) => ({ ...prev, ...patch }))}
+              />
+            </section>
+
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6 space-y-4">
+              <ProductFoodTypeFields
+                showFoodTypeLabel={formData.showFoodTypeLabel}
+                isVeg={formData.isVeg}
+                accent="orange"
+                onShowFoodTypeLabelChange={(value) => setFormData({ ...formData, showFoodTypeLabel: value })}
+                onIsVegChange={(value) => setFormData({ ...formData, isVeg: value })}
+              />
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isAvailable}
+                  onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
+                  className="w-4 h-4 text-wine border-wine/30 rounded focus:ring-wine/30"
+                />
+                <span className="text-sm font-medium text-ink/70">Available</span>
+              </label>
+              <ProductPickupFields
+                value={{
+                  pickupEnabled: formData.pickupEnabled,
+                  pickupLatitude: formData.pickupLatitude,
+                  pickupLongitude: formData.pickupLongitude,
+                  pickupAddress: formData.pickupAddress,
+                }}
+                onChange={(pickup) => setFormData((prev) => ({ ...prev, ...pickup }))}
+              />
+            </section>
+          </div>
+
+          {/* Right: media */}
+          <div className="space-y-5 xl:col-span-5 xl:sticky xl:top-14 xl:self-start">
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Images</h2>
+              <ProductGalleryFields
+                mainImage={formData.image}
+                images={formData.images}
+                mainImageFile={mainImageFile}
+                additionalImageFile={additionalImageFile}
+                uploadingMainImage={uploadingMainImage}
+                uploadingAdditionalImage={uploadingAdditionalImage}
+                onMainImageUrlChange={(url) => setFormData((prev) => ({ ...prev, image: url }))}
+                onImagesChange={(images) => setFormData((prev) => ({ ...prev, images }))}
+                onMainImageFileSelect={setMainImageFile}
+                onAdditionalImageFileSelect={setAdditionalImageFile}
+                onUploadMain={handleMainImageUpload}
+                onUploadAdditional={handleAdditionalImageUpload}
+              />
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-ink/70 mb-1">Image Alt Text</label>
+                <input
+                  type="text"
+                  value={formData.imageAlt}
+                  onChange={(e) => setFormData({ ...formData, imageAlt: e.target.value })}
+                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                />
+              </div>
+            </section>
+
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Variants</h2>
+                <button
+                  type="button"
+                  onClick={addVariant}
+                  className="px-3 py-1.5 bg-rose-soft text-wine rounded-xl text-xs font-semibold hover:bg-rose-soft/70"
+                >
+                  + Add Variant
+                </button>
+              </div>
+              {formData.variants.length === 0 && (
+                <p className="text-xs text-ink/55 border border-dashed border-wine/20 rounded-xl p-3">
+                  Add color or size variants and upload a specific image for each variant.
+                </p>
+              )}
+              {formData.variants.map((variant, index) => (
+                <div key={index} className="mb-3 rounded-xl border border-wine/10 p-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={variant.color}
+                      onChange={(e) => updateVariant(index, 'color', e.target.value)}
+                      placeholder="Color (e.g., Red)"
+                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    />
+                    <input
+                      type="text"
+                      value={variant.size}
+                      onChange={(e) => updateVariant(index, 'size', e.target.value)}
+                      placeholder="Size (e.g., Large)"
+                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    />
+                    <input
+                      type="text"
+                      value={variant.image}
+                      onChange={(e) => updateVariant(index, 'image', e.target.value)}
+                      placeholder="Variant Image URL"
+                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={variant.price ?? ''}
+                      onChange={(e) =>
+                        updateVariant(
+                          index,
+                          'price',
+                          e.target.value === '' ? '' : String(Math.max(0, Number(e.target.value)))
+                        )
+                      }
+                      placeholder="Variant Price"
+                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <ImageDropUpload
+                        label={`Variant ${index + 1} image`}
+                        onFileSelect={(file) =>
+                          setVariantFiles((prev) => {
+                            const nextFiles = [...prev]
+                            nextFiles[index] = file
+                            return nextFiles
+                          })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => uploadVariantImage(index)}
+                        disabled={!variantFiles[index] || uploadingVariantIndex === index}
+                        className="px-3 py-2 bg-wine text-white rounded-xl text-xs font-medium hover:bg-wine-deep disabled:opacity-50"
+                      >
+                        {uploadingVariantIndex === index ? 'Uploading...' : 'Upload Variant Image'}
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => uploadVariantImage(index)}
-                      disabled={!variantFiles[index] || uploadingVariantIndex === index}
-                      className="px-3 py-2 bg-wine text-white rounded-xl text-xs font-medium hover:bg-wine-deep disabled:opacity-50"
+                      onClick={() => removeVariant(index)}
+                      className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 self-start"
                     >
-                      {uploadingVariantIndex === index ? 'Uploading...' : 'Upload Variant Image'}
+                      Remove Variant
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeVariant(index)}
-                    className="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-medium hover:bg-red-100 self-start"
-                  >
-                    Remove Variant
-                  </button>
+                  {typeof variant.price === 'number' ? (
+                    <p className="mt-2 text-xs font-semibold text-wine">Selling at {formatPriceNoDecimals(variant.price)}</p>
+                  ) : null}
                 </div>
-                {typeof variant.price === 'number' ? (
-                  <p className="mt-2 text-xs font-semibold text-wine">Selling at {formatPriceNoDecimals(variant.price)}</p>
-                ) : null}
-              </div>
-            ))}
+              ))}
+            </section>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Image Alt Text</label>
-            <input
-              type="text"
-              value={formData.imageAlt}
-              onChange={(e) => setFormData({ ...formData, imageAlt: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Preparation Time*</label>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                required
-                min="0"
-                step={prepTimeUnit === 'days' ? '0.25' : '1'}
-                value={prepTimeInputValue}
-                onChange={(e) => handlePrepTimeValueChange(e.target.value)}
-                className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-              />
-              <select
-                value={prepTimeUnit}
-                onChange={(e) => setPrepTimeUnit(e.target.value as PrepTimeUnit)}
-                className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+        <>
+          <div className="h-24 md:h-20" aria-hidden />
+          <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-wine/10 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5 md:py-3.5">
+            <div className="mx-auto flex w-full max-w-[1600px] flex-wrap gap-3 md:pl-[4.5rem]">
+              <button
+                type="submit"
+                disabled={saving}
+                className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold disabled:opacity-50"
               >
-                <option value="minutes">Minutes</option>
-                <option value="days">Days</option>
-              </select>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+              <Link
+                href={productsListHref}
+                className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2.5 rounded-full font-semibold"
+              >
+                Cancel
+              </Link>
             </div>
-            <p className="mt-1 text-xs text-ink/55">Shown on product page as: {formatTime(formData.prepTime)}</p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink/70 mb-1">Discount (%)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={formData.discount}
-              onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-            />
-          </div>
-
-          <div className="col-span-2 space-y-4">
-            <ProductFoodTypeFields
-              showFoodTypeLabel={formData.showFoodTypeLabel}
-              isVeg={formData.isVeg}
-              accent="orange"
-              onShowFoodTypeLabelChange={(value) => setFormData({ ...formData, showFoodTypeLabel: value })}
-              onIsVegChange={(value) => setFormData({ ...formData, isVeg: value })}
-            />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.isAvailable}
-                onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
-                className="w-4 h-4 text-wine border-wine/30 rounded focus:ring-wine/30"
-              />
-              <span className="text-sm font-medium text-ink/70">Available</span>
-            </label>
-          </div>
-
-          <ProductPickupFields
-            value={{
-              pickupEnabled: formData.pickupEnabled,
-              pickupLatitude: formData.pickupLatitude,
-              pickupLongitude: formData.pickupLongitude,
-              pickupAddress: formData.pickupAddress,
-            }}
-            onChange={(pickup) => setFormData((prev) => ({ ...prev, ...pickup }))}
-          />
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            type="submit"
-            disabled={saving}
-            className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold disabled:opacity-50"
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-          <Link
-            href={productsListHref}
-            className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2.5 rounded-full font-semibold"
-          >
-            Cancel
-          </Link>
-        </div>
+        </>
       </form>
     </div>
   )

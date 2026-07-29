@@ -244,6 +244,18 @@ model Product {
   prepTime                  Int                  @default(15)
   tags                      String[]
   discount                  Float?               @default(0)
+  /// Optional SKU — unique within a store when set.
+  sku                       String?
+  /// When true, stockQty is enforced for availability display.
+  trackStock                Boolean              @default(false)
+  /// Remaining units when trackStock is true (null = not tracked).
+  stockQty                  Int?
+  /// Pack size unit: kg, g, ml, l, piece, pack.
+  unit                      String?
+  /// Numeric pack size (e.g. 500 for 500g).
+  unitValue                 Float?
+  /// Grocery shelf / aisle label.
+  aisle                     String?
   /// Customer may collect this product instead of paying for delivery.
   pickupEnabled             Boolean              @default(false)
   pickupLatitude            Float?
@@ -259,6 +271,7 @@ model Product {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
 
+  @@unique([storeId, sku])
   @@index([storeId, category])
   @@index([storeId, isAvailable])
   @@index([sellerId])

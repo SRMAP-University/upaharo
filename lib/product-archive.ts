@@ -10,6 +10,12 @@ export function appendArchivedProductTag(tags: string[] | null | undefined) {
   return [...nextTags, ARCHIVED_PRODUCT_TAG]
 }
 
+/** Remove archive tag so the product reappears in the active catalog. */
+export function stripArchivedProductTag(tags: string[] | null | undefined) {
+  const nextTags = Array.isArray(tags) ? tags.filter(Boolean) : []
+  return nextTags.filter((tag) => tag !== ARCHIVED_PRODUCT_TAG)
+}
+
 export function sanitizeProductTags(input: unknown) {
   if (!Array.isArray(input)) {
     return []

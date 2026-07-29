@@ -105,7 +105,7 @@ export default function SubProductSelector({
   }
 
   return (
-    <div className="col-span-2 rounded-xl border border-wine/10 bg-cream/70 p-4 space-y-4">
+    <div className="rounded-xl border border-wine/10 bg-cream/70 p-4 space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
         <p className="text-xs text-ink/55 mt-1">{hint}</p>

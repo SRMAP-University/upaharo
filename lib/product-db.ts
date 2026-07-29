@@ -46,6 +46,12 @@ export const PRODUCT_CARD_SELECT = {
   pickupLatitude: true,
   pickupLongitude: true,
   pickupAddress: true,
+  sku: true,
+  trackStock: true,
+  stockQty: true,
+  unit: true,
+  unitValue: true,
+  aisle: true,
 } satisfies Prisma.ProductSelect
 
 export const PICKUP_PRODUCT_SELECT = {
@@ -59,11 +65,20 @@ export const PICKUP_PRODUCT_SELECT = {
 
 type LegacyProductShape = Prisma.ProductGetPayload<{ select: typeof LEGACY_PRODUCT_SELECT }>
 type ProductCardShape = Prisma.ProductGetPayload<{ select: typeof PRODUCT_CARD_SELECT }>
-export type ProductCompatResult = LegacyProductShape & { showFoodTypeLabel: boolean; miniDescription: string | null }
+export type ProductCompatResult = LegacyProductShape & {
+  showFoodTypeLabel: boolean
+  miniDescription: string | null
+  sku?: string | null
+  trackStock?: boolean
+  stockQty?: number | null
+  unit?: string | null
+  unitValue?: number | null
+  aisle?: string | null
+}
 /** Pickup fields are optional: legacy fallback selects omit them. */
 export type ProductCardCompatResult = Omit<
   ProductCardShape,
-  'pickupEnabled' | 'pickupLatitude' | 'pickupLongitude' | 'pickupAddress'
+  'pickupEnabled' | 'pickupLatitude' | 'pickupLongitude' | 'pickupAddress' | 'sku' | 'trackStock' | 'stockQty' | 'unit' | 'unitValue' | 'aisle'
 > & {
   showFoodTypeLabel: boolean
   miniDescription: string | null
@@ -71,6 +86,12 @@ export type ProductCardCompatResult = Omit<
   pickupLatitude?: number | null
   pickupLongitude?: number | null
   pickupAddress?: string | null
+  sku?: string | null
+  trackStock?: boolean
+  stockQty?: number | null
+  unit?: string | null
+  unitValue?: number | null
+  aisle?: string | null
 }
 
 export function isMissingAppSettingsTableError(error: unknown) {
@@ -102,7 +123,13 @@ export function isMissingProductFoodTypeColumnError(error: unknown) {
     (code === 'P2022' &&
       (message.includes('showFoodTypeLabel') ||
         message.includes('miniDescription') ||
-        message.includes('pickup'))) ||
+        message.includes('pickup') ||
+        message.includes('sku') ||
+        message.includes('trackStock') ||
+        message.includes('stockQty') ||
+        message.includes('unit') ||
+        message.includes('unitValue') ||
+        message.includes('aisle'))) ||
     message.includes('The column `(not available)` does not exist in the current database')
   )
 }
@@ -141,6 +168,19 @@ export function stripMiniDescriptionField<T extends Record<string, unknown>>(dat
   return rest
 }
 
+export function stripInventoryGroceryFields<T extends Record<string, unknown>>(data: T) {
+  const {
+    sku: _sku,
+    trackStock: _trackStock,
+    stockQty: _stockQty,
+    unit: _unit,
+    unitValue: _unitValue,
+    aisle: _aisle,
+    ...rest
+  } = data
+  return rest
+}
+
 export async function withProductWriteCompatibility<T>(
   data: Record<string, unknown>,
   run: (safeData: any) => Promise<T>
@@ -161,7 +201,16 @@ export async function withProductWriteCompatibility<T>(
         throw innerError
       }
 
-      return run(stripMiniDescriptionField(withoutFoodType))
+      const withoutMini = stripMiniDescriptionField(withoutFoodType)
+
+      try {
+        return await run(withoutMini)
+      } catch (thirdError) {
+        if (!isMissingProductFoodTypeColumnError(thirdError)) {
+          throw thirdError
+        }
+        return run(stripInventoryGroceryFields(withoutMini))
+      }
     }
   }
 }

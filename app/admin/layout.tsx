@@ -155,6 +155,7 @@ export default function AdminLayout({
   const [selectedStore, setSelectedStore] = useState('gifts')
   const [switchingStore, setSwitchingStore] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -269,67 +270,82 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-[100dvh] bg-cream text-ink antialiased">
-      {/* App header */}
-      <header className="sticky top-0 z-40 border-b border-wine/10 bg-white/92 backdrop-blur-xl supports-[backdrop-filter]:bg-white/80">
-        <div className="px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] md:px-5 md:py-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="hidden font-display text-xl font-semibold text-wine md:block">
-                Upaharo <span className="text-gold">Admin</span>
-              </p>
-              <div className="md:hidden">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-ink/40">
-                  Upaharo Admin
-                </p>
-                <h1 className="truncate font-display text-xl font-semibold leading-tight text-ink">
-                  {pageTitle}
-                </h1>
-              </div>
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {stores.length > 0 && (
-                <label className="relative">
-                  <span className="sr-only">Store to manage</span>
-                  <select
-                    value={selectedStore}
-                    onChange={(event) => void switchStore(event.target.value)}
-                    disabled={switchingStore}
-                    className="appearance-none rounded-full border border-wine/15 bg-cream px-3 py-2 pr-8 text-xs font-semibold text-ink outline-none focus:border-wine disabled:opacity-60"
-                    aria-label="Store to manage"
-                  >
-                    {stores.map((store) => (
-                      <option key={store.slug} value={store.slug}>
-                        {store.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-ink/45">
-                    ▾
-                  </span>
-                </label>
-              )}
-
-              <Link
-                href="/"
-                className="hidden rounded-full border border-wine/15 px-3 py-2 text-xs font-semibold text-wine hover:bg-cream md:inline-flex"
-              >
-                View site
-              </Link>
+      {/* App header — compact & fixed */}
+      <header className="fixed inset-x-0 top-0 z-40 h-12 border-b border-wine/10 bg-white/95 backdrop-blur-xl supports-[backdrop-filter]:bg-white/90">
+        <div className="flex h-full items-center justify-between gap-3 px-3 pt-[env(safe-area-inset-top)] md:px-4">
+          <div className="min-w-0">
+            <p className="hidden font-display text-base font-semibold leading-none text-wine md:block">
+              Upaharo <span className="text-gold">Admin</span>
+            </p>
+            <div className="md:hidden">
+              <h1 className="truncate font-display text-base font-semibold leading-tight text-ink">
+                {pageTitle}
+              </h1>
             </div>
           </div>
 
-          <p className="mt-2 hidden text-sm text-ink/50 md:block">
-            Managing <span className="font-semibold text-ink/70">{storeName}</span>
-            {user?.name ? ` · ${user.name}` : ''}
-          </p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {stores.length > 0 && (
+              <label className="relative">
+                <span className="sr-only">Store to manage</span>
+                <select
+                  value={selectedStore}
+                  onChange={(event) => void switchStore(event.target.value)}
+                  disabled={switchingStore}
+                  className="appearance-none rounded-full border border-wine/15 bg-cream px-2.5 py-1 pr-7 text-[11px] font-semibold text-ink outline-none focus:border-wine disabled:opacity-60"
+                  aria-label="Store to manage"
+                  title={`Managing ${storeName}`}
+                >
+                  {stores.map((store) => (
+                    <option key={store.slug} value={store.slug}>
+                      {store.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-ink/45">
+                  ▾
+                </span>
+              </label>
+            )}
+
+            <Link
+              href="/"
+              className="hidden rounded-full border border-wine/15 px-2.5 py-1 text-[11px] font-semibold text-wine hover:bg-cream md:inline-flex"
+            >
+              View site
+            </Link>
+          </div>
         </div>
       </header>
 
-      <div className="md:pl-64">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:fixed md:left-0 md:top-[89px] md:z-30 md:block md:h-[calc(100dvh-89px)] md:w-64 md:overflow-y-auto md:border-r md:border-wine/10 md:bg-white">
-          <nav className="p-4">
+      <div className={`pt-12 ${sidebarExpanded ? 'md:pl-56' : 'md:pl-[4.5rem]'}`}>
+        {/* Desktop sidebar — minimized icon rail by default */}
+        <aside
+          className={`hidden md:fixed md:left-0 md:top-12 md:z-30 md:flex md:h-[calc(100dvh-3rem)] md:flex-col md:overflow-y-auto md:border-r md:border-wine/10 md:bg-white transition-[width] duration-200 ${
+            sidebarExpanded ? 'md:w-56' : 'md:w-[4.5rem]'
+          }`}
+        >
+          <div className={`flex items-center border-b border-wine/10 ${sidebarExpanded ? 'justify-between px-3 py-2' : 'justify-center py-2'}`}>
+            {sidebarExpanded ? (
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink/40">Menu</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setSidebarExpanded((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-ink/55 hover:bg-cream hover:text-ink"
+              aria-label={sidebarExpanded ? 'Minimize sidebar' : 'Expand sidebar'}
+              title={sidebarExpanded ? 'Minimize sidebar' : 'Expand sidebar'}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                {sidebarExpanded ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5M9.75 19.5l-7.5-7.5 7.5-7.5" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5l7.5 7.5-7.5 7.5M14.25 4.5l7.5 7.5-7.5 7.5" />
+                )}
+              </svg>
+            </button>
+          </div>
+          <nav className={`flex-1 ${sidebarExpanded ? 'p-3' : 'px-2 py-3'}`}>
             <ul className="space-y-1">
               {menuItems.map((item) => {
                 const active = isActive(item.href)
@@ -337,15 +353,25 @@ export default function AdminLayout({
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      title={item.label}
+                      aria-label={item.label}
                       aria-current={active ? 'page' : undefined}
-                      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
-                        active
-                          ? 'bg-wine text-white shadow-sm'
-                          : 'text-ink/70 hover:bg-cream hover:text-ink'
+                      className={`flex items-center rounded-xl text-sm transition-colors ${
+                        sidebarExpanded
+                          ? `gap-3 px-3 py-2.5 ${
+                              active
+                                ? 'bg-wine text-white shadow-sm'
+                                : 'text-ink/70 hover:bg-cream hover:text-ink'
+                            }`
+                          : `justify-center px-0 py-2.5 ${
+                              active
+                                ? 'bg-wine text-white shadow-sm'
+                                : 'text-ink/70 hover:bg-cream hover:text-ink'
+                            }`
                       }`}
                     >
                       {item.icon}
-                      <span className="font-medium">{item.label}</span>
+                      {sidebarExpanded ? <span className="font-medium truncate">{item.label}</span> : null}
                     </Link>
                   </li>
                 )
@@ -354,8 +380,8 @@ export default function AdminLayout({
           </nav>
         </aside>
 
-        <main className="min-w-0 px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4 md:p-6 md:pb-6">
-          <div className="mx-auto w-full max-w-7xl">{children}</div>
+        <main className="min-w-0 px-4 pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-4 md:p-5 md:pb-6 lg:px-6">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
         </main>
       </div>
 

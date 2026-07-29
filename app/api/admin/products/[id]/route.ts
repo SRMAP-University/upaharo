@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, appendArchivedProductTag, sanitizeProductTags } from '@/lib/product-archive'
 import { findFirstProductCompat, withProductWriteCompatibility } from '@/lib/product-db'
+import {
+  normalizeGroceryFields,
+  normalizeImagesList,
+  normalizeInventoryFields,
+} from '@/lib/product-fields'
 import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
@@ -39,11 +44,11 @@ function normalizeVariants(input: unknown) {
 }
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await requireAdmin(request))) {
+    if (!(await requireAdmin(_request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const storeContext = await resolveAdminStoreContext()
@@ -54,19 +59,11 @@ export async function GET(
       where: {
         id,
         storeId: storeContext.store.id,
-        NOT: {
-          tags: {
-            has: ARCHIVED_PRODUCT_TAG,
-          },
-        },
-      }
+      },
     })
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     return NextResponse.json(product)
@@ -95,7 +92,16 @@ export async function PATCH(
 
     if (body?.category !== undefined) {
       const category = String(body.category || '').trim()
-      if (!category || !(await prisma.category.findFirst({ where: { name: { equals: category, mode: 'insensitive' }, storeId: storeContext.store.id }, select: { id: true } }))) {
+      if (
+        !category ||
+        !(await prisma.category.findFirst({
+          where: {
+            name: { equals: category, mode: 'insensitive' },
+            storeId: storeContext.store.id,
+          },
+          select: { id: true },
+        }))
+      ) {
         return NextResponse.json({ error: 'Invalid product category' }, { status: 400 })
       }
       data.category = category
@@ -107,6 +113,10 @@ export async function PATCH(
 
     if (body?.tags !== undefined) {
       data.tags = sanitizeProductTags(body.tags)
+    }
+
+    if (body?.images !== undefined) {
+      data.images = normalizeImagesList(body.images)
     }
 
     if (body?.miniDescription !== undefined) {
@@ -136,41 +146,65 @@ export async function PATCH(
       }
     }
 
+    if (
+      body?.trackStock !== undefined ||
+      body?.stockQty !== undefined ||
+      body?.sku !== undefined
+    ) {
+      const inventory = normalizeInventoryFields(body)
+      if (!inventory.ok) {
+        return NextResponse.json({ error: inventory.error }, { status: 400 })
+      }
+      Object.assign(data, inventory.data)
+
+      if (inventory.data.sku) {
+        const clash = await prisma.product.findFirst({
+          where: {
+            storeId: storeContext.store.id,
+            sku: inventory.data.sku,
+            NOT: { id },
+          },
+          select: { id: true },
+        })
+        if (clash) {
+          return NextResponse.json({ error: 'SKU already exists in this store' }, { status: 400 })
+        }
+      }
+    }
+
+    if (body?.unit !== undefined || body?.unitValue !== undefined || body?.aisle !== undefined) {
+      const grocery = normalizeGroceryFields(body)
+      if (!grocery.ok) {
+        return NextResponse.json({ error: grocery.error }, { status: 400 })
+      }
+      Object.assign(data, grocery.data)
+    }
+
     const product = await withProductWriteCompatibility(data, (safeData) =>
       prisma.product.updateMany({
         where: {
           id,
           storeId: storeContext.store.id,
-          NOT: {
-            tags: {
-              has: ARCHIVED_PRODUCT_TAG,
-            },
-          },
         },
         data: safeData,
       })
     )
 
     if (product.count === 0) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     const updatedProduct = await findFirstProductCompat({
       where: {
         id,
         storeId: storeContext.store.id,
-        NOT: {
-          tags: {
-            has: ARCHIVED_PRODUCT_TAG,
-          },
-        },
-      }
+      },
     })
 
-    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, id), REDIS_KEYS.HOME(storeContext.slug))
+    await redis.del(
+      REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, id),
+      REDIS_KEYS.HOME(storeContext.slug)
+    )
 
     return NextResponse.json(updatedProduct)
   } catch (error: any) {
@@ -215,10 +249,7 @@ export async function DELETE(
     })
 
     if (!product) {
-      return NextResponse.json(
-        { error: 'Product not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
     if (product._count.orderItems > 0) {
@@ -230,16 +261,22 @@ export async function DELETE(
         },
       })
 
-      await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id), REDIS_KEYS.HOME(storeContext.slug))
+      await redis.del(
+        REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id),
+        REDIS_KEYS.HOME(storeContext.slug)
+      )
 
       return NextResponse.json({ success: true, archived: true })
     }
 
     await prisma.product.delete({
-      where: { id: product.id }
+      where: { id: product.id },
     })
 
-    await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id), REDIS_KEYS.HOME(storeContext.slug))
+    await redis.del(
+      REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, product.id),
+      REDIS_KEYS.HOME(storeContext.slug)
+    )
 
     return NextResponse.json({ success: true, archived: false })
   } catch (error: any) {
