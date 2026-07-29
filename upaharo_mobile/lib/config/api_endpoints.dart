@@ -108,15 +108,16 @@ class ApiEndpoints {
 
   /// Send phone OTP via SMS Pasal.
   /// Body: { phone } -> { ok, expiresIn, resendIn }
-  static const String otpSend = '/api/auth/otp/send';
+  /// Note: lives under /api/otp (not /api/auth) so NextAuth catch-all cannot intercept.
+  static const String otpSend = '/api/otp/send';
 
   /// Verify phone OTP.
   /// Body: { phone, code } -> { user, token } or { needsSignup, signupToken, phone }
-  static const String otpVerify = '/api/auth/otp/verify';
+  static const String otpVerify = '/api/otp/verify';
 
   /// Complete first-time OTP signup after phone verify.
   /// Body: { signupToken, name, email } -> { user, token }
-  static const String otpCompleteSignup = '/api/auth/otp/complete-signup';
+  static const String otpCompleteSignup = '/api/otp/complete-signup';
 
   /// NextAuth session endpoint (used by the web OAuth flow).
   /// GET -> NextAuth session object
