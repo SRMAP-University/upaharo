@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwareJsonHeaders } from '@/lib/store-cache-headers'
 
 /** Public list of active homepage banners for the storefront / app. */
 export async function GET(request: NextRequest) {
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       banners: withProducts.map(({ productIds: _ids, ...rest }) => rest),
-    })
+    }, { headers: storeAwareJsonHeaders() })
   } catch (error) {
     console.error('Error listing banners:', error)
     return NextResponse.json({ banners: [] }, { status: 200 })

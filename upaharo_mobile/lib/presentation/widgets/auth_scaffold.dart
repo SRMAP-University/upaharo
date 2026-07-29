@@ -11,16 +11,16 @@ import '../../config/theme.dart';
 /// The scene collapses while the keyboard is up so short screens never have to
 /// scroll past artwork to reach the fields.
 class AuthScaffold extends StatefulWidget {
-  const AuthScaffold({
+  AuthScaffold({
     super.key,
     required this.brandLine,
     required this.headline,
     required this.subtitle,
     required this.child,
-    this.tagline = FlavorConfig.tagline,
+    String? tagline,
     this.showBack = false,
     this.footer,
-  });
+  }) : tagline = tagline ?? FlavorConfig.tagline;
 
   final String brandLine;
   final String tagline;

@@ -86,7 +86,7 @@ class PushNotificationService {
     await OrderProgressNotification.instance.attach(_local);
 
     if (Platform.isAndroid) {
-      const channel = AndroidNotificationChannel(
+      final channel = AndroidNotificationChannel(
         FlavorConfig.orderNotificationChannelId,
         'Orders & updates',
         description: 'Order status, payments, and reminders',

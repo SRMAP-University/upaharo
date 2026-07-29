@@ -4,6 +4,7 @@ import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive
 import { findManyProductCardsCompat, findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
 type ProductVariantInput = {
   color?: unknown
@@ -99,13 +100,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(
           { products: [] },
           {
-            headers: {
-              'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
-              // Netlify must vary cache on filter query params.
-              'Netlify-CDN-Cache-Control':
-                'public, s-maxage=10, stale-while-revalidate=30',
-              'Netlify-Vary': 'query=categoryId|category|search|ids|limit|view|wholesale|b2b',
-            },
+            headers: storeAwarePublicCacheHeaders({
+              sMaxAge: 10,
+              staleWhileRevalidate: 30,
+              queryVary: 'categoryId|category|search|ids|limit|view|wholesale|b2b',
+            }),
           }
         )
       }
@@ -154,14 +153,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { products },
       {
-        headers: {
-          'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
-          // Without query vary, Netlify serves the first products response for
-          // every categoryId (all header tabs looked identical).
-          'Netlify-CDN-Cache-Control':
-            'public, s-maxage=10, stale-while-revalidate=30',
-          'Netlify-Vary': 'query=categoryId|category|search|ids|limit|view|wholesale|b2b',
-        },
+        headers: storeAwarePublicCacheHeaders({
+          sMaxAge: 10,
+          staleWhileRevalidate: 30,
+          queryVary: 'categoryId|category|search|ids|limit|view|wholesale|b2b',
+        }),
       }
     )
   } catch (error) {

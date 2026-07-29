@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'app.dart';
+import 'config/flavor.dart';
 import 'core/navigation/app_navigator.dart';
 import 'core/notifications/push_notification_service.dart';
 import 'core/updates/shorebird_update_service.dart';
@@ -21,6 +22,7 @@ import 'presentation/providers/wishlist_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FlavorConfig.initialize();
   try {
     await PushNotificationService.instance.init(navigatorKey: appNavigatorKey);
   } catch (e, st) {

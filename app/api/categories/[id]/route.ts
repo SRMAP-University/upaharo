@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwareJsonHeaders } from '@/lib/store-cache-headers'
 
 export async function GET(
   request: Request,
@@ -23,7 +24,7 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(category)
+    return NextResponse.json(category, { headers: storeAwareJsonHeaders() })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to fetch category' },

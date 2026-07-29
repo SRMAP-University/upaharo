@@ -25,9 +25,9 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  static const _privacyUrl = '${FlavorConfig.shareDomain}/privacy';
-  static const _termsUrl = '${FlavorConfig.shareDomain}/terms';
-  static const _deleteInfoUrl = '${FlavorConfig.shareDomain}/account-deletion';
+  String get _privacyUrl => '${FlavorConfig.shareDomain}/privacy';
+  String get _termsUrl => '${FlavorConfig.shareDomain}/terms';
+  String get _deleteInfoUrl => '${FlavorConfig.shareDomain}/account-deletion';
   static const _pageBg = Color(0xFFF2F2F2);
 
   final _walletRepo = const WalletRepository();

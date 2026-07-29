@@ -3,6 +3,7 @@ import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { findFirstProductCompat } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -39,9 +40,10 @@ export async function GET(
     }
 
     return NextResponse.json(product, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120'
-      }
+      headers: storeAwarePublicCacheHeaders({
+        sMaxAge: 60,
+        staleWhileRevalidate: 120,
+      }),
     })
   } catch (error) {
     console.error('Error fetching product:', error)

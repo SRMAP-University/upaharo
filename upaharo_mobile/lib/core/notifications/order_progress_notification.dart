@@ -17,7 +17,7 @@ class OrderProgressNotification {
   static final OrderProgressNotification instance =
       OrderProgressNotification._();
 
-  static const _channelId = FlavorConfig.orderTrackingNotificationChannelId;
+  static String get _channelId => FlavorConfig.orderTrackingNotificationChannelId;
   static const _channelName = 'Live order tracking';
   static const _channelDesc = 'Ongoing progress for your active orders';
 
@@ -32,7 +32,7 @@ class OrderProgressNotification {
   Future<void> attach(FlutterLocalNotificationsPlugin local) async {
     _local = local;
     if (Platform.isAndroid) {
-      const channel = AndroidNotificationChannel(
+      final channel = AndroidNotificationChannel(
         _channelId,
         _channelName,
         description: _channelDesc,

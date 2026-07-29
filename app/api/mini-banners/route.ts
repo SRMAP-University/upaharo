@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwareJsonHeaders } from '@/lib/store-cache-headers'
 
 /** Public list of active mini banners for the app's home row. */
 export async function GET(request: NextRequest) {
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    return NextResponse.json({ miniBanners })
+    return NextResponse.json({ miniBanners }, { headers: storeAwareJsonHeaders() })
   } catch (error) {
     console.error('Error listing mini banners:', error)
     return NextResponse.json({ miniBanners: [] }, { status: 200 })

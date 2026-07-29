@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwareJsonHeaders } from '@/lib/store-cache-headers'
 
 /** Public list of currently available coupons for the storefront / app. */
 export async function GET(request: NextRequest) {
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
             ? `${c.value}% OFF`
             : `Rs. ${c.value} OFF`,
       })),
-    })
+    }, { headers: storeAwareJsonHeaders() })
   } catch (error) {
     console.error('Error listing coupons:', error)
     return NextResponse.json({ coupons: [] }, { status: 200 })

@@ -1,10 +1,13 @@
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import {
+  ADMIN_STORE_COOKIE,
+  DEFAULT_STORE_SLUG,
+  STORE_HEADER,
+} from '@/lib/store-constants'
 
-export const DEFAULT_STORE_SLUG = 'gifts'
-export const STORE_HEADER = 'x-store'
-export const ADMIN_STORE_COOKIE = 'admin_store'
+export { ADMIN_STORE_COOKIE, DEFAULT_STORE_SLUG, STORE_HEADER }
 
 export type StoreIdentity = {
   id: string

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwareJsonHeaders } from '@/lib/store-cache-headers'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
       })
     )
 
-    return NextResponse.json(categories)
+    return NextResponse.json(categories, { headers: storeAwareJsonHeaders() })
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || 'Failed to fetch categories' },

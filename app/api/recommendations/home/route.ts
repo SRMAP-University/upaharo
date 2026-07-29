@@ -3,6 +3,7 @@ import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { findManyProductCardsCompat } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveStoreContext } from '@/lib/store-context'
+import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)))
@@ -124,9 +125,11 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json(payload, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-      },
+      headers: storeAwarePublicCacheHeaders({
+        sMaxAge: 60,
+        staleWhileRevalidate: 120,
+        queryVary: 'viewedProductIds|viewedCategories',
+      }),
     })
   } catch (error) {
     console.error('Error fetching home recommendations:', error)

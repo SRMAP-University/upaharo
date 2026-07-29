@@ -92,6 +92,7 @@ class CatalogProvider extends ChangeNotifier {
 
   /// Prefer diverse, larger home feeds — never downgrade to a cakes-only payload.
   static bool _isBetterOrEqualHomeList(List<Product> next, List<Product> current) {
+    if (next.isEmpty) return true;
     if (current.isEmpty) return !_isNarrowHomeList(next);
     if (_isNarrowHomeList(next) && !_isNarrowHomeList(current)) return false;
 
