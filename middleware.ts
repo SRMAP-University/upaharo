@@ -11,7 +11,7 @@ import { STORE_HEADER } from '@/lib/store-constants'
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
   response.headers.append('Vary', STORE_HEADER)
-  response.headers.set('Netlify-Vary', `header=${STORE_HEADER}`)
+  response.headers.set('Netlify-Vary', `header=${STORE_HEADER}|query=store`)
 
   // Admin APIs depend on the admin_store cookie — never share cache across stores.
   if (request.nextUrl.pathname.startsWith('/api/admin/')) {

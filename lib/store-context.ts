@@ -26,8 +26,32 @@ function normalizeStoreSlug(value: string | null | undefined): string {
   return /^[a-z0-9-]{1,48}$/.test(slug) ? slug : DEFAULT_STORE_SLUG
 }
 
-export function resolveStoreSlug(request: Pick<Request, 'headers'>): string {
-  return normalizeStoreSlug(request.headers.get(STORE_HEADER))
+type StoreSlugRequest = Pick<Request, 'headers' | 'url'>
+
+export function resolveStoreSlug(request: StoreSlugRequest): string {
+  const fromHeader =
+    request.headers.get(STORE_HEADER) ??
+    request.headers.get('X-Store') ??
+    request.headers.get('x-store')
+  if (fromHeader) {
+    return normalizeStoreSlug(fromHeader)
+  }
+
+  try {
+    const fromQuery = new URL(request.url).searchParams.get('store')
+    if (fromQuery) {
+      return normalizeStoreSlug(fromQuery)
+    }
+  } catch {
+    // ignore malformed URLs in tests
+  }
+
+  const host = request.headers.get('host')?.toLowerCase() || ''
+  if (host.startsWith('grocery.') || host.includes('grocery.upaharo')) {
+    return 'grocery'
+  }
+
+  return DEFAULT_STORE_SLUG
 }
 
 export async function getStore(slug: string): Promise<StoreIdentity | null> {
@@ -53,7 +77,7 @@ export async function getStore(slug: string): Promise<StoreIdentity | null> {
 }
 
 export async function resolveStoreContext(
-  request: Pick<Request, 'headers'>
+  request: StoreSlugRequest
 ): Promise<StoreContext | null> {
   const slug = resolveStoreSlug(request)
   const store = await getStore(slug)

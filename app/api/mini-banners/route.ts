@@ -70,7 +70,14 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    return NextResponse.json({ miniBanners }, { headers: storeAwareJsonHeaders() })
+    return NextResponse.json(
+      { miniBanners },
+      {
+        headers: storeAwareJsonHeaders({
+          'Cache-Control': 'private, no-store',
+        }),
+      }
+    )
   } catch (error) {
     console.error('Error listing mini banners:', error)
     return NextResponse.json({ miniBanners: [] }, { status: 200 })

@@ -41,6 +41,11 @@ class DioClient {
             options.headers['Authorization'] = 'Bearer $token';
           }
           options.headers['X-Store'] = FlavorConfig.storeSlug;
+          // Belt-and-suspenders: some CDNs drop custom headers on cached API responses.
+          options.queryParameters = {
+            ...?options.queryParameters,
+            'store': FlavorConfig.storeSlug,
+          };
           if (kDebugMode) {
             debugPrint('REQUEST: ${options.method} ${options.uri}');
             debugPrint('HEADERS: ${options.headers}');

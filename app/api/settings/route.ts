@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
     const storeContext = await resolveStoreContext(request)
     if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     const settings = await getAppSettings(storeContext.store)
-    return NextResponse.json(settings, { headers: storeAwareJsonHeaders() })
+    return NextResponse.json(settings, {
+      headers: storeAwareJsonHeaders({
+        'Cache-Control': 'private, no-store',
+      }),
+    })
   } catch (error) {
     console.error('Error fetching public app settings:', error)
     return NextResponse.json(
