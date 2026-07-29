@@ -230,10 +230,10 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
       case 'bannerCarousel':
         return (
           <div>
-            {sectionTitle(title || 'Promo', subtitle)}
+            {(title || subtitle) ? sectionTitle(title, subtitle) : null}
             <div
               style={{
-                marginTop: gap(6),
+                marginTop: title || subtitle ? gap(6) : 0,
                 height: 36,
                 borderRadius: radius + 2,
                 background: `linear-gradient(120deg, ${form.brandSecondary}, ${form.brandPrimary})`,

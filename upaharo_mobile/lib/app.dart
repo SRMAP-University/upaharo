@@ -15,6 +15,7 @@ import 'presentation/screens/auth/register_screen.dart';
 import 'presentation/screens/cart/cart_screen.dart';
 import 'presentation/screens/checkout/checkout_screen.dart';
 import 'presentation/screens/checkout/order_success_screen.dart';
+import 'presentation/screens/launch/launch_loading_screen.dart';
 import 'presentation/screens/location/location_screen.dart';
 import 'presentation/screens/location/map_location_screen.dart';
 import 'presentation/screens/main_shell.dart';
@@ -41,8 +42,9 @@ class UpaharoApp extends StatelessWidget {
       title: FlavorConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.main,
+      initialRoute: AppRoutes.launch,
       routes: <String, WidgetBuilder>{
+        AppRoutes.launch: (_) => const LaunchLoadingScreen(),
         AppRoutes.welcome: (_) => const WelcomeScreen(),
         AppRoutes.location: (_) => const LocationScreen(),
         AppRoutes.mapLocation: (_) => const MapLocationScreen(),

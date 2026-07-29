@@ -276,11 +276,11 @@ export function normalizeHomeSections(raw: unknown): HomeSectionConfig[] {
         if (carouselCount >= MAX_BANNER_CAROUSEL_SECTIONS) continue
         const key = String(entry.key ?? '').trim()
         if (!key) continue
-        const title = String(entry.title ?? 'Promo banners').trim() || 'Promo banners'
+        // Empty title is allowed — app hides the heading when blank.
         ordered.push({
           id,
           key,
-          title,
+          title: String(entry.title ?? '').trim(),
           subtitle: String(entry.subtitle ?? '').trim(),
           visible: typeof entry.visible === 'boolean' ? entry.visible : true,
         })
@@ -320,16 +320,17 @@ export function upsertBannerCarouselInLayout(
 ): HomeSectionConfig[] {
   const next = normalizeHomeSections(layout)
   const existing = next.findIndex((s) => s.id === 'bannerCarousel' && s.key === section.id)
+  if (existing >= 0) {
+    // Layout title/subtitle are owned by Settings — don't overwrite if the user cleared them.
+    return next
+  }
   const entry: HomeSectionConfig = {
     id: 'bannerCarousel',
     key: section.id,
-    title: section.title.trim() || 'Promo banners',
-    subtitle: String(section.subtitle ?? '').trim(),
+    // Blank = no heading in the app; admin can fill it later in Settings.
+    title: '',
+    subtitle: '',
     visible: true,
-  }
-  if (existing >= 0) {
-    next[existing] = { ...next[existing], title: entry.title, subtitle: entry.subtitle }
-    return next
   }
   // Insert before product grid when present, otherwise append.
   const gridIndex = next.findIndex((s) => s.id === 'productGrid')

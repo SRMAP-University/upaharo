@@ -547,10 +547,12 @@ export default function AdminBanners() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink/70 mb-1">Title*</label>
+                <label className="block text-sm font-medium text-ink/70 mb-1">
+                  Title{' '}
+                  <span className="font-normal text-ink/40">(optional — blank hides overlay text)</span>
+                </label>
                 <input
                   type="text"
-                  required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"

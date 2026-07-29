@@ -16,10 +16,16 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.idle;
   User? _user;
   String? _errorMessage;
+  String? _otpSignupToken;
+  String? _otpVerifiedPhone;
 
   AuthStatus get status => _status;
   User? get user => _user;
   String? get errorMessage => _errorMessage;
+  String? get otpSignupToken => _otpSignupToken;
+  String? get otpVerifiedPhone => _otpVerifiedPhone;
+  bool get needsOtpSignup =>
+      _otpSignupToken != null && _otpSignupToken!.isNotEmpty;
 
   bool get isAuthenticated =>
       _status == AuthStatus.authenticated || _user != null;
@@ -52,6 +58,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       _user = await _authRepository.login(email: email, password: password);
       _errorMessage = null;
+      _clearOtpSignup();
       _setStatus(AuthStatus.authenticated);
       await PushNotificationService.instance.syncTokenWithBackend();
       return true;
@@ -77,6 +84,7 @@ class AuthProvider extends ChangeNotifier {
         password: password,
       );
       _errorMessage = null;
+      _clearOtpSignup();
       _setStatus(AuthStatus.authenticated);
       await PushNotificationService.instance.syncTokenWithBackend();
       return true;
@@ -87,12 +95,102 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<({int expiresIn, int resendIn})?> sendOtp({
+    required String phone,
+  }) async {
+    _setStatus(AuthStatus.loading);
+    try {
+      final result = await _authRepository.sendOtp(phone: phone);
+      _errorMessage = null;
+      _clearOtpSignup();
+      _setStatus(AuthStatus.unauthenticated);
+      return result;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setStatus(AuthStatus.error);
+      return null;
+    }
+  }
+
+  /// Returns true when signed in. When [needsOtpSignup] is true afterward,
+  /// the UI should collect name + email.
+  Future<bool> verifyOtp({
+    required String phone,
+    required String code,
+  }) async {
+    _setStatus(AuthStatus.loading);
+    try {
+      final result = await _authRepository.verifyOtp(phone: phone, code: code);
+      _errorMessage = null;
+
+      if (result.needsSignup) {
+        _otpSignupToken = result.signupToken;
+        _otpVerifiedPhone = result.phone;
+        _user = null;
+        _setStatus(AuthStatus.unauthenticated);
+        return false;
+      }
+
+      _user = result.user;
+      _clearOtpSignup();
+      _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setStatus(AuthStatus.error);
+      return false;
+    }
+  }
+
+  Future<bool> completeOtpSignup({
+    required String name,
+    required String email,
+  }) async {
+    final token = _otpSignupToken;
+    if (token == null || token.isEmpty) {
+      _errorMessage = 'Verify your phone number first';
+      _setStatus(AuthStatus.error);
+      return false;
+    }
+
+    _setStatus(AuthStatus.loading);
+    try {
+      _user = await _authRepository.completeOtpSignup(
+        signupToken: token,
+        name: name,
+        email: email,
+      );
+      _errorMessage = null;
+      _clearOtpSignup();
+      _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setStatus(AuthStatus.error);
+      return false;
+    }
+  }
+
+  void clearOtpSignupState() {
+    _clearOtpSignup();
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     await PushNotificationService.instance.clearTokenFromBackend();
     await OrderProgressNotification.instance.cancelAll();
     await _authRepository.logout();
     _user = null;
     _errorMessage = null;
+    _clearOtpSignup();
     _setStatus(AuthStatus.unauthenticated);
   }
 
@@ -103,6 +201,7 @@ class AuthProvider extends ChangeNotifier {
       await _authRepository.deleteAccount();
       _user = null;
       _errorMessage = null;
+      _clearOtpSignup();
       _setStatus(AuthStatus.unauthenticated);
       return true;
     } catch (e) {
@@ -111,6 +210,11 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  void _clearOtpSignup() {
+    _otpSignupToken = null;
+    _otpVerifiedPhone = null;
   }
 
   void _setStatus(AuthStatus status) {

@@ -203,7 +203,7 @@ class AppSettings {
           HomeSectionConfig(
             id: section.id,
             key: key,
-            title: section.title.trim().isEmpty ? 'Promo' : section.title,
+            title: section.title,
             subtitle: section.subtitle,
             visible: section.visible,
           ),

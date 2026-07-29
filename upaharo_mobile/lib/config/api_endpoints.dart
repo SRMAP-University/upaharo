@@ -106,6 +106,18 @@ class ApiEndpoints {
   /// Body: { email, password }
   static const String login = '/api/auth/login';
 
+  /// Send phone OTP via SMS Pasal.
+  /// Body: { phone } -> { ok, expiresIn, resendIn }
+  static const String otpSend = '/api/auth/otp/send';
+
+  /// Verify phone OTP.
+  /// Body: { phone, code } -> { user, token } or { needsSignup, signupToken, phone }
+  static const String otpVerify = '/api/auth/otp/verify';
+
+  /// Complete first-time OTP signup after phone verify.
+  /// Body: { signupToken, name, email } -> { user, token }
+  static const String otpCompleteSignup = '/api/auth/otp/complete-signup';
+
   /// NextAuth session endpoint (used by the web OAuth flow).
   /// GET -> NextAuth session object
   static const String session = '/api/auth/session';
@@ -154,6 +166,9 @@ class ApiEndpoints {
 
   /// GET/POST /api/promo/spin - roulette status + claim daily prize
   static const String promoSpin = '/api/promo/spin';
+
+  /// GET/POST /api/promo/game/:game — scratch | flip | lucky
+  static String promoGame(String game) => '/api/promo/game/$game';
 
   /// Whether the given cart can be collected instead of delivered.
   /// Query params: ids=prod_1,prod_2

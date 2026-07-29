@@ -55,7 +55,7 @@ export async function PATCH(
     const banner = await prisma.banner.update({
       where: { id },
       data: {
-        title: body.title,
+        title: String(body.title ?? '').trim(),
         subtitle: body.subtitle || null,
         image: body.image,
         link: body.link || null,

@@ -2,6 +2,7 @@ class AppRoutes {
   AppRoutes._();
 
   static const String welcome = '/welcome';
+  static const String launch = '/launch';
   static const String location = '/location';
   static const String mapLocation = '/map-location';
   static const String login = '/login';

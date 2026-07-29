@@ -27,6 +27,7 @@ model User {
   sessions           Session[]
   coupons            Coupon[]
   spinPlays          SpinPlay[]
+  promoGamePlays     PromoGamePlay[]
   productViewEvents  ProductViewEvent[]
   deviceTokens       DeviceToken[]
   notifications      AppNotification[]
@@ -61,6 +62,7 @@ model Store {
   walletAccounts      WalletAccount[]
   walletTransactions  WalletTransaction[]
   spinPlays           SpinPlay[]
+  promoGamePlays      PromoGamePlay[]
   productViewEvents   ProductViewEvent[]
   recommendationRules RecommendationRule[]
   deviceTokens        DeviceToken[]
@@ -156,6 +158,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+/// One-time login codes sent via SMS Pasal. One active row per phone.
+model PhoneOtp {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model Address {
@@ -507,6 +522,22 @@ model SpinPlay {
   playedAt DateTime @default(now())
 
   @@index([storeId, userId, playedAt])
+}
+
+/// Extra Promo-tab games (scratch, flip, lucky) — one play per game per UTC day.
+model PromoGamePlay {
+  id       String   @id @default(cuid())
+  storeId  String
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// scratch | flip | lucky
+  gameType String
+  couponId String?
+  percent  Int
+  playedAt DateTime @default(now())
+
+  @@index([storeId, userId, gameType, playedAt])
 }
 
 model OrderItem {

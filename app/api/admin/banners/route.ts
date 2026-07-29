@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       data: {
         storeId: storeContext.store.id,
         sectionId: sectionIdRaw,
-        title: body.title,
+        title: String(body.title ?? '').trim(),
         subtitle: body.subtitle || null,
         image: body.image,
         link: body.link || null,

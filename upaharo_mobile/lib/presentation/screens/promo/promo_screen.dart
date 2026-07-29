@@ -11,6 +11,7 @@ import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/explore_coupons_section.dart';
 import '../../widgets/mini_cart_bar.dart';
 import '../../widgets/progressive_network_image.dart';
+import '../../widgets/promo_extra_games.dart';
 import '../../widgets/spin_roulette_card.dart';
 
 class PromoScreen extends StatefulWidget {
@@ -68,6 +69,9 @@ class _PromoScreenState extends State<PromoScreen> {
         children: [
           const SizedBox(height: 8),
           const SpinRouletteCard(),
+          const ScratchCardGame(),
+          const FlipMatchGame(),
+          const LuckyPickGame(),
           const ExploreCouponsSection(),
           if (banners.isNotEmpty) ...[
             Padding(

@@ -43,7 +43,7 @@ const SECTION_META: Record<
     label: 'Feed banner carousel',
     titleLabel: 'Section title',
     subtitleLabel: 'Subtitle',
-    hint: 'Independent of the sticky header carousel. Add slides under Admin → Banners for this section.',
+    hint: 'Leave title (and subtitle) blank to hide the heading above the carousel. Independent of the sticky header.',
   },
 }
 

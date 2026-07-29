@@ -666,19 +666,14 @@ class _HomeScreenState extends State<HomeScreen>
           }
         }
         if (match == null || match.banners.isEmpty) return const [];
-        final title = section.title.trim().isNotEmpty
-            ? section.title
-            : match.title;
-        final subtitle = section.subtitle.trim().isNotEmpty
-            ? section.subtitle
-            : (match.subtitle ?? '');
+        // Layout title only — blank means no heading (do not fall back to BannerSection title).
         return [
           _pad(
             HomeFeedBannerCarousel(
               banners: match.banners,
               height: match.height.toDouble(),
-              title: title,
-              subtitle: subtitle,
+              title: section.title,
+              subtitle: section.subtitle,
               onBannerTap: _openBannerLink,
             ),
           ),
