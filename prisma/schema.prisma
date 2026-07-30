@@ -95,11 +95,15 @@ model DeviceToken {
   store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   token     String   @unique
   platform  String // android | ios | web
+  /// customer = shopper apps; partner = merchant/delivery app.
+  /// Keeps customer ORDER_UPDATE from alerting the partner app on the same account.
+  clientApp String   @default("customer")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, storeId])
   @@index([storeId])
+  @@index([userId, storeId, clientApp])
 }
 
 model AppNotification {

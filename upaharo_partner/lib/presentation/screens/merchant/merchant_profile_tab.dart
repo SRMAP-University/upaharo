@@ -81,101 +81,135 @@ class _MerchantProfileTabState extends State<MerchantProfileTab> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final primary = AppTheme.primary(auth.storeSlug);
+    final verified = auth.seller?.isVerified == true;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
       children: [
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: primary.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(14),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE8E8EA)),
           ),
           child: Row(
             children: [
-              Icon(
-                auth.seller?.isVerified == true
-                    ? Icons.verified
-                    : Icons.hourglass_top,
-                color: primary,
+              StatusChip(
+                label: verified ? 'Verified' : 'Pending verification',
+                color: verified ? primary : AppTheme.warning,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  auth.seller?.isVerified == true
-                      ? 'Verified seller · ${auth.seller!.commission.toStringAsFixed(0)}% commission'
-                      : 'Pending verification — you can still view orders',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  verified
+                      ? '${auth.seller!.commission.toStringAsFixed(0)}% commission'
+                      : 'You can view orders while pending',
+                  style: const TextStyle(fontSize: 11, color: AppTheme.muted),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Shop details',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        const SizedBox(height: 10),
+        _section(
+          'Shop',
+          [
+            TextField(
+              controller: _name,
+              decoration: const InputDecoration(labelText: 'Business name'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _address,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Pickup address',
+                hintText: 'Riders use this location',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(labelText: 'Shop phone'),
+            ),
+          ],
         ),
         const SizedBox(height: 10),
-        TextField(
-          controller: _name,
-          decoration: const InputDecoration(labelText: 'Business name'),
+        _section(
+          'Payout',
+          [
+            TextField(
+              controller: _bankName,
+              decoration: const InputDecoration(labelText: 'Account holder'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _bankNo,
+              decoration: const InputDecoration(labelText: 'Account number'),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _ifsc,
+                    decoration: const InputDecoration(labelText: 'IFSC / bank'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _pan,
+                    decoration: const InputDecoration(labelText: 'PAN'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _address,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Shop / pickup location',
-            hintText: 'Full address customers / riders should use',
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _phone,
-          keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(labelText: 'Shop phone'),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'Payout details',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _bankName,
-          decoration: const InputDecoration(labelText: 'Account holder name'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _bankNo,
-          decoration: const InputDecoration(labelText: 'Account number'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _ifsc,
-          decoration: const InputDecoration(labelText: 'Bank / IFSC / branch'),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _pan,
-          decoration: const InputDecoration(labelText: 'PAN / tax ID'),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         ElevatedButton(
           onPressed: _saving ? null : _save,
           child: _saving
               ? const SizedBox(
-                  height: 22,
-                  width: 22,
+                  height: 18,
+                  width: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     color: Colors.white,
                   ),
                 )
-              : const Text('Save shop profile'),
+              : const Text('Save'),
         ),
       ],
+    );
+  }
+
+  Widget _section(String title, List<Widget> children) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.muted,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ...children,
+          ],
+        ),
+      ),
     );
   }
 }

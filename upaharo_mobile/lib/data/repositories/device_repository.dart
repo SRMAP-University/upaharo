@@ -19,7 +19,11 @@ class DeviceRepository {
     try {
       await DioClient.instance.post(
         ApiEndpoints.devices,
-        data: {'token': token, 'platform': platform},
+        data: {
+          'token': token,
+          'platform': platform,
+          'clientApp': 'customer',
+        },
       );
     } on DioException catch (e) {
       if (kDebugMode) debugPrint('Device register failed: $e');

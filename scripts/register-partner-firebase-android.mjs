@@ -1,0 +1,199 @@
+/**
+ * Registers com.upaharo.upaharo_partner in Firebase project "upaharo"
+ * and writes google-services.json + firebase_options.dart.
+ */
+import crypto from 'crypto'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const root = path.join(__dirname, '..')
+
+function loadServiceAccount() {
+  const env = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  if (env) {
+    try {
+      return JSON.parse(env)
+    } catch {
+      return JSON.parse(Buffer.from(env, 'base64').toString('utf8'))
+    }
+  }
+  const ts = fs.readFileSync(path.join(root, 'lib/firebase-sa.generated.ts'), 'utf8')
+  const start = ts.indexOf('{')
+  const end = ts.lastIndexOf('}')
+  if (start < 0 || end < 0) throw new Error('Could not parse firebase-sa.generated.ts')
+  // eslint-disable-next-line no-eval
+  return eval('(' + ts.slice(start, end + 1) + ')')
+}
+
+function b64url(input) {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+}
+
+async function getAccessToken(sa) {
+  const now = Math.floor(Date.now() / 1000)
+  const header = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const claim = b64url(
+    JSON.stringify({
+      iss: sa.client_email,
+      scope: 'https://www.googleapis.com/auth/firebase https://www.googleapis.com/auth/cloud-platform',
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+    })
+  )
+  const data = `${header}.${claim}`
+  const sign = crypto.createSign('RSA-SHA256')
+  sign.update(data)
+  const sig = sign.sign(sa.private_key).toString('base64url')
+  const jwt = `${data}.${sig}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+  const json = await res.json()
+  if (!json.access_token) {
+    throw new Error('Token error: ' + JSON.stringify(json))
+  }
+  return json.access_token
+}
+
+async function api(token, method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const text = await res.text()
+  let json
+  try {
+    json = JSON.parse(text)
+  } catch {
+    json = { raw: text }
+  }
+  if (!res.ok) {
+    throw new Error(`${method} ${url} -> ${res.status} ${text}`)
+  }
+  return json
+}
+
+async function main() {
+  const sa = loadServiceAccount()
+  const projectId = sa.project_id || 'upaharo'
+  const packageName = 'com.upaharo.upaharo_partner'
+  const token = await getAccessToken(sa)
+
+  const list = await api(
+    token,
+    'GET',
+    `https://firebase.googleapis.com/v1beta1/projects/${projectId}/androidApps`
+  )
+  let app = (list.apps || []).find((a) => a.packageName === packageName)
+  if (!app) {
+    console.log('Creating Android app', packageName)
+    app = await api(
+      token,
+      'POST',
+      `https://firebase.googleapis.com/v1beta1/projects/${projectId}/androidApps`,
+      { packageName, displayName: 'Upaharo Partner' }
+    )
+  } else {
+    console.log('Android app already exists', app.appId || app.name)
+  }
+
+  // Prefer resource name: projects/{project}/androidApps/{appId}
+  const resourceName =
+    app.name ||
+    `projects/${projectId}/androidApps/${app.appId}`
+  // Fresh apps sometimes need a moment before config is ready
+  let cfgRes
+  for (let attempt = 0; attempt < 8; attempt++) {
+    await new Promise((r) => setTimeout(r, 1500))
+    try {
+      cfgRes = await api(
+        token,
+        'GET',
+        `https://firebase.googleapis.com/v1beta1/${resourceName}/config`
+      )
+      break
+    } catch (e) {
+      console.warn(`config attempt ${attempt + 1} failed:`, String(e.message || e))
+      if (attempt === 7) throw e
+    }
+  }
+  if (!cfgRes) throw new Error('No config response')
+  const configJson = Buffer.from(cfgRes.configFileContents, 'base64').toString('utf8')
+  const outGs = path.join(root, 'upaharo_partner/android/app/google-services.json')
+  fs.writeFileSync(outGs, configJson)
+  console.log('Wrote', outGs)
+
+  const cfg = JSON.parse(configJson)
+  const client = (cfg.client || []).find(
+    (c) => c.client_info?.android_client_info?.package_name === packageName
+  )
+  const mobilesdkAppId = client?.client_info?.mobilesdk_app_id
+  const apiKey = client?.api_key?.[0]?.current_key
+  const projectNumber = cfg.project_info?.project_number
+  const storageBucket = cfg.project_info?.storage_bucket
+
+  if (!mobilesdkAppId || !apiKey) {
+    throw new Error('Incomplete google-services.json — missing appId/apiKey')
+  }
+
+  const dart = `// Generated by scripts/register-partner-firebase-android.mjs
+// Firebase project "${projectId}" — partner Android app.
+
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+class DefaultFirebaseOptions {
+  static const bool isConfigured = true;
+
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      return android;
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      case TargetPlatform.iOS:
+        return android; // iOS partner app not configured yet
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not supported for this platform.',
+        );
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: '${apiKey}',
+    appId: '${mobilesdkAppId}',
+    messagingSenderId: '${projectNumber}',
+    projectId: '${projectId}',
+    storageBucket: '${storageBucket}',
+  );
+}
+`
+  const outDart = path.join(root, 'upaharo_partner/lib/firebase_options.dart')
+  fs.writeFileSync(outDart, dart)
+  console.log('Wrote', outDart)
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

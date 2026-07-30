@@ -7,6 +7,7 @@ import {
 } from '@/lib/partner-auth'
 import { generateDeliveryOtp } from '@/lib/delivery-otp'
 import {
+  notifyDeliveryPartnersJobAvailable,
   notifyOrderStatus,
   statusTimestampFields,
 } from '@/lib/notifications'
@@ -93,6 +94,9 @@ export async function GET(request: NextRequest) {
                 name: true,
                 image: true,
                 sellerId: true,
+                pickupLatitude: true,
+                pickupLongitude: true,
+                pickupAddress: true,
               },
             },
           },
@@ -224,6 +228,15 @@ export async function PATCH(request: NextRequest) {
         storeId: existing.storeId,
         deliveryOtp: issuedOtp ?? undefined,
       }).catch((err) => console.error('notifyOrderStatus', err))
+
+      if (nextStatus === 'READY') {
+        void notifyDeliveryPartnersJobAvailable({
+          orderId: existing.id,
+          orderNumber: existing.orderNumber,
+          storeId: existing.storeId,
+          excludeUserId: partner.userId,
+        }).catch((err) => console.error('notifyDeliveryPartnersJobAvailable', err))
+      }
     }
 
     return NextResponse.json({ ...order, canFulfill: true })

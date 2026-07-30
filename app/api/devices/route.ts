@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { resolveUserId } from '@/lib/request-auth'
 import { resolveStoreContext } from '@/lib/store-context'
 
+function normalizeClientApp(raw: unknown): 'customer' | 'partner' {
+  const v = String(raw || 'customer').toLowerCase().trim()
+  return v === 'partner' ? 'partner' : 'customer'
+}
+
 /** Register or refresh an FCM device token for the authenticated user + store. */
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +24,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const token = String(body.token || '').trim()
     const platform = String(body.platform || 'android').toLowerCase()
+    const clientApp = normalizeClientApp(body.clientApp)
 
     if (!token || token.length < 20) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
@@ -35,11 +41,13 @@ export async function POST(request: NextRequest) {
         storeId: storeContext.store.id,
         token,
         platform,
+        clientApp,
       },
       update: {
         userId,
         storeId: storeContext.store.id,
         platform,
+        clientApp,
         updatedAt: new Date(),
       },
     })
@@ -48,6 +56,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       id: device.id,
       store: storeContext.slug,
+      clientApp: device.clientApp,
     })
   } catch (error) {
     console.error('Device register error:', error)
@@ -66,6 +75,7 @@ export async function DELETE(request: NextRequest) {
     const storeContext = await resolveStoreContext(request)
     const body = await request.json().catch(() => ({}))
     const token = String(body.token || '').trim()
+    const clientApp = body.clientApp != null ? normalizeClientApp(body.clientApp) : null
 
     if (token) {
       await prisma.deviceToken.deleteMany({
@@ -78,10 +88,19 @@ export async function DELETE(request: NextRequest) {
     } else if (storeContext) {
       // Clear devices for this user in the current app only.
       await prisma.deviceToken.deleteMany({
-        where: { userId, storeId: storeContext.store.id },
+        where: {
+          userId,
+          storeId: storeContext.store.id,
+          ...(clientApp ? { clientApp } : {}),
+        },
       })
     } else {
-      await prisma.deviceToken.deleteMany({ where: { userId } })
+      await prisma.deviceToken.deleteMany({
+        where: {
+          userId,
+          ...(clientApp ? { clientApp } : {}),
+        },
+      })
     }
 
     return NextResponse.json({ ok: true })

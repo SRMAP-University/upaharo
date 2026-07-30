@@ -21,83 +21,142 @@ class MerchantEarningsTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator());
     }
 
-    Widget tile(String label, String value) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: primary.withValues(alpha: 0.1)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: AppTheme.ink.withValues(alpha: 0.55),
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: primary,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
+    final net = (s?['totalRevenue'] as num?)?.toDouble() ?? 0;
+    final month = (s?['thisMonthRevenue'] as num?)?.toDouble() ?? 0;
+    final pending = (s?['pendingOrders'] as num?)?.toInt() ?? 0;
+    final orders = (s?['totalOrders'] as num?)?.toInt() ?? 0;
 
     return RefreshIndicator(
       onRefresh: m.loadStats,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 24),
         children: [
-          tile(
-            'Net earnings (after commission)',
-            fmt.format((s?['totalRevenue'] as num?)?.toDouble() ?? 0),
-          ),
-          const SizedBox(height: 10),
-          tile(
-            'This month',
-            fmt.format((s?['thisMonthRevenue'] as num?)?.toDouble() ?? 0),
-          ),
-          const SizedBox(height: 10),
-          tile(
-            'Gross sales',
-            fmt.format((s?['grossSales'] as num?)?.toDouble() ?? 0),
-          ),
-          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
-                child: tile('Orders', '${s?['totalOrders'] ?? 0}'),
+                child: _KpiCard(
+                  label: 'Net earnings',
+                  value: fmt.format(net),
+                  color: primary,
+                ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: tile('Pending', '${s?['pendingOrders'] ?? 0}'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: tile('Products', '${s?['totalProducts'] ?? 0}'),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: tile(
-                  'Commission',
-                  '${(s?['commissionPercent'] as num?)?.toStringAsFixed(0) ?? '—'}%',
+                child: _KpiCard(
+                  label: 'This month',
+                  value: fmt.format(month),
+                  color: AppTheme.ink,
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _KpiCard(
+                  label: 'Orders',
+                  value: '$orders',
+                  color: AppTheme.charcoal,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _KpiCard(
+                  label: 'Pending',
+                  value: '$pending',
+                  color: pending > 0 ? AppTheme.warning : AppTheme.charcoal,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            child: Column(
+              children: [
+                _denseRow(
+                  'Gross sales',
+                  fmt.format((s?['grossSales'] as num?)?.toDouble() ?? 0),
+                ),
+                const Divider(height: 1, indent: 12),
+                _denseRow('Products', '${s?['totalProducts'] ?? 0}'),
+                const Divider(height: 1, indent: 12),
+                _denseRow(
+                  'Commission',
+                  '${(s?['commissionPercent'] as num?)?.toStringAsFixed(0) ?? '—'}%',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _denseRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12, color: AppTheme.charcoal),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KpiCard extends StatelessWidget {
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE8E8EA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),

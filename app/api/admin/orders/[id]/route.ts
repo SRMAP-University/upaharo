@@ -3,6 +3,7 @@ import { OrderStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
 import {
+  notifyDeliveryPartnersJobAvailable,
   notifyOrderStatus,
   notifyPaymentUpdate,
   statusTimestampFields,
@@ -209,6 +210,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             deliveryOtp: order.deliveryOtp || issuedOtp || undefined,
             storeId: existing.storeId,
           })
+          if (effectiveStatus === 'READY') {
+            await notifyDeliveryPartnersJobAvailable({
+              orderId: existing.id,
+              orderNumber: existing.orderNumber,
+              storeId: existing.storeId,
+            })
+          }
         }
         if (body.paymentStatus && body.paymentStatus !== existing.paymentStatus) {
           await notifyPaymentUpdate({

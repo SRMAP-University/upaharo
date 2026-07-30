@@ -1,6 +1,12 @@
 import { NotificationType, OrderStatus, PaymentStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { sendPushToUser, type PushPayload } from '@/lib/push'
+import {
+  PARTNER_NEW_ORDER_CHANNEL,
+  PARTNER_NEW_ORDER_SOUND,
+  sendPushToTokens,
+  sendPushToUser,
+  type PushPayload,
+} from '@/lib/push'
 import { DEFAULT_STORE_SLUG } from '@/lib/store-constants'
 import { getStore } from '@/lib/store-context'
 
@@ -17,6 +23,8 @@ type NotifyOpts = {
   /** Required for correct app targeting (gifts vs grocery). */
   storeId?: string | null
   storeSlug?: string | null
+  androidChannelId?: string
+  sound?: string
 }
 
 type OrderCopy = {
@@ -128,6 +136,8 @@ export async function notifyUser(opts: NotifyOpts): Promise<{ pushSuccess: numbe
       body,
       data: enrichedData,
       storeSlug,
+      androidChannelId: opts.androidChannelId,
+      sound: opts.sound,
     }
     try {
       pushSuccess = await sendPushToUser(userId, payload, storeId)
@@ -278,6 +288,191 @@ export async function notifyPromo(params: {
       ...(params.data || {}),
     },
   })
+}
+
+/**
+ * Loud push to every seller whose products are on this order.
+ * Called after payment is real (COD / wallet / Stripe completed).
+ */
+export async function notifyPartnerSellersNewOrder(params: {
+  orderId: string
+  orderNumber: string
+  storeId?: string | null
+}): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: params.orderId },
+    select: {
+      id: true,
+      orderNumber: true,
+      storeId: true,
+      total: true,
+      items: {
+        select: {
+          quantity: true,
+          product: {
+            select: {
+              name: true,
+              sellerId: true,
+              seller: {
+                select: {
+                  id: true,
+                  userId: true,
+                  isActive: true,
+                  businessName: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      store: { select: { id: true, slug: true } },
+    },
+  })
+
+  if (!order) return
+
+  const storeId = order.storeId || params.storeId || order.store?.id
+  const storeSlug = order.store?.slug || undefined
+
+  type SellerBucket = {
+    userId: string
+    businessName: string
+    itemCount: number
+    names: string[]
+  }
+  const bySeller = new Map<string, SellerBucket>()
+
+  for (const item of order.items) {
+    const seller = item.product?.seller
+    if (!seller?.userId || !seller.isActive) continue
+    const qty = item.quantity || 1
+    const existing = bySeller.get(seller.userId)
+    const name = item.product?.name || 'Item'
+    if (existing) {
+      existing.itemCount += qty
+      if (existing.names.length < 3) existing.names.push(name)
+    } else {
+      bySeller.set(seller.userId, {
+        userId: seller.userId,
+        businessName: seller.businessName || 'Shop',
+        itemCount: qty,
+        names: [name],
+      })
+    }
+  }
+
+  await Promise.all(
+    [...bySeller.values()].map(async (seller) => {
+      const preview = seller.names.join(', ')
+      const more =
+        seller.itemCount > seller.names.length
+          ? ` +${seller.itemCount - seller.names.length} more`
+          : ''
+      try {
+        await notifyUser({
+          userId: seller.userId,
+          storeId,
+          storeSlug,
+          type: 'ORDER_PLACED',
+          persist: false,
+          title: `New order #${order.orderNumber}`,
+          body: `${seller.itemCount} item(s): ${preview}${more}`,
+          androidChannelId: PARTNER_NEW_ORDER_CHANNEL,
+          sound: PARTNER_NEW_ORDER_SOUND,
+          data: {
+            type: 'PARTNER_NEW_ORDER',
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            route: 'merchant-orders',
+            audience: 'partner',
+          },
+        })
+      } catch (err) {
+        console.error('[notifications] Partner seller push failed:', err)
+      }
+    })
+  )
+}
+
+/**
+ * Loud push to online delivery partners when an order enters the READY pool.
+ */
+export async function notifyDeliveryPartnersJobAvailable(params: {
+  orderId: string
+  orderNumber: string
+  storeId?: string | null
+  /** Seller/admin who marked READY — do not push to their own partner app. */
+  excludeUserId?: string | null
+}): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: params.orderId },
+    select: {
+      id: true,
+      orderNumber: true,
+      storeId: true,
+      total: true,
+      deliveryFee: true,
+      deliveryPartnerId: true,
+      store: { select: { id: true, slug: true, name: true } },
+      address: { select: { street: true, city: true } },
+    },
+  })
+  if (!order || order.deliveryPartnerId) return
+
+  const storeId = order.storeId || params.storeId || order.store?.id
+  if (!storeId) return
+
+  const online = await prisma.deliveryPartner.findMany({
+    where: { isAvailable: true, userId: { not: null } },
+    select: { userId: true },
+  })
+  const exclude = params.excludeUserId || null
+  const userIds = [
+    ...new Set(
+      online
+        .map((d) => d.userId)
+        .filter((id): id is string => Boolean(id) && id !== exclude)
+    ),
+  ]
+  if (!userIds.length) return
+
+  const devices = await prisma.deviceToken.findMany({
+    where: {
+      userId: { in: userIds },
+      storeId,
+      clientApp: 'partner',
+    },
+    select: { token: true },
+  })
+  if (!devices.length) return
+
+  const where = [order.address?.street, order.address?.city]
+    .filter(Boolean)
+    .join(', ')
+  const fee = order.deliveryFee != null ? ` · fee Rs ${Math.round(Number(order.deliveryFee))}` : ''
+
+  try {
+    await sendPushToTokens(
+      devices.map((d) => d.token),
+      {
+        title: `Delivery job #${order.orderNumber}`,
+        body: `${order.store?.name || 'Order'}${fee}${where ? ` · ${where}` : ''}`,
+        storeSlug: order.store?.slug,
+        androidChannelId: PARTNER_NEW_ORDER_CHANNEL,
+        sound: PARTNER_NEW_ORDER_SOUND,
+        data: {
+          type: 'PARTNER_DELIVERY_JOB',
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          route: 'delivery-pool',
+          audience: 'partner',
+          storeSlug: order.store?.slug || '',
+        },
+      }
+    )
+  } catch (err) {
+    console.error('[notifications] Delivery pool push failed:', err)
+  }
 }
 
 /** Status timestamp fields to set when an order moves. */

@@ -3,6 +3,7 @@ class PartnerAccess {
   final bool deliveryEnabled;
   final bool giftsEnabled;
   final bool groceryEnabled;
+  final bool fullAccess;
   final String? sellerId;
   final String? deliveryPartnerId;
 
@@ -11,6 +12,7 @@ class PartnerAccess {
     required this.deliveryEnabled,
     required this.giftsEnabled,
     required this.groceryEnabled,
+    this.fullAccess = false,
     this.sellerId,
     this.deliveryPartnerId,
   });
@@ -21,6 +23,7 @@ class PartnerAccess {
       deliveryEnabled: json['deliveryEnabled'] == true,
       giftsEnabled: json['giftsEnabled'] != false,
       groceryEnabled: json['groceryEnabled'] == true,
+      fullAccess: json['fullAccess'] == true,
       sellerId: json['sellerId'] as String?,
       deliveryPartnerId: json['deliveryPartnerId'] as String?,
     );

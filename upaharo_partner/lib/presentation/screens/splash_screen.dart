@@ -6,27 +6,44 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: AppTheme.groollGreen,
+    return Scaffold(
+      backgroundColor: AppTheme.pageBg,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'Partner',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w800,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.asset(
+                'assets/branding/app_icon.png',
+                width: 88,
+                height: 88,
+                fit: BoxFit.cover,
               ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Merchant · Delivery',
-              style: TextStyle(color: Colors.white70),
+            const SizedBox(height: 14),
+            const Text(
+              'Grooll Partner',
+              style: TextStyle(
+                color: AppTheme.ink,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            SizedBox(height: 24),
-            CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 4),
+            const Text(
+              'Merchant · Delivery',
+              style: TextStyle(color: AppTheme.muted, fontSize: 11),
+            ),
+            const SizedBox(height: 20),
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.groollGreen,
+              ),
+            ),
           ],
         ),
       ),

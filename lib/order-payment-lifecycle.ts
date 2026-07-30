@@ -47,14 +47,27 @@ export async function activateOrderFulfillment(order: {
     console.warn('Redis publish failed (non-critical):', redisError)
   }
 
-  void import('@/lib/notifications').then(({ notifyOrderPlaced }) =>
-    notifyOrderPlaced({
-      userId: order.userId,
-      orderId: order.id,
-      orderNumber: order.orderNumber,
-      storeId: order.storeId,
-    }).catch((err) => console.error('Order placed notification failed:', err))
-  )
+  void import('@/lib/notifications').then(async ({ notifyOrderPlaced, notifyPartnerSellersNewOrder }) => {
+    try {
+      await notifyOrderPlaced({
+        userId: order.userId,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        storeId: order.storeId,
+      })
+    } catch (err) {
+      console.error('Order placed notification failed:', err)
+    }
+    try {
+      await notifyPartnerSellersNewOrder({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        storeId: order.storeId,
+      })
+    } catch (err) {
+      console.error('Partner seller new-order push failed:', err)
+    }
+  })
 }
 
 /** Cancel an unpaid ONLINE order so it never reaches fulfillment. */

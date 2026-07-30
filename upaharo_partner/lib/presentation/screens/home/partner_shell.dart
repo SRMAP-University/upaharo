@@ -38,26 +38,60 @@ class _PartnerShellState extends State<PartnerShell> {
         (auth.access?.deliveryEnabled ?? false);
     final stores = auth.access?.storeSlugs ?? const ['gifts'];
     final primary = AppTheme.primary(auth.storeSlug);
+    final shopName = auth.mode == PartnerMode.merchant
+        ? (auth.seller?.businessName.isNotEmpty == true
+            ? auth.seller!.businessName
+            : 'Merchant')
+        : 'Delivery';
 
     return Scaffold(
+      backgroundColor: AppTheme.pageBg,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              auth.mode == PartnerMode.merchant ? 'Merchant' : 'Delivery',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            Text(
-              auth.user?.name ?? '',
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
-            ),
-          ],
-        ),
+        titleSpacing: 12,
+        title: Text(shopName, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
+          if (dual)
+            Padding(
+              padding: const EdgeInsets.only(right: 4),
+              child: SegmentedButton<PartnerMode>(
+                style: ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: WidgetStateProperty.all(
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                segments: const [
+                  ButtonSegment(
+                    value: PartnerMode.merchant,
+                    label: Text('Shop'),
+                    icon: Icon(Icons.storefront, size: 14),
+                  ),
+                  ButtonSegment(
+                    value: PartnerMode.delivery,
+                    label: Text('Ride'),
+                    icon: Icon(Icons.delivery_dining, size: 14),
+                  ),
+                ],
+                selected: {auth.mode},
+                onSelectionChanged: (s) async {
+                  final mode = s.first;
+                  await auth.setMode(mode);
+                  if (!context.mounted) return;
+                  if (mode == PartnerMode.merchant) {
+                    context.read<MerchantProvider>().loadAll();
+                  } else {
+                    final d = context.read<DeliveryProvider>();
+                    d.online = auth.delivery?.isAvailable ?? false;
+                    d.refresh();
+                  }
+                },
+              ),
+            ),
           if (stores.length > 1)
             PopupMenuButton<String>(
               initialValue: auth.storeSlug,
+              tooltip: 'Store',
               onSelected: (slug) async {
                 await auth.setStore(slug);
                 if (!context.mounted) return;
@@ -77,117 +111,22 @@ class _PartnerShellState extends State<PartnerShell> {
                   .toList(),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Chip(
-                  label: Text(
-                    auth.storeSlug == 'grocery' ? 'Grooll' : 'Upaharo',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  avatar: Icon(
-                    auth.storeSlug == 'grocery'
-                        ? Icons.local_grocery_store
-                        : Icons.card_giftcard,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  backgroundColor: Colors.white24,
-                  side: BorderSide.none,
-                  visualDensity: VisualDensity.compact,
+                child: StatusChip(
+                  label: auth.storeSlug == 'grocery' ? 'Grooll' : 'Upaharo',
+                  color: primary,
                 ),
               ),
             ),
           IconButton(
             tooltip: 'Logout',
             onPressed: () => context.read<AuthProvider>().logout(),
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, size: 18),
           ),
         ],
-        bottom: dual
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(52),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white12,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        _ModeTab(
-                          label: 'Merchant',
-                          selected: auth.mode == PartnerMode.merchant,
-                          selectedColor: primary,
-                          onTap: () async {
-                            await auth.setMode(PartnerMode.merchant);
-                            if (!context.mounted) return;
-                            context.read<MerchantProvider>().loadAll();
-                          },
-                        ),
-                        _ModeTab(
-                          label: 'Delivery',
-                          selected: auth.mode == PartnerMode.delivery,
-                          selectedColor: primary,
-                          onTap: () async {
-                            await auth.setMode(PartnerMode.delivery);
-                            if (!context.mounted) return;
-                            final d = context.read<DeliveryProvider>();
-                            d.online = auth.delivery?.isAvailable ?? false;
-                            d.refresh();
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              )
-            : null,
       ),
       body: auth.mode == PartnerMode.merchant
           ? const MerchantHome()
           : const DeliveryHome(),
-    );
-  }
-}
-
-class _ModeTab extends StatelessWidget {
-  const _ModeTab({
-    required this.label,
-    required this.selected,
-    required this.selectedColor,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final Color selectedColor;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected ? selectedColor : Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
