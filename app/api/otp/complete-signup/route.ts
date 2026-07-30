@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signToken, verifyToken } from '@/lib/auth'
 import { normalizeNepalPhone } from '@/lib/phone'
+import {
+  issueTrustedDevice,
+  normalizeDeviceId,
+} from '@/lib/trusted-device'
 
 const userSelect = {
   id: true,
@@ -20,6 +24,9 @@ export async function POST(request: NextRequest) {
     const signupToken = String(body?.signupToken || '').trim()
     const name = String(body?.name || '').trim()
     const email = String(body?.email || '').trim().toLowerCase()
+    const deviceIdFromBody = normalizeDeviceId(body?.deviceId)
+    const platform =
+      typeof body?.platform === 'string' ? body.platform : null
 
     if (!signupToken) {
       return NextResponse.json(
@@ -62,6 +69,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const deviceId =
+      deviceIdFromBody ||
+      (typeof payload.deviceId === 'string'
+        ? normalizeDeviceId(payload.deviceId)
+        : null)
+
     const existingPhone = await prisma.user.findUnique({
       where: { phone },
       select: userSelect,
@@ -71,13 +84,33 @@ export async function POST(request: NextRequest) {
         userId: existingPhone.id,
         email: existingPhone.email,
       })
-      return NextResponse.json({ user: existingPhone, token })
+      let deviceToken: string | undefined
+      let deviceExpiresAt: string | undefined
+      if (deviceId) {
+        const trusted = await issueTrustedDevice({
+          userId: existingPhone.id,
+          phone,
+          deviceId,
+          platform,
+        })
+        deviceToken = trusted.deviceToken
+        deviceExpiresAt = trusted.expiresAt.toISOString()
+      }
+      return NextResponse.json({
+        user: existingPhone,
+        token,
+        deviceToken,
+        deviceExpiresAt,
+      })
     }
 
     const existingEmail = await prisma.user.findUnique({ where: { email } })
     if (existingEmail) {
       return NextResponse.json(
-        { error: 'Email already registered. Sign in with email or use another.' },
+        {
+          error:
+            'Email already registered. Sign in with email or use another.',
+        },
         { status: 400 }
       )
     }
@@ -93,7 +126,23 @@ export async function POST(request: NextRequest) {
     })
 
     const token = await signToken({ userId: user.id, email: user.email })
-    return NextResponse.json({ user, token }, { status: 201 })
+    let deviceToken: string | undefined
+    let deviceExpiresAt: string | undefined
+    if (deviceId) {
+      const trusted = await issueTrustedDevice({
+        userId: user.id,
+        phone,
+        deviceId,
+        platform,
+      })
+      deviceToken = trusted.deviceToken
+      deviceExpiresAt = trusted.expiresAt.toISOString()
+    }
+
+    return NextResponse.json(
+      { user, token, deviceToken, deviceExpiresAt },
+      { status: 201 }
+    )
   } catch (error: unknown) {
     console.error('OTP complete-signup error:', error)
     const message =

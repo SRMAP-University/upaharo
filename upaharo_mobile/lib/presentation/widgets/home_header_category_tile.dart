@@ -113,26 +113,39 @@ class _CompactChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: label,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: size + 4,
-          height: size + 4,
-          child: Center(
-            child: AnimatedScale(
-              scale: selected ? 1.06 : 1.0,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              child: _HeaderVisual(
-                size: size,
-                fallbackIcon: fallbackIcon,
-                washColor: washColor,
-                imageUrl: imageUrl,
-              ),
-            ),
+    // Collapsed / scrolled header: text names only (no category images).
+    final bg = selected
+        ? Color.lerp(washColor, Colors.white, 0.35) ?? washColor
+        : Colors.white.withValues(alpha: 0.72);
+    final fg = selected ? AppTheme.ink : AppTheme.ink.withAlpha(200);
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        height: (size + 4).clamp(28.0, 36.0),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? washColor.withValues(alpha: 0.55)
+                : AppTheme.ink.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            height: 1.0,
+            color: fg,
           ),
         ),
       ),
@@ -239,4 +252,22 @@ List<({
       ),
     ),
   ];
+}
+
+/// Categories for the sticky home header strip.
+///
+/// Empty [orderedIds] keeps the catalog list as-is. Otherwise only matching
+/// ids are returned, in the given order (missing/inactive ids skipped).
+List<Category> resolveHeaderCategories(
+  List<Category> catalog, {
+  required List<String> orderedIds,
+}) {
+  if (orderedIds.isEmpty) return catalog;
+  final byId = {for (final c in catalog) c.id: c};
+  final out = <Category>[];
+  for (final id in orderedIds) {
+    final cat = byId[id];
+    if (cat != null) out.add(cat);
+  }
+  return out;
 }

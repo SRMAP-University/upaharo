@@ -554,9 +554,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       // Prefer default / first saved address
       final defaultAddr = _addresses.cast<Address?>().firstWhere(
-        (a) => a!.isDefault,
-        orElse: () => _addresses.isNotEmpty ? _addresses.first : null,
-      );
+            (a) => a!.isDefault,
+            orElse: () => _addresses.isNotEmpty ? _addresses.first : null,
+          );
       _selectedAddressId = defaultAddr?.id;
 
       // Seed gift options from cart if any
@@ -681,20 +681,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   void _syncGiftToCart() {
     final isGift = _giftOptionsEnabled && _isGift;
     context.read<CartProvider>().setGiftOptions(
-      GiftOptions(
+          GiftOptions(
         isGift: isGift,
         recipientId: isGift ? _recipientId : null,
         occasionId: isGift ? _occasionId : null,
         giftWrapId: isGift ? _giftWrapId : null,
         greetingMessage: isGift && _greetingController.text.trim().isNotEmpty
-            ? _greetingController.text.trim()
-            : null,
+                ? _greetingController.text.trim()
+                : null,
         senderName: isGift && _senderController.text.trim().isNotEmpty
-            ? _senderController.text.trim()
-            : null,
+                ? _senderController.text.trim()
+                : null,
         showSenderName: isGift && _showSenderName,
-      ),
-    );
+          ),
+        );
   }
 
   _CheckoutTotals _computeTotals(CartProvider cart) {
@@ -835,21 +835,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         paymentUrl = deliveryResult.paymentUrl;
         checkoutSessionId = deliveryResult.checkoutSessionId;
       } else {
-        final payload = cart.toCheckoutPayload(
-          addressId: address?.id,
+    final payload = cart.toCheckoutPayload(
+      addressId: address?.id,
           fulfillmentType: _usingPickup ? 'PICKUP' : 'DELIVERY',
-          deliveryFee: totals.deliveryFee,
-          giftWrapPrice: totals.wrapPrice,
-          couponDiscount: _couponDiscount,
-          walletAmount: totals.walletApplied,
-          couponCode: _appliedCouponCode,
-          addressLatitude: address?.latitude,
-          addressLongitude: address?.longitude,
-          total: totals.total,
-          paymentMethod: _paymentMethod,
+      deliveryFee: totals.deliveryFee,
+      giftWrapPrice: totals.wrapPrice,
+      couponDiscount: _couponDiscount,
+      walletAmount: totals.walletApplied,
+      couponCode: _appliedCouponCode,
+      addressLatitude: address?.latitude,
+      addressLongitude: address?.longitude,
+      total: totals.total,
+      paymentMethod: _paymentMethod,
           scheduledFor: _scheduledFor,
-        );
-        final result = await _orderRepo.createOrderWithPayment(payload);
+    );
+      final result = await _orderRepo.createOrderWithPayment(payload);
         primaryOrder = result.order;
         paymentUrl = result.paymentUrl;
         checkoutSessionId = result.checkoutSessionId;
@@ -1232,9 +1232,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _savingsStrip(double savings) {
     return Container(
-      width: double.infinity,
+                          width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
+                          decoration: BoxDecoration(
         color: const Color(0xFFE8F5E9),
         borderRadius: BorderRadius.circular(10),
       ),
@@ -1412,7 +1412,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: AppTheme.wine.withAlpha(120)),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(12),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 11),
                 ),
@@ -1475,11 +1475,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
           if (_addressExpanded || _addresses.length <= 2) ...[
             const SizedBox(height: 8),
-            if (_addresses.isEmpty)
-              _emptyAddressCard()
-            else
-              ..._addresses.map(_addressTile),
-            TextButton.icon(
+                        if (_addresses.isEmpty)
+                          _emptyAddressCard()
+                        else
+                          ..._addresses.map(_addressTile),
+                        TextButton.icon(
               onPressed: _openMapLocation,
               icon: const Icon(Icons.add_location_alt_outlined, size: 18),
               label: Text(
@@ -2061,18 +2061,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
       child: Column(
         children: [
-          SwitchListTile(
+                      SwitchListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 10),
             dense: true,
             title: const Text(
               'Send as a gift',
               style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
             ),
-            value: _isGift,
-            activeThumbColor: AppTheme.wine,
-            onChanged: (v) => setState(() => _isGift = v),
-          ),
-          if (_isGift) ...[
+                        value: _isGift,
+                        activeThumbColor: AppTheme.wine,
+                        onChanged: (v) => setState(() => _isGift = v),
+                      ),
+                      if (_isGift) ...[
             const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -2080,94 +2080,94 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _innerLabel('Occasion'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _occasions.map((o) {
-                      final selected = _occasionId == o.id;
-                      return ChoiceChip(
-                        label: Text('${o.emoji} ${o.name}'.trim()),
-                        selected: selected,
-                        selectedColor: AppTheme.wine.withAlpha(40),
-                        onSelected: (_) => setState(() => _occasionId = o.id),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _occasions.map((o) {
+                            final selected = _occasionId == o.id;
+                            return ChoiceChip(
+                              label: Text('${o.emoji} ${o.name}'.trim()),
+                              selected: selected,
+                              selectedColor: AppTheme.wine.withAlpha(40),
+                              onSelected: (_) => setState(() => _occasionId = o.id),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 12),
                   _innerLabel('Recipient'),
-                  if (_recipients.isEmpty)
-                    Text(
+                        if (_recipients.isEmpty)
+                          Text(
                       'No saved recipients. Add one on the website, or turn off gift mode.',
-                      style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
-                    )
-                  else
-                    ..._recipients.map((r) {
-                      final selected = _recipientId == r.id;
-                      return ListTile(
-                        contentPadding: EdgeInsets.zero,
+                            style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
+                          )
+                        else
+                          ..._recipients.map((r) {
+                            final selected = _recipientId == r.id;
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
                         dense: true,
-                        leading: Icon(
+                              leading: Icon(
                           selected
                               ? Icons.radio_button_checked
                               : Icons.radio_button_off,
-                          color: selected ? AppTheme.wine : AppTheme.charcoal,
+                                color: selected ? AppTheme.wine : AppTheme.charcoal,
                           size: 20,
-                        ),
-                        title: Text(r.name),
+                              ),
+                              title: Text(r.name),
                         subtitle: Text(
                           [
                             r.phone,
                             r.relationship,
                           ].where((e) => e.isNotEmpty).join(' · '),
                         ),
-                        onTap: () => setState(() => _recipientId = r.id),
-                      );
-                    }),
-                  const SizedBox(height: 8),
+                              onTap: () => setState(() => _recipientId = r.id),
+                            );
+                          }),
+                        const SizedBox(height: 8),
                   _innerLabel('Gift wrap'),
-                  SizedBox(
-                    height: 140,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _wrapCard(
-                          selected: _giftWrapId == null,
-                          title: 'No wrap',
-                          price: 0,
-                          onTap: () => setState(() => _giftWrapId = null),
-                        ),
-                        ..._giftWraps.map(
-                          (w) => _wrapCard(
-                            selected: _giftWrapId == w.id,
-                            title: w.name,
-                            price: w.price,
-                            image: w.image,
-                            onTap: () => setState(() => _giftWrapId = w.id),
+                        SizedBox(
+                          height: 140,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _wrapCard(
+                                selected: _giftWrapId == null,
+                                title: 'No wrap',
+                                price: 0,
+                                onTap: () => setState(() => _giftWrapId = null),
+                              ),
+                              ..._giftWraps.map(
+                                (w) => _wrapCard(
+                                  selected: _giftWrapId == w.id,
+                                  title: w.name,
+                                  price: w.price,
+                                  image: w.image,
+                                  onTap: () => setState(() => _giftWrapId = w.id),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _greetingController,
-                    maxLength: 200,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Greeting message',
-                      hintText: 'Write a short note…',
-                    ),
-                  ),
-                  TextField(
-                    controller: _senderController,
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _greetingController,
+                          maxLength: 200,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Greeting message',
+                            hintText: 'Write a short note…',
+                          ),
+                        ),
+                        TextField(
+                          controller: _senderController,
                     decoration: const InputDecoration(labelText: 'Sender name'),
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
+                        ),
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
                     dense: true,
-                    value: _showSenderName,
-                    activeColor: AppTheme.wine,
-                    title: const Text('Show sender name on card'),
+                          value: _showSenderName,
+                          activeColor: AppTheme.wine,
+                          title: const Text('Show sender name on card'),
                     onChanged: (v) =>
                         setState(() => _showSenderName = v ?? true),
                   ),
@@ -2187,8 +2187,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required double total,
   }) {
     return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
       ),
@@ -2201,9 +2201,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
           title: Text(
             'Bill details',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
               color: AppTheme.ink,
             ),
           ),
@@ -2212,21 +2212,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
           ),
           children: [
-            _totalRow('Subtotal', cart.totalPrice),
-            if (wrapPrice > 0) _totalRow('Gift wrap', wrapPrice),
-            if (_isPickup)
-              _totalRow(
-                'Pickup',
-                0,
-                trailing: const Text(
-                  'FREE',
-                  style: TextStyle(
-                    fontSize: 13,
+                      _totalRow('Subtotal', cart.totalPrice),
+                      if (wrapPrice > 0) _totalRow('Gift wrap', wrapPrice),
+                      if (_isPickup)
+                        _totalRow(
+                          'Pickup',
+                          0,
+                          trailing: const Text(
+                            'FREE',
+                            style: TextStyle(
+                              fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2E7D32),
-                  ),
-                ),
-              )
+                              color: Color(0xFF2E7D32),
+                            ),
+                          ),
+                        )
             else if (_isSplit) ...[
               _totalRow(
                 'Pickup items',
@@ -2250,54 +2250,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               else
                 _totalRow('Delivery', totals.deliveryFee),
             ] else if (totals.deliveryFee <= 0)
-              _waivedFeeRow(
-                'Delivery',
-                _wallet.deliveryFeeAmount > 0
-                    ? _wallet.deliveryFeeAmount
-                    : CartProvider.standardDeliveryFee,
-              )
-            else
-              _totalRow('Delivery', totals.deliveryFee),
-            _waivedFeeRow('Tax (5%)', cart.totalPrice * 0.05),
-            _waivedFeeRow('Handling charges', 300),
-            _waivedFeeRow('Packaging', 100),
-            if (_couponDiscount > 0)
-              _totalRow(
-                'Coupon${_appliedCouponCode != null ? ' ($_appliedCouponCode)' : ''}',
-                -_couponDiscount,
-              ),
-            if (totals.walletApplied > 0)
-              _totalRow('Wallet', -totals.walletApplied),
+                        _waivedFeeRow(
+                          'Delivery',
+                          _wallet.deliveryFeeAmount > 0
+                              ? _wallet.deliveryFeeAmount
+                              : CartProvider.standardDeliveryFee,
+                        )
+                      else
+                        _totalRow('Delivery', totals.deliveryFee),
+                      _waivedFeeRow('Tax (5%)', cart.totalPrice * 0.05),
+                      _waivedFeeRow('Handling charges', 300),
+                      _waivedFeeRow('Packaging', 100),
+                      if (_couponDiscount > 0)
+                        _totalRow(
+                          'Coupon${_appliedCouponCode != null ? ' ($_appliedCouponCode)' : ''}',
+                          -_couponDiscount,
+                        ),
+                      if (totals.walletApplied > 0)
+                        _totalRow('Wallet', -totals.walletApplied),
             const SizedBox(height: 6),
             Divider(height: 1, color: AppTheme.creamDeep),
             const SizedBox(height: 6),
-            _totalRow('Total', total, bold: true),
-            if (totals.cashback > 0) ...[
+                      _totalRow('Total', total, bold: true),
+                      if (totals.cashback > 0) ...[
               const SizedBox(height: 8),
-              Text(
+                        Text(
                 'You’ll get ${PriceFormatter.format(totals.cashback)} cashback after delivery',
-                style: const TextStyle(
+                          style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF2E7D32),
-                ),
-              ),
-            ],
-            if (_wallet.checkoutMinOrderAmount > 0 &&
-                totals.goodsTotal < _wallet.checkoutMinOrderAmount) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Add more items — minimum order is ${PriceFormatter.format(_wallet.checkoutMinOrderAmount)}',
-                style: const TextStyle(
+                            color: Color(0xFF2E7D32),
+                          ),
+                        ),
+                      ],
+                      if (_wallet.checkoutMinOrderAmount > 0 &&
+                          totals.goodsTotal < _wallet.checkoutMinOrderAmount) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Add more items — minimum order is ${PriceFormatter.format(_wallet.checkoutMinOrderAmount)}',
+                          style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFFC62828),
-                ),
-              ),
-            ],
+                            color: Color(0xFFC62828),
+                          ),
+                        ),
+                      ],
           ],
         ),
-      ),
+            ),
     );
   }
 
@@ -2350,7 +2350,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     onPressed: _showPaymentSheet,
                     style: TextButton.styleFrom(
                       foregroundColor: AppTheme.wine,
-                      visualDensity: VisualDensity.compact,
+                  visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                     ),
                     child: const Text(
@@ -2386,7 +2386,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         )
                       : Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+                  children: [
                             Text(
                               '${_isGift ? 'Send Gift' : 'Place Order'}  |  ${PriceFormatter.format(total)}',
                               style: const TextStyle(
@@ -2396,7 +2396,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               ),
                             ),
                             if (cashback > 0)
-                              Text(
+                    Text(
                                 'Get ${PriceFormatter.format(cashback)} cashback',
                                 style: TextStyle(
                                   fontSize: 11,
@@ -2456,13 +2456,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: border.withAlpha(160)),
       ),
-      child: Row(
-        children: [
+        child: Row(
+          children: [
           if (icon != null) ...[
             Icon(icon, size: compact ? 15 : 16, color: fg),
             const SizedBox(width: 8),
           ],
-          Expanded(
+            Expanded(
             child: Text(
               text,
               maxLines: compact ? 1 : 3,
@@ -2489,9 +2489,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -2514,7 +2514,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                  Text(
                       item.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -2532,10 +2532,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         fontSize: 11,
                         color: AppTheme.charcoal.withAlpha(180),
                       ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
               const SizedBox(width: 8),
               _qtyStepper(
                 quantity: item.quantity,
@@ -2543,7 +2543,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 onInc: () => _updateItemQty(cart, item.id, item.quantity + 1),
               ),
               const SizedBox(width: 10),
-              SizedBox(
+            SizedBox(
                 width: 70,
                 child: Text(
                   PriceFormatter.format(item.price * item.quantity),
@@ -2553,10 +2553,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     fontWeight: FontWeight.w600,
                     color: AppTheme.ink,
                   ),
-                ),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
           if (showFulfillmentToggle) ...[
             const SizedBox(height: 8),
             if (eligible)
@@ -2616,19 +2616,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: selected ? AppTheme.wine : Colors.transparent,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
+          decoration: BoxDecoration(
+            color: selected ? AppTheme.wine : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppTheme.charcoal,
+              color: selected ? Colors.white : AppTheme.charcoal,
           ),
         ),
       ),
@@ -2723,7 +2723,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           onTap: () => setState(() => _selectedAddressId = address.id),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
+      decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: selected ? AppTheme.wine : Colors.transparent,
@@ -2737,7 +2737,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   selected
                       ? Icons.radio_button_checked
                       : Icons.radio_button_off,
-                  color: selected ? AppTheme.wine : AppTheme.charcoal,
+          color: selected ? AppTheme.wine : AppTheme.charcoal,
                   size: 20,
                 ),
                 const SizedBox(width: 10),
@@ -2810,9 +2810,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         color: AppTheme.cardSurface,
                         child: const Center(
                           child: Icon(Icons.do_not_disturb_alt),
-                        ),
                       ),
               ),
+            ),
             ),
             const SizedBox(height: 6),
             Text(

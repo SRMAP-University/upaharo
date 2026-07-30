@@ -38,6 +38,8 @@ export type SettingsForm = {
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   homeSectionLayout: HomeSectionConfig[]
+  /** Empty = all PRODUCT categories A–Z in the sticky header. */
+  headerCategoryIds: string[]
   brandPrimary: string
   brandSecondary: string
   headerWash: string
@@ -107,6 +109,7 @@ export const EMPTY_FORM: SettingsForm = {
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',
   homeSectionLayout: DEFAULT_HOME_SECTIONS,
+  headerCategoryIds: [],
   brandPrimary: '#8B5A2B',
   brandSecondary: '#D4AF37',
   headerWash: '#F7F0E8',

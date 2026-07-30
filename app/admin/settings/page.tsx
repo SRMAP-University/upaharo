@@ -10,6 +10,7 @@ import {
   MAX_SCHEDULE_DAYS_AHEAD,
   normalizeDeliverySlots,
   normalizeDensity,
+  normalizeHeaderCategoryIds,
   normalizeHomeSections,
   normalizeScheduleDays,
   normalizeValueDealsProductIds,
@@ -19,6 +20,7 @@ import SubProductSelector from '@/components/admin/SubProductSelector'
 import { DeliverySlotsEditor } from './delivery-slots-editor'
 import { MobilePreview } from './mobile-preview'
 import { SectionLayoutEditor } from './section-layout-editor'
+import { HeaderCategoriesEditor } from './header-categories-editor'
 import {
   ColorField,
   InfoBanner,
@@ -124,6 +126,7 @@ export default function AdminSettingsPage() {
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
         homeSectionLayout: normalizeHomeSections(data.homeSectionLayout),
+        headerCategoryIds: normalizeHeaderCategoryIds(data.headerCategoryIds),
         brandPrimary: String(data.brandPrimary || EMPTY_FORM.brandPrimary).toUpperCase(),
         brandSecondary: String(data.brandSecondary || EMPTY_FORM.brandSecondary).toUpperCase(),
         headerWash: String(data.headerWash || EMPTY_FORM.headerWash).toUpperCase(),
@@ -440,6 +443,16 @@ export default function AdminSettingsPage() {
                     onChange={(sections) => set('homeSectionLayout', sections)}
                     homepageShowBanner={formData.homepageShowBanner}
                     onHomepageShowBannerChange={(visible) => set('homepageShowBanner', visible)}
+                  />
+                </SettingsPanel>
+
+                <SettingsPanel
+                  title="Header categories"
+                  description="Choose which product categories appear in the sticky home header strip, and in what order."
+                >
+                  <HeaderCategoriesEditor
+                    headerCategoryIds={formData.headerCategoryIds}
+                    onChange={(ids) => set('headerCategoryIds', ids)}
                   />
                 </SettingsPanel>
 

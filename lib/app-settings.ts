@@ -5,6 +5,7 @@ import {
   normalizeDeliverySlots,
   normalizeDensity,
   normalizeHexColor,
+  normalizeHeaderCategoryIds,
   normalizeHomeSections,
   normalizeOptionalAmount,
   normalizeScheduleDays,
@@ -119,6 +120,7 @@ export async function getAppSettings(
         homepageRecommendationTitle:
           settings.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle,
         homeSectionLayout: normalizeHomeSections(settings.homeSectionLayout),
+        headerCategoryIds: normalizeHeaderCategoryIds(settings.headerCategoryIds),
         brandPrimary: normalizeHexColor(settings.brandPrimary, DEFAULT_APP_SETTINGS.brandPrimary),
         brandSecondary: normalizeHexColor(settings.brandSecondary, DEFAULT_APP_SETTINGS.brandSecondary),
         headerWash: normalizeHexColor(settings.headerWash, DEFAULT_APP_SETTINGS.headerWash),

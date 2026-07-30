@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/flavor.dart';
 import '../../config/routes.dart';
 import '../../config/theme.dart';
 import '../providers/settings_provider.dart';
@@ -165,21 +166,35 @@ class _BottomNavBarState extends State<BottomNavBar>
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>().settings;
-    final items = <({IconData outline, IconData filled, String label})>[
+    final items = <({
+      IconData outline,
+      IconData filled,
+      String label,
+      String? assetIcon,
+      bool hideLabel,
+    })>[
       (
         outline: Icons.cottage_outlined,
         filled: Icons.cottage_rounded,
         label: settings.navHomeLabel,
+        assetIcon: FlavorConfig.isGrocery
+            ? 'assets/branding/grooll_mark.png'
+            : null,
+        hideLabel: FlavorConfig.isGrocery,
       ),
       (
         outline: Icons.local_florist_outlined,
         filled: Icons.local_florist_rounded,
         label: settings.navCategoriesLabel,
+        assetIcon: null,
+        hideLabel: false,
       ),
       (
         outline: Icons.receipt_long_outlined,
         filled: Icons.receipt_long_rounded,
         label: 'Orders',
+        assetIcon: null,
+        hideLabel: false,
       ),
     ];
 
@@ -243,28 +258,45 @@ class _BottomNavBarState extends State<BottomNavBar>
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  selected ? item.filled : item.outline,
-                                  color: selected
-                                      ? AppTheme.wine
-                                      : AppTheme.charcoal.withAlpha(170),
-                                  size: selected ? 21 : 19,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  item.label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: selected
-                                        ? FontWeight.w600
-                                        : FontWeight.w600,
+                                if (item.assetIcon != null)
+                                  ColorFiltered(
+                                    colorFilter: ColorFilter.mode(
+                                      selected
+                                          ? AppTheme.wine
+                                          : AppTheme.charcoal.withAlpha(170),
+                                      BlendMode.srcIn,
+                                    ),
+                                    child: Image.asset(
+                                      item.assetIcon!,
+                                      width: selected ? 72 : 68,
+                                      height: selected ? 40 : 38,
+                                      fit: BoxFit.fitWidth,
+                                      alignment: Alignment.center,
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    selected ? item.filled : item.outline,
                                     color: selected
                                         ? AppTheme.wine
                                         : AppTheme.charcoal.withAlpha(170),
+                                    size: selected ? 21 : 19,
                                   ),
-                                ),
+                                if (!item.hideLabel) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                      color: selected
+                                          ? AppTheme.wine
+                                          : AppTheme.charcoal.withAlpha(170),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),

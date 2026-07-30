@@ -1,6 +1,11 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../../config/api_endpoints.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/storage/token_storage.dart';
+import '../../core/storage/trusted_device_storage.dart';
 import '../../core/storage/user_storage.dart';
 import '../models/user.dart';
 
@@ -33,6 +38,15 @@ class OtpVerifyResult {
 
 class AuthRepository {
   const AuthRepository();
+
+  String get _platform {
+    if (kIsWeb) return 'web';
+    try {
+      if (Platform.isIOS) return 'ios';
+      if (Platform.isAndroid) return 'android';
+    } catch (_) {}
+    return 'unknown';
+  }
 
   Future<User> login({required String email, required String password}) async {
     final data = await DioClient.request<Map<String, dynamic>>(
@@ -77,14 +91,80 @@ class AuthRepository {
     );
   }
 
+  /// Try signing in with a previously trusted device (no SMS OTP).
+  Future<User?> tryTrustedLogin({required String phone}) async {
+    final deviceId = await TrustedDeviceStorage.getOrCreateDeviceId();
+    final deviceToken = await TrustedDeviceStorage.readDeviceToken();
+    final remembered = await TrustedDeviceStorage.readRememberedPhone();
+    if (deviceToken == null ||
+        deviceToken.isEmpty ||
+        remembered == null ||
+        remembered.isEmpty) {
+      return null;
+    }
+
+    final normalizedInput = _last10Digits(phone);
+    final normalizedRemembered = _last10Digits(remembered);
+    if (normalizedInput.isNotEmpty &&
+        normalizedRemembered.isNotEmpty &&
+        normalizedInput != normalizedRemembered) {
+      return null;
+    }
+
+    try {
+      final data = await DioClient.request<Map<String, dynamic>>(
+        ApiEndpoints.otpTrustedLogin,
+        method: 'POST',
+        data: {
+          'phone': remembered,
+          'deviceId': deviceId,
+          'deviceToken': deviceToken,
+        },
+        parser: (json) => json as Map<String, dynamic>,
+      );
+      return _persistSession(data);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _last10Digits(String value) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.length <= 10) return digits;
+    return digits.substring(digits.length - 10);
+  }
+
+  /// Silent trusted login using whatever phone was last remembered.
+  Future<User?> tryRememberedTrustedLogin() async {
+    final phone = await TrustedDeviceStorage.readRememberedPhone();
+    if (phone == null || phone.isEmpty) return null;
+    return tryTrustedLogin(phone: phone);
+  }
+
+  Future<String?> readRememberedPhone() =>
+      TrustedDeviceStorage.readRememberedPhone();
+
+  Future<bool> hasTrustedDeviceToken() async {
+    final token = await TrustedDeviceStorage.readDeviceToken();
+    return token != null && token.isNotEmpty;
+  }
+
+  Future<void> forgetTrustedDevice() => TrustedDeviceStorage.clearTrust();
+
   Future<OtpVerifyResult> verifyOtp({
     required String phone,
     required String code,
   }) async {
+    final deviceId = await TrustedDeviceStorage.getOrCreateDeviceId();
     final data = await DioClient.request<Map<String, dynamic>>(
       ApiEndpoints.otpVerify,
       method: 'POST',
-      data: {'phone': phone, 'code': code},
+      data: {
+        'phone': phone,
+        'code': code,
+        'deviceId': deviceId,
+        'platform': _platform,
+      },
       parser: (json) => json as Map<String, dynamic>,
     );
 
@@ -100,7 +180,7 @@ class AuthRepository {
       );
     }
 
-    final user = await _persistSession(data);
+    final user = await _persistSession(data, phoneHint: phone);
     return OtpVerifyResult.authenticated(user);
   }
 
@@ -109,6 +189,7 @@ class AuthRepository {
     required String name,
     required String email,
   }) async {
+    final deviceId = await TrustedDeviceStorage.getOrCreateDeviceId();
     final data = await DioClient.request<Map<String, dynamic>>(
       ApiEndpoints.otpCompleteSignup,
       method: 'POST',
@@ -116,6 +197,8 @@ class AuthRepository {
         'signupToken': signupToken,
         'name': name,
         'email': email,
+        'deviceId': deviceId,
+        'platform': _platform,
       },
       parser: (json) => json as Map<String, dynamic>,
     );
@@ -123,7 +206,10 @@ class AuthRepository {
     return _persistSession(data);
   }
 
-  Future<User> _persistSession(Map<String, dynamic> data) async {
+  Future<User> _persistSession(
+    Map<String, dynamic> data, {
+    String? phoneHint,
+  }) async {
     final token = data['token'] as String?;
     final userJson = data['user'] as Map<String, dynamic>?;
     if (userJson == null) {
@@ -139,6 +225,18 @@ class AuthRepository {
     await TokenStorage.writeToken(token);
     await UserStorage.writeUser(user);
 
+    final phone = (user.phone.isNotEmpty ? user.phone : phoneHint) ?? '';
+    final deviceToken = data['deviceToken'] as String?;
+    if (deviceToken != null && deviceToken.isNotEmpty && phone.isNotEmpty) {
+      await TrustedDeviceStorage.saveTrust(
+        phone: phone,
+        deviceToken: deviceToken,
+      );
+    } else if (phone.isNotEmpty) {
+      // Still remember the number for "Continue with …" on next visit.
+      await TrustedDeviceStorage.saveRememberedPhone(phone);
+    }
+
     // Verify write survived — catches storage failures early.
     final saved = await TokenStorage.readToken();
     if (saved == null || saved.isEmpty) {
@@ -149,6 +247,7 @@ class AuthRepository {
   }
 
   Future<void> logout() async {
+    // Keep trusted device so the next visit can skip OTP on this phone.
     await TokenStorage.deleteToken();
     await UserStorage.deleteUser();
   }
@@ -162,6 +261,7 @@ class AuthRepository {
     );
     await TokenStorage.deleteToken();
     await UserStorage.deleteUser();
+    await TrustedDeviceStorage.clearTrust();
   }
 
   Future<bool> isAuthenticated() async {

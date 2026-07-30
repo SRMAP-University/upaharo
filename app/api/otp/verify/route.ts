@@ -8,6 +8,10 @@ import {
   PHONE_OTP_MAX_ATTEMPTS,
   PHONE_OTP_SIGNUP_TOKEN_TTL,
 } from '@/lib/phone-otp'
+import {
+  issueTrustedDevice,
+  normalizeDeviceId,
+} from '@/lib/trusted-device'
 
 const userSelect = {
   id: true,
@@ -25,6 +29,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const phone = normalizeNepalPhone(body?.phone)
     const code = normalizePhoneOtpInput(body?.code ?? body?.otp)
+    const deviceId = normalizeDeviceId(body?.deviceId)
+    const platform =
+      typeof body?.platform === 'string' ? body.platform : null
 
     if (!phone) {
       return NextResponse.json(
@@ -81,11 +88,29 @@ export async function POST(request: NextRequest) {
 
     if (user) {
       const token = await signToken({ userId: user.id, email: user.email })
-      return NextResponse.json({ user, token, needsSignup: false })
+      let deviceToken: string | undefined
+      let deviceExpiresAt: string | undefined
+      if (deviceId) {
+        const trusted = await issueTrustedDevice({
+          userId: user.id,
+          phone,
+          deviceId,
+          platform,
+        })
+        deviceToken = trusted.deviceToken
+        deviceExpiresAt = trusted.expiresAt.toISOString()
+      }
+      return NextResponse.json({
+        user,
+        token,
+        needsSignup: false,
+        deviceToken,
+        deviceExpiresAt,
+      })
     }
 
     const signupToken = await signToken(
-      { phone, purpose: 'otp_signup' },
+      { phone, purpose: 'otp_signup', deviceId: deviceId ?? undefined },
       PHONE_OTP_SIGNUP_TOKEN_TTL
     )
 

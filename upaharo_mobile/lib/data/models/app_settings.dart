@@ -84,6 +84,8 @@ class AppSettings {
   final String homepageRecommendationMode;
   final String homepageRecommendationTitle;
   final List<HomeSectionConfig> homeSectionLayout;
+  /// Ordered category ids for sticky header. Empty = all PRODUCT (catalog order).
+  final List<String> headerCategoryIds;
   final String brandPrimary;
   final String brandSecondary;
   final String headerWash;
@@ -147,6 +149,7 @@ class AppSettings {
     this.homepageRecommendationMode = 'LATEST',
     this.homepageRecommendationTitle = 'Latest Arrivals',
     this.homeSectionLayout = defaultHomeSections,
+    this.headerCategoryIds = const [],
     this.brandPrimary = '#8B5A2B',
     this.brandSecondary = '#D4AF37',
     this.headerWash = '#F7F0E8',
@@ -314,6 +317,12 @@ class AppSettings {
       homepageRecommendationTitle:
           json['homepageRecommendationTitle'] as String? ?? 'Latest Arrivals',
       homeSectionLayout: _parseSections(json['homeSectionLayout']),
+      headerCategoryIds:
+          (json['headerCategoryIds'] as List<dynamic>?)
+              ?.map((e) => e.toString().trim())
+              .where((id) => id.isNotEmpty)
+              .toList() ??
+          const [],
       brandPrimary: json['brandPrimary'] as String? ?? '#8B5A2B',
       brandSecondary: json['brandSecondary'] as String? ?? '#D4AF37',
       headerWash: json['headerWash'] as String? ?? '#F7F0E8',
@@ -390,6 +399,7 @@ class AppSettings {
     'homepageRecommendationMode': homepageRecommendationMode,
     'homepageRecommendationTitle': homepageRecommendationTitle,
     'homeSectionLayout': homeSectionLayout.map((e) => e.toJson()).toList(),
+    'headerCategoryIds': headerCategoryIds,
     'brandPrimary': brandPrimary,
     'brandSecondary': brandSecondary,
     'headerWash': headerWash,

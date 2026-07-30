@@ -18,33 +18,48 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
   String? _otpSignupToken;
   String? _otpVerifiedPhone;
+  String? _rememberedPhone;
 
   AuthStatus get status => _status;
   User? get user => _user;
   String? get errorMessage => _errorMessage;
   String? get otpSignupToken => _otpSignupToken;
   String? get otpVerifiedPhone => _otpVerifiedPhone;
+  String? get rememberedPhone => _rememberedPhone;
   bool get needsOtpSignup =>
       _otpSignupToken != null && _otpSignupToken!.isNotEmpty;
 
   bool get isAuthenticated =>
       _status == AuthStatus.authenticated || _user != null;
 
-  /// Called on splash — restores token + user from local storage.
+  /// Called on splash — restores JWT, or falls back to trusted-device login.
   Future<void> checkAuth() async {
     _setStatus(AuthStatus.loading);
     try {
+      _rememberedPhone = await _authRepository.readRememberedPhone();
+
       final hasToken = await _authRepository.isAuthenticated();
-      if (!hasToken) {
-        _user = null;
-        _setStatus(AuthStatus.unauthenticated);
+      if (hasToken) {
+        _user = await _authRepository.restoreSession();
+        _errorMessage = null;
+        _setStatus(AuthStatus.authenticated);
+        await PushNotificationService.instance.syncTokenWithBackend();
         return;
       }
 
-      _user = await _authRepository.restoreSession();
-      _errorMessage = null;
-      _setStatus(AuthStatus.authenticated);
-      await PushNotificationService.instance.syncTokenWithBackend();
+      // No JWT (expired session / logged out) — try remembered device.
+      final trusted = await _authRepository.tryRememberedTrustedLogin();
+      if (trusted != null) {
+        _user = trusted;
+        _errorMessage = null;
+        _rememberedPhone = await _authRepository.readRememberedPhone();
+        _setStatus(AuthStatus.authenticated);
+        await PushNotificationService.instance.syncTokenWithBackend();
+        return;
+      }
+
+      _user = null;
+      _setStatus(AuthStatus.unauthenticated);
     } catch (e) {
       if (kDebugMode) debugPrint('checkAuth failed: $e');
       _user = null;
@@ -95,6 +110,51 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Prefer trusted-device login. Never auto-sends SMS when a device token exists.
+  /// Returns:
+  /// - authenticated user via [AuthProvider] when trust works
+  /// - OTP send result when no trust exists yet
+  /// - `needsManualOtp: true` when trust exists but failed (caller must ask before SMS)
+  Future<({int expiresIn, int resendIn, bool needsManualOtp})?> sendOtpOrTrusted({
+    required String phone,
+  }) async {
+    _setStatus(AuthStatus.loading);
+    try {
+      final hasTrust = await _authRepository.hasTrustedDeviceToken();
+      if (hasTrust) {
+        final trusted = await _authRepository.tryTrustedLogin(phone: phone);
+        if (trusted != null) {
+          _user = trusted;
+          _errorMessage = null;
+          _clearOtpSignup();
+          _rememberedPhone = await _authRepository.readRememberedPhone();
+          _setStatus(AuthStatus.authenticated);
+          await PushNotificationService.instance.syncTokenWithBackend();
+          return null;
+        }
+        // Trust token present but server rejected — do NOT burn an SMS.
+        _errorMessage =
+            'Could not sign in on this device. Tap “Send OTP” only if you need a new code.';
+        _setStatus(AuthStatus.error);
+        return (expiresIn: 0, resendIn: 0, needsManualOtp: true);
+      }
+
+      final result = await _authRepository.sendOtp(phone: phone);
+      _errorMessage = null;
+      _clearOtpSignup();
+      _setStatus(AuthStatus.unauthenticated);
+      return (
+        expiresIn: result.expiresIn,
+        resendIn: result.resendIn,
+        needsManualOtp: false,
+      );
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setStatus(AuthStatus.error);
+      return null;
+    }
+  }
+
   Future<({int expiresIn, int resendIn})?> sendOtp({
     required String phone,
   }) async {
@@ -133,6 +193,7 @@ class AuthProvider extends ChangeNotifier {
 
       _user = result.user;
       _clearOtpSignup();
+      _rememberedPhone = await _authRepository.readRememberedPhone();
       _setStatus(AuthStatus.authenticated);
       await PushNotificationService.instance.syncTokenWithBackend();
       return true;
@@ -163,6 +224,7 @@ class AuthProvider extends ChangeNotifier {
       );
       _errorMessage = null;
       _clearOtpSignup();
+      _rememberedPhone = await _authRepository.readRememberedPhone();
       _setStatus(AuthStatus.authenticated);
       await PushNotificationService.instance.syncTokenWithBackend();
       return true;
@@ -171,6 +233,18 @@ class AuthProvider extends ChangeNotifier {
       _setStatus(AuthStatus.error);
       return false;
     }
+  }
+
+  Future<void> forgetThisDevice() async {
+    await _authRepository.forgetTrustedDevice();
+    _rememberedPhone = null;
+    notifyListeners();
+  }
+
+  Future<String?> readRememberedPhoneSafe() async {
+    _rememberedPhone = await _authRepository.readRememberedPhone();
+    notifyListeners();
+    return _rememberedPhone;
   }
 
   void clearOtpSignupState() {
@@ -191,6 +265,7 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _errorMessage = null;
     _clearOtpSignup();
+    _rememberedPhone = await _authRepository.readRememberedPhone();
     _setStatus(AuthStatus.unauthenticated);
   }
 
@@ -202,6 +277,7 @@ class AuthProvider extends ChangeNotifier {
       _user = null;
       _errorMessage = null;
       _clearOtpSignup();
+      _rememberedPhone = null;
       _setStatus(AuthStatus.unauthenticated);
       return true;
     } catch (e) {

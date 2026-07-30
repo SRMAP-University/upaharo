@@ -38,10 +38,13 @@ class FlavorConfig {
   static bool get isGrocery => storeSlug == 'grocery';
   static bool get isGifts => !isGrocery;
 
-  static String get appName => isGrocery ? 'Upaharo Grocery' : 'Upaharo';
+  static String get appName => isGrocery ? 'grooll' : 'Upaharo';
   static String get tagline => isGrocery
-      ? 'Fresh essentials, delivered'
+      ? 'Fresh groceries, delivered'
       : 'Gifts for every occasion';
+
+  /// Brand green from the grooll logo (`#59BA2F`) — splash / grocery chrome.
+  static const int groollGreenValue = 0xFF59BA2F;
   static String get websiteDomain =>
       isGrocery ? 'grocery.upaharo.com' : 'www.upaharo.com';
   static String get shareDomain => isGrocery

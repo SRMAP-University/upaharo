@@ -101,6 +101,11 @@ export type PublicAppSettings = {
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   homeSectionLayout: HomeSectionConfig[]
+  /**
+   * Ordered category ids for the sticky home header strip.
+   * Empty = show all active PRODUCT categories (A–Z).
+   */
+  headerCategoryIds: string[]
   brandPrimary: string
   brandSecondary: string
   headerWash: string
@@ -176,6 +181,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: 'Latest Arrivals',
   homeSectionLayout: DEFAULT_HOME_SECTIONS,
+  headerCategoryIds: [],
   brandPrimary: '#8B5A2B',
   brandSecondary: '#D4AF37',
   headerWash: '#F7F0E8',
@@ -440,6 +446,23 @@ export function normalizeValueDealsProductIds(raw: unknown): string[] {
     if (!id || ids.includes(id)) continue
     ids.push(id)
     if (ids.length >= 40) break
+  }
+  return ids
+}
+
+/**
+ * Ordered category ids for the sticky home header.
+ * Empty = app shows all active PRODUCT categories (A–Z). Cap at 80.
+ */
+export function normalizeHeaderCategoryIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const ids: string[] = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const id = item.trim()
+    if (!id || ids.includes(id)) continue
+    ids.push(id)
+    if (ids.length >= 80) break
   }
   return ids
 }

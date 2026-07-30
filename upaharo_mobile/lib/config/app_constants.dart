@@ -26,4 +26,7 @@ class AppConstants {
   static const String userKey = 'auth_user';
   static const String cartKey = 'cart_items';
   static const String locationKey = 'delivery_location';
+  static const String deviceIdKey = 'trusted_device_id';
+  static const String trustedDeviceTokenKey = 'trusted_device_token';
+  static const String trustedPhoneKey = 'trusted_phone';
 }

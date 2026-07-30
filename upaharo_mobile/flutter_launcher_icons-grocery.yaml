@@ -1,0 +1,10 @@
+# Grooll (grocery flavor) launcher icons — run:
+#   dart run flutter_launcher_icons -f flutter_launcher_icons-grocery.yaml
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/grooll_icon.png
+  adaptive_icon_background: "#59BA2F"
+  adaptive_icon_foreground: assets/icon/grooll_icon.png
+  # Write into the grocery product flavor source set
+  flavor: grocery

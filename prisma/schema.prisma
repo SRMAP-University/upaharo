@@ -35,6 +35,7 @@ model User {
   walletAccounts     WalletAccount[]
   walletTransactions WalletTransaction[]
   wishlistItems      WishlistItem[]
+  trustedDevices    TrustedDevice[]
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -170,6 +171,28 @@ model PhoneOtp {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([expiresAt])
+}
+
+/// Long-lived phone ↔ device trust so returning phones can skip OTP.
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone      String
+  /// Stable client-generated id for this install (UUID).
+  deviceId   String
+  /// sha256 of the secret device token stored on the phone.
+  tokenHash  String
+  platform   String?
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([deviceId, phone])
+  @@index([userId])
+  @@index([phone])
   @@index([expiresAt])
 }
 
@@ -767,6 +790,8 @@ model AppSettings {
   homepageRecommendationTitle  String?
   /// Ordered mobile home sections: `[{ id, title, subtitle, visible }]`.
   homeSectionLayout            Json?
+  /// Ordered category ids for the sticky home header. Empty = all PRODUCT (A–Z).
+  headerCategoryIds            String[] @default([])
   /// Mobile brand primary (buttons / accents), hex `#RRGGBB`.
   brandPrimary                 String   @default("#8B5A2B")
   /// Mobile brand secondary (gold accents), hex `#RRGGBB`.

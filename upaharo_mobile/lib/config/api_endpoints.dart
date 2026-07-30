@@ -116,8 +116,12 @@ class ApiEndpoints {
   static const String otpVerify = '/api/otp/verify';
 
   /// Complete first-time OTP signup after phone verify.
-  /// Body: { signupToken, name, email } -> { user, token }
+  /// Body: { signupToken, name, email, deviceId?, platform? } -> { user, token, deviceToken? }
   static const String otpCompleteSignup = '/api/otp/complete-signup';
+
+  /// Skip OTP using a previously trusted phone↔device pair.
+  /// Body: { phone, deviceId, deviceToken } -> { user, token, trusted: true }
+  static const String otpTrustedLogin = '/api/otp/trusted-login';
 
   /// NextAuth session endpoint (used by the web OAuth flow).
   /// GET -> NextAuth session object

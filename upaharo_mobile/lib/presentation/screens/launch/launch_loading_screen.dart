@@ -6,13 +6,15 @@ import 'package:provider/provider.dart';
 import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/banner_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/mini_banner_provider.dart';
 import '../../providers/settings_provider.dart';
 
-/// Cold-start branded loading screen with floating product illustrations.
-/// Preloads catalog/settings, then replaces itself with [AppRoutes.main].
+/// Cold-start branded loading screen.
+/// Grocery (grooll): solid brand green + logo.
+/// Gifts: soft wash + floating gift illustrations.
 class LaunchLoadingScreen extends StatefulWidget {
   const LaunchLoadingScreen({super.key});
 
@@ -24,6 +26,7 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     with TickerProviderStateMixin {
   static const _minShow = Duration(milliseconds: 1400);
   static const _maxWait = Duration(seconds: 8);
+  static const _groollGreen = Color(FlavorConfig.groollGreenValue);
 
   late final AnimationController _floatCtrl;
   late final AnimationController _fadeCtrl;
@@ -55,12 +58,14 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     final settings = context.read<SettingsProvider>();
     final banners = context.read<BannerProvider>();
     final mini = context.read<MiniBannerProvider>();
+    final auth = context.read<AuthProvider>();
 
     await Future.wait([
       settings.load().catchError((_) {}),
       catalog.load().catchError((_) {}),
       banners.load().catchError((_) {}),
       mini.load().catchError((_) {}),
+      auth.checkAuth().catchError((_) {}),
       Future<void>.delayed(_minShow),
     ]).timeout(
       _maxWait,
@@ -73,7 +78,9 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     }
     if (!mounted || _navigated) return;
     _navigated = true;
-    Navigator.of(context).pushReplacementNamed(AppRoutes.main);
+    // Logged-out users land on login first; guest browse is still available there.
+    final next = auth.isAuthenticated ? AppRoutes.main : AppRoutes.login;
+    Navigator.of(context).pushReplacementNamed(next);
   }
 
   @override
@@ -86,7 +93,64 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final grocery = FlavorConfig.isGrocery;
+    if (FlavorConfig.isGrocery) {
+      return _buildGroollSplash();
+    }
+    return _buildGiftsSplash();
+  }
+
+  Widget _buildGroollSplash() {
+    return Scaffold(
+      backgroundColor: _groollGreen,
+      body: FadeTransition(
+        opacity: CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut),
+        child: SafeArea(
+          child: Column(
+            children: [
+              const Spacer(flex: 3),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: AnimatedBuilder(
+                  animation: _pulseCtrl,
+                  builder: (context, child) {
+                    final scale = 0.97 + (_pulseCtrl.value * 0.03);
+                    return Transform.scale(scale: scale, child: child);
+                  },
+                  child: Image.asset(
+                    'assets/branding/grooll_logo.png',
+                    fit: BoxFit.contain,
+                    width: MediaQuery.sizeOf(context).width * 0.72,
+                  ),
+                ),
+              ),
+              const Spacer(flex: 2),
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.6,
+                  color: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: 0.25),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Loading fresh picks…',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGiftsSplash() {
     final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
@@ -96,7 +160,6 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Soft atmosphere
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -110,31 +173,22 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
                 ),
               ),
             ),
-            // Floating product illustrations
             AnimatedBuilder(
               animation: Listenable.merge([_floatCtrl, _pulseCtrl]),
               builder: (context, _) {
                 final t = _floatCtrl.value;
                 final pulse = 0.92 + (_pulseCtrl.value * 0.08);
                 return CustomPaint(
-                  painter: grocery
-                      ? _GroceryProductsPainter(
-                          t: t,
-                          pulse: pulse,
-                          primary: AppTheme.wine,
-                          accent: AppTheme.gold,
-                        )
-                      : _GiftProductsPainter(
-                          t: t,
-                          pulse: pulse,
-                          primary: AppTheme.wine,
-                          accent: AppTheme.gold,
-                        ),
+                  painter: _GiftProductsPainter(
+                    t: t,
+                    pulse: pulse,
+                    primary: AppTheme.wine,
+                    accent: AppTheme.gold,
+                  ),
                   size: size,
                 );
               },
             ),
-            // Brand + loader
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(28, 36, 28, 40),
@@ -174,7 +228,7 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
                     ),
                     const SizedBox(height: 14),
                     Text(
-                      grocery ? 'Loading fresh picks…' : 'Loading gifts…',
+                      'Loading gifts…',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -192,180 +246,7 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
   }
 }
 
-// ─── Grocery produce illustrations ───────────────────────────────────────────
-
-class _GroceryProductsPainter extends CustomPainter {
-  _GroceryProductsPainter({
-    required this.t,
-    required this.pulse,
-    required this.primary,
-    required this.accent,
-  });
-
-  final double t;
-  final double pulse;
-  final Color primary;
-  final Color accent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final bob = (t - 0.5) * 18;
-
-    _apple(canvas, Offset(w * 0.18, h * 0.28 + bob), 34 * pulse, primary);
-    _bottle(canvas, Offset(w * 0.78, h * 0.26 - bob * 0.7), 40 * pulse, accent);
-    _bread(canvas, Offset(w * 0.72, h * 0.52 + bob * 0.5), 42 * pulse, primary);
-    _leafy(canvas, Offset(w * 0.22, h * 0.55 - bob * 0.4), 36 * pulse, const Color(0xFF4A7C59));
-    _cart(canvas, Offset(w * 0.50, h * 0.38 + bob * 0.3), 48 * pulse, primary);
-    _orange(canvas, Offset(w * 0.36, h * 0.68 + bob * 0.6), 22 * pulse);
-    _milk(canvas, Offset(w * 0.62, h * 0.70 - bob * 0.5), 30 * pulse);
-  }
-
-  void _apple(Canvas c, Offset o, double r, Color color) {
-    final body = Paint()..color = Color.lerp(const Color(0xFFE85D4C), color, 0.15)!;
-    c.drawCircle(o, r, body);
-    c.drawCircle(o.translate(-r * 0.25, -r * 0.2), r * 0.35, Paint()..color = Colors.white.withValues(alpha: 0.25));
-    final stem = Paint()
-      ..color = const Color(0xFF5D4037)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    c.drawLine(o.translate(0, -r * 0.85), o.translate(2, -r * 1.15), stem);
-    final leaf = Path()
-      ..moveTo(o.dx + 2, o.dy - r)
-      ..quadraticBezierTo(o.dx + r * 0.7, o.dy - r * 1.3, o.dx + r * 0.55, o.dy - r * 0.7)
-      ..quadraticBezierTo(o.dx + r * 0.2, o.dy - r * 0.85, o.dx + 2, o.dy - r);
-    c.drawPath(leaf, Paint()..color = const Color(0xFF66BB6A));
-  }
-
-  void _bottle(Canvas c, Offset o, double h, Color accent) {
-    final w = h * 0.38;
-    final r = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: o, width: w, height: h),
-      const Radius.circular(10),
-    );
-    c.drawRRect(r, Paint()..color = const Color(0xFFE8F5E9));
-    c.drawRRect(r, Paint()
-      ..color = const Color(0xFF81C784).withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2);
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: o.translate(0, -h * 0.55), width: w * 0.45, height: h * 0.22),
-        const Radius.circular(4),
-      ),
-      Paint()..color = accent.withValues(alpha: 0.85),
-    );
-    c.drawCircle(o.translate(0, h * 0.08), w * 0.22, Paint()..color = const Color(0xFF66BB6A));
-  }
-
-  void _bread(Canvas c, Offset o, double w, Color primary) {
-    final h = w * 0.55;
-    final loaf = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: o, width: w, height: h),
-      Radius.circular(h * 0.45),
-    );
-    c.drawRRect(loaf, Paint()..color = const Color(0xFFE8C07A));
-    c.drawRRect(loaf, Paint()
-      ..color = primary.withValues(alpha: 0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5);
-    final score = Paint()
-      ..color = const Color(0xFFC49A5A)
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round;
-    for (var i = -1; i <= 1; i++) {
-      c.drawLine(
-        o.translate(i * w * 0.18, -h * 0.12),
-        o.translate(i * w * 0.18 + 4, h * 0.08),
-        score,
-      );
-    }
-  }
-
-  void _leafy(Canvas c, Offset o, double r, Color green) {
-    for (var i = 0; i < 5; i++) {
-      final a = -math.pi / 2 + (i - 2) * 0.35;
-      final tip = Offset(o.dx + math.cos(a) * r, o.dy + math.sin(a) * r * 0.9);
-      final path = Path()
-        ..moveTo(o.dx, o.dy + r * 0.2)
-        ..quadraticBezierTo(
-          o.dx + math.cos(a) * r * 0.4,
-          o.dy + math.sin(a) * r * 0.2,
-          tip.dx,
-          tip.dy,
-        )
-        ..quadraticBezierTo(
-          o.dx + math.cos(a + 0.4) * r * 0.35,
-          o.dy + math.sin(a + 0.4) * r * 0.15,
-          o.dx,
-          o.dy + r * 0.2,
-        );
-      c.drawPath(path, Paint()..color = Color.lerp(green, Colors.white, i * 0.08)!);
-    }
-  }
-
-  void _cart(Canvas c, Offset o, double s, Color primary) {
-    final paint = Paint()
-      ..color = primary
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-    final basket = Path()
-      ..moveTo(o.dx - s * 0.35, o.dy - s * 0.15)
-      ..lineTo(o.dx - s * 0.28, o.dy + s * 0.22)
-      ..lineTo(o.dx + s * 0.28, o.dy + s * 0.22)
-      ..lineTo(o.dx + s * 0.38, o.dy - s * 0.22)
-      ..lineTo(o.dx - s * 0.42, o.dy - s * 0.22);
-    c.drawPath(basket, paint);
-    c.drawCircle(o.translate(-s * 0.16, s * 0.38), s * 0.08, Paint()..color = primary);
-    c.drawCircle(o.translate(s * 0.16, s * 0.38), s * 0.08, Paint()..color = primary);
-    // Items peeking out
-    c.drawCircle(o.translate(-s * 0.08, -s * 0.28), s * 0.12, Paint()..color = const Color(0xFFE85D4C));
-    c.drawCircle(o.translate(s * 0.12, -s * 0.32), s * 0.1, Paint()..color = const Color(0xFFFFB74D));
-  }
-
-  void _orange(Canvas c, Offset o, double r) {
-    c.drawCircle(o, r, Paint()..color = const Color(0xFFFF9800));
-    c.drawCircle(o.translate(-r * 0.25, -r * 0.2), r * 0.28, Paint()..color = Colors.white.withValues(alpha: 0.28));
-  }
-
-  void _milk(Canvas c, Offset o, double h) {
-    final w = h * 0.55;
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: o, width: w, height: h),
-        const Radius.circular(6),
-      ),
-      Paint()..color = Colors.white,
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: o, width: w, height: h),
-        const Radius.circular(6),
-      ),
-      Paint()
-        ..color = const Color(0xFF90CAF9)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    c.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: o.translate(0, -h * 0.42), width: w * 0.7, height: h * 0.18),
-        const Radius.circular(3),
-      ),
-      Paint()..color = const Color(0xFF64B5F6),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _GroceryProductsPainter oldDelegate) =>
-      oldDelegate.t != t || oldDelegate.pulse != pulse;
-}
-
-// ─── Gift product illustrations ──────────────────────────────────────────────
+// ─── Gift product illustrations (gifts flavor only) ──────────────────────────
 
 class _GiftProductsPainter extends CustomPainter {
   _GiftProductsPainter({
@@ -408,7 +289,6 @@ class _GiftProductsPainter extends CustomPainter {
       Rect.fromCenter(center: o.translate(0, -s * 0.08), width: s, height: s * 0.16),
       Paint()..color = gold,
     );
-    // Bow
     c.drawCircle(o.translate(-s * 0.16, -s * 0.48), s * 0.14, Paint()..color = gold);
     c.drawCircle(o.translate(s * 0.16, -s * 0.48), s * 0.14, Paint()..color = gold);
     c.drawCircle(o.translate(0, -s * 0.42), s * 0.08, Paint()..color = wine);
@@ -443,7 +323,6 @@ class _GiftProductsPainter extends CustomPainter {
       Rect.fromCenter(center: o.translate(0, -h * 0.05), width: w * 0.9, height: h * 0.12),
       Paint()..color = accent.withValues(alpha: 0.75),
     );
-    // Candle
     c.drawRect(
       Rect.fromCenter(center: o.translate(0, -h * 0.55), width: 3, height: h * 0.22),
       Paint()..color = const Color(0xFFFFFDE7),

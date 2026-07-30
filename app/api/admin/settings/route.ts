@@ -6,6 +6,7 @@ import {
   DEFAULT_APP_SETTINGS,
   normalizeDeliverySlots,
   normalizeDensity,
+  normalizeHeaderCategoryIds,
   normalizeHexColor,
   normalizeHomeSections,
   normalizeOptionalAmount,
@@ -222,6 +223,7 @@ function settingsPayload(body: Record<string, unknown>) {
     homepageRecommendationTitle:
       String(body?.homepageRecommendationTitle || DEFAULT_APP_SETTINGS.homepageRecommendationTitle).trim(),
     homeSectionLayout: normalizeHomeSections(body?.homeSectionLayout),
+    headerCategoryIds: normalizeHeaderCategoryIds(body?.headerCategoryIds),
     ...appearanceFields(body),
     ...productCardFields(body),
     ...navigationFields(body),
@@ -249,6 +251,7 @@ export async function GET(request: NextRequest) {
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
+      headerCategoryIds: normalizeHeaderCategoryIds(settings?.headerCategoryIds),
       deliverySlots: normalizeDeliverySlots(settings?.deliverySlots),
       ...normalizeScheduleDays(
         settings?.scheduleDayCount,

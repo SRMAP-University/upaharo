@@ -342,6 +342,10 @@ class _HomeScreenState extends State<HomeScreen>
                 .toList(),
             products: catalog.products,
           );
+          final headerCategories = resolveHeaderCategories(
+            data.categories,
+            orderedIds: appSettings.headerCategoryIds,
+          );
           final products = data.products;
           final groups = _groupByCategory(products);
           final topInset = MediaQuery.paddingOf(context).top;
@@ -426,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ? user!.name.trim()[0].toUpperCase()
                       : null,
                   walletBalance: _wallet.enabled ? _wallet.balance : null,
-                  categories: data.categories,
+                  categories: headerCategories,
                   selectedTab: _selectedTab,
                   // All → banner wash; category tabs → header-only tint that
                   // fades down into cream (same as before). Painted via
@@ -440,7 +444,7 @@ class _HomeScreenState extends State<HomeScreen>
                   coupons: coupons.coupons,
                   banners: banners.banners,
                   promoProducts: products.take(5).toList(),
-                  onSelectTab: (i) => _onSelectTab(i, data.categories),
+                  onSelectTab: (i) => _onSelectTab(i, headerCategories),
                   onSearchTap: _openSearch,
                   onAiTap: _openAiChat,
                   showAiAssistant: appSettings.featureAiAssistant,
@@ -461,6 +465,7 @@ class _HomeScreenState extends State<HomeScreen>
               ),
               ..._buildFeed(
                 data: data,
+                headerCategories: headerCategories,
                 products: products,
                 groups: groups,
                 settings: appSettings,
@@ -494,6 +499,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   List<Widget> _buildFeed({
     required HomeData data,
+    required List<Category> headerCategories,
     required List<Product> products,
     required Map<String, List<Product>> groups,
     required AppSettings settings,
@@ -513,12 +519,12 @@ class _HomeScreenState extends State<HomeScreen>
     // Category tab: products for that category only (fetched by categoryId).
     // Never fall back to the full home list — that made every tab look like Cakes.
     final categoryScoped =
-        _selectedTab > 0 && _selectedTab <= data.categories.length;
+        _selectedTab > 0 && _selectedTab <= headerCategories.length;
     Category? activeCategory;
     var categoryLoading = false;
     List<Product> pool;
     if (categoryScoped) {
-      activeCategory = data.categories[_selectedTab - 1];
+      activeCategory = headerCategories[_selectedTab - 1];
       final catalog = context.watch<CatalogProvider>();
       categoryLoading = catalog.isCategoryLoading(activeCategory.id);
       final cached = catalog.cachedProductsForCategory(activeCategory.id);
