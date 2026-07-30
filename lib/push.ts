@@ -66,7 +66,7 @@ function parseServiceAccountJson(raw: string): Record<string, unknown> {
     trimmed.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/^"|"$/g, ''),
   ]
 
-  // Prefer base64 for Vercel / local dotenv (no quote escaping issues)
+  // Prefer base64 for env files (no quote escaping issues)
   try {
     const decoded = Buffer.from(trimmed, 'base64').toString('utf8')
     if (decoded.trim().startsWith('{')) {

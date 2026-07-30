@@ -205,7 +205,7 @@ npx tsx prisma/seed.ts
 
 ### Performance
 - **Server Components**: Reduced JavaScript bundle size
-- **Edge Rendering**: Fast global delivery via Vercel Edge
+- **EC2 + Cloudflare**: Production behind Cloudflare DNS to AWS EC2
 - **Image Optimization**: Next.js Image component
 - **Code Splitting**: Automatic route-based splitting
 
@@ -235,19 +235,18 @@ Once deployed:
 3. App appears on home screen
 4. Works offline with cached data
 
-## 🌐 Deployment Options
+## 🌐 Deployment
 
-### Vercel (Recommended)
+### Production (AWS EC2)
+
+Push to `main` to deploy. See `AGENTS.md` and `scripts/deploy-ec2.sh`.
+
 ```bash
-vercel
-# Automatic deployment with edge optimization
+# On the EC2 host (manual)
+bash /home/ubuntu/upaharo/scripts/deploy-ec2.sh
 ```
 
-### Other Platforms
-- Netlify
-- AWS Amplify
-- Railway
-- Render
+Do **not** deploy this app to Netlify or Vercel.
 
 ## 🔍 Troubleshooting
 

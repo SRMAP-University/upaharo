@@ -1,0 +1,25 @@
+---
+description: Production hosting is AWS EC2 only — never Netlify or Vercel
+alwaysApply: true
+---
+
+# Production = AWS EC2
+
+**www.upaharo.com / upaharo.com production runs on AWS EC2 (Next.js + PM2), behind Cloudflare DNS.**
+
+## Deploy
+
+- Push to `main` → GitHub Action `Deploy to EC2` (SSH) runs `scripts/deploy-ec2.sh`
+- Fallback: EC2 systemd timer `scripts/systemd/upaharo-deploy-poll.timer` polls git every ~2 minutes
+- Manual on server: `bash /home/ubuntu/upaharo/scripts/deploy-ec2.sh`
+
+## Do NOT
+
+- Deploy to, link, or configure **Netlify** or **Vercel**
+- Suggest `netlify deploy`, `vercel --prod`, Netlify Functions, or Vercel Cron
+- Treat `netlify.toml` / `vercel.json` as active (they must not exist in this repo)
+- Use Netlify-specific response headers (`Netlify-Vary`, `Netlify-CDN-Cache-Control`, etc.)
+
+## Caching / headers
+
+Use standard HTTP headers only (`Cache-Control`, `Vary`). Storefront APIs must `Vary` on `X-Store` (and `Cookie` for admin).

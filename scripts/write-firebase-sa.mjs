@@ -1,6 +1,6 @@
 /**
  * Generate lib/firebase-sa.generated.ts from FIREBASE_SERVICE_ACCOUNT_JSON
- * so Netlify Functions stay under the Lambda 4KB env limit.
+ * so the service account is baked into the build instead of a huge env var.
  */
 import fs from 'fs'
 import path from 'path'

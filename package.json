@@ -11,8 +11,6 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "backup:r2": "tsx --env-file=.env.local scripts/backup-to-r2.ts",
-    "netlify:env": "tsx scripts/sync-env-to-netlify.ts",
-    "netlify:deploy": "netlify deploy --prod",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && wrangler dev",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
@@ -45,7 +43,6 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
-    "@netlify/functions": "^4.2.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22",
     "@types/pg": "^8.18.0",
@@ -53,7 +50,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^15.1.6",
-    "netlify-cli": "^23.0.0",
     "postcss": "^8",
     "prisma": "^6.19.2",
     "tailwindcss": "^3.4.1",

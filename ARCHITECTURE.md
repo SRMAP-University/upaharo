@@ -312,8 +312,8 @@ Benefits:
    ├── Cart data - 1 day
    └── Product catalog - 5 minutes
 
-4. Edge Network Cache (Vercel)
-   └── Static pages - Until invalidated
+4. CDN / reverse proxy (Cloudflare → EC2)
+   └── Static assets when configured
 
 5. Database Connection Pool
    └── Prisma connection pooling
@@ -352,36 +352,27 @@ Benefits:
 
 ## Deployment Architecture
 
-### Production Stack (Vercel)
+### Production Stack (AWS EC2)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   Deployment Pipeline                    │
 └─────────────────────────────────────────────────────────┘
 
-GitHub Repository
+GitHub Repository (push to main)
       ↓
-Vercel Auto-Deploy
+GitHub Actions → SSH → scripts/deploy-ec2.sh
+  (fallback: systemd poll timer on the instance)
       ↓
 ┌─────────────────────┐
-│   Build Process     │
+│   Build on EC2      │
 ├─────────────────────┤
-│ 1. npm install      │
-│ 2. Prisma generate  │
-│ 3. next build       │
-│ 4. PWA generation   │
+│ 1. npm ci           │
+│ 2. npm run build    │
+│ 3. pm2 restart      │
 └─────────────────────┘
       ↓
-┌─────────────────────────────────────────┐
-│        Edge Network Deployment          │
-├─────────────────────────────────────────┤
-│  ├── Static assets → CDN                │
-│  ├── API routes → Edge Functions        │
-│  ├── Server Components → Edge SSR       │
-│  └── Client bundles → Edge cache        │
-└─────────────────────────────────────────┘
-      ↓
-Global Distribution (100+ edge locations)
+Cloudflare DNS → EC2 (Next.js + PM2 on :3000)
 ```
 
 ## Scalability Considerations
@@ -390,7 +381,7 @@ Global Distribution (100+ edge locations)
 
 ```
 Current Architecture (MVP)
-├── Single Next.js server
+├── Single Next.js server on EC2
 ├── Neon PostgreSQL (auto-scaling)
 └── Redis (single instance)
 
@@ -413,7 +404,7 @@ Future Scale (High Traffic)
 └─────────────────────────────────────────────────────────┘
 
 Application Performance
-├── Vercel Analytics
+├── Server / PM2 metrics
 ├── Core Web Vitals tracking
 └── Error tracking (Sentry)
 

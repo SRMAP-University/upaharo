@@ -37,7 +37,7 @@ yarn-error.log*
 lib/firebase-sa.generated.ts
 firebase-sa.json
 
-# Vercel / Netlify local link state
+# Local platform link state (unused — production is EC2)
 .vercel
 .netlify
 
