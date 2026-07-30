@@ -49,6 +49,15 @@ export async function GET(request: NextRequest) {
             longitude: true
           }
         },
+        deliveryPartner: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleType: true,
+            vehicleNumber: true,
+          },
+        },
         recipient: {
           select: {
             name: true,

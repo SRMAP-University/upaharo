@@ -75,7 +75,6 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Create user and seller in a transaction
     const seller = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -84,6 +83,16 @@ export async function POST(request: Request) {
           phone,
           password: hashedPassword,
           role: 'SELLER',
+        },
+      })
+
+      await tx.partnerAccess.create({
+        data: {
+          userId: user.id,
+          sellerEnabled: true,
+          deliveryEnabled: false,
+          giftsEnabled: true,
+          groceryEnabled: false,
         },
       })
 

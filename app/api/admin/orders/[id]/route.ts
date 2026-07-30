@@ -97,6 +97,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.estimatedTime = Math.round(estimatedTime)
     }
 
+    // Admin assign / unassign delivery partner (hybrid model)
+    if (body.deliveryPartnerId !== undefined) {
+      if (body.deliveryPartnerId === null || body.deliveryPartnerId === '') {
+        updateData.deliveryPartnerId = null
+      } else {
+        const rider = await prisma.deliveryPartner.findUnique({
+          where: { id: String(body.deliveryPartnerId) },
+          select: { id: true },
+        })
+        if (!rider) {
+          return NextResponse.json(
+            { error: 'Delivery partner not found' },
+            { status: 400 }
+          )
+        }
+        updateData.deliveryPartnerId = rider.id
+        // If still READY, move to OUT_FOR_DELIVERY on assign
+        if (
+          (!nextStatus || nextStatus === existing.status) &&
+          existing.status === 'READY'
+        ) {
+          updateData.status = 'OUT_FOR_DELIVERY'
+          Object.assign(updateData, statusTimestampFields('OUT_FOR_DELIVERY'))
+          if (!existing.deliveryOtp) {
+            issuedOtp = generateDeliveryOtp()
+            updateData.deliveryOtp = issuedOtp
+            updateData.deliveryOtpCreatedAt = new Date()
+          }
+        }
+      }
+    }
+
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
@@ -109,6 +141,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           },
         },
         address: true,
+        deliveryPartner: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleType: true,
+            vehicleNumber: true,
+          },
+        },
         recipient: {
           select: {
             name: true,
@@ -143,26 +184,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
     })
 
-    if (nextStatus && nextStatus !== existing.status) {
-      if (nextStatus === 'DELIVERED') {
+    const effectiveStatus =
+      (updateData.status as OrderStatus | undefined) || nextStatus
+    if (effectiveStatus && effectiveStatus !== existing.status) {
+      if (effectiveStatus === 'DELIVERED') {
         try {
           await creditPendingCashback(existing.id)
         } catch (err) {
           console.error('Failed to credit cashback on delivery:', err)
         }
-      } else if (nextStatus === 'CANCELLED') {
+      } else if (effectiveStatus === 'CANCELLED') {
         await releaseOrderWallet(existing.id)
       }
     }
 
     void (async () => {
       try {
-        if (nextStatus && nextStatus !== existing.status) {
+        if (effectiveStatus && effectiveStatus !== existing.status) {
           await notifyOrderStatus({
             userId: existing.userId,
             orderId: existing.id,
             orderNumber: existing.orderNumber,
-            status: nextStatus,
+            status: effectiveStatus,
             deliveryOtp: order.deliveryOtp || issuedOtp || undefined,
             storeId: existing.storeId,
           })

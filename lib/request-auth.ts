@@ -4,6 +4,17 @@ import { authOptions } from '@/lib/auth-options'
 import { getTokenFromRequest, verifyToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+export {
+  requirePartner,
+  requireMerchant,
+  requireDelivery,
+  loadPartnerByUserId,
+  allowedStoreSlugs,
+  resolveStoreIdsForPartner,
+  type PartnerIdentity,
+  type PartnerCapabilities,
+} from '@/lib/partner-auth'
+
 export type AdminIdentity = {
   id: string
   email: string

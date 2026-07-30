@@ -23,6 +23,8 @@ model User {
   orders             Order[]
   giftRecipients     GiftRecipient[]
   seller             Seller?
+  deliveryPartner    DeliveryPartner?
+  partnerAccess      PartnerAccess?
   accounts           Account[]
   sessions           Session[]
   coupons            Coupon[]
@@ -423,6 +425,7 @@ model Order {
   @@index([userId])
   @@index([storeId, placedAt])
   @@index([status])
+  @@index([status, deliveryPartnerId, storeId])
   @@index([orderNumber])
   @@index([couponId])
   @@index([isGift])
@@ -579,13 +582,17 @@ model OrderItem {
 
 model DeliveryPartner {
   id            String   @id @default(cuid())
+  /// Linked User for partner-app phone OTP login. Legacy rows may be null.
+  userId        String?  @unique
+  user          User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
   phone         String   @unique
   email         String   @unique
-  password      String
-  vehicleType   String
-  vehicleNumber String
-  isAvailable   Boolean  @default(true)
+  /// Optional for User-linked partners (OTP auth). Legacy rows may still have a hash.
+  password      String?
+  vehicleType   String   @default("bike")
+  vehicleNumber String   @default("")
+  isAvailable   Boolean  @default(false)
   currentLat    Float?
   currentLng    Float?
   orders        Order[]
@@ -593,6 +600,26 @@ model DeliveryPartner {
   updatedAt     DateTime @updatedAt
 
   @@index([isAvailable])
+  @@index([userId])
+}
+
+/// Capability + store access for the merchant/delivery partner app.
+model PartnerAccess {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sellerEnabled   Boolean  @default(false)
+  deliveryEnabled Boolean  @default(false)
+  /// Upaharo (gifts storefront)
+  giftsEnabled    Boolean  @default(true)
+  /// Grooll (grocery storefront)
+  groceryEnabled  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sellerEnabled])
+  @@index([deliveryEnabled])
 }
 
 model Seller {
@@ -755,6 +782,8 @@ model AppSettings {
   supportMessage               String?
   deliveryEstimate             String   @default("Estimated delivery: 20-30 minutes")
   deliveryNote                 String?
+  /// Extra minutes added to delivery ETA while rain is detected (mobile).
+  rainExtraMinutes             Int      @default(15)
   announcementText             String?
   storeAddress                 String?
   mapLatitude                  Float    @default(27.7172)

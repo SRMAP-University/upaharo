@@ -33,6 +33,14 @@ interface Order {
   status: 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
   paymentStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
   deliveryOtp?: string | null
+  deliveryPartnerId?: string | null
+  deliveryPartner?: {
+    id: string
+    name: string
+    phone: string
+    vehicleType: string
+    vehicleNumber: string
+  } | null
   deliveryDate: string
   createdAt: string
   store: {
@@ -110,6 +118,10 @@ export default function AdminOrders() {
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
   const [estimatedTimeUnit, setEstimatedTimeUnit] = useState<EstimatedTimeUnit>('minutes')
   const [savingEstimatedTime, setSavingEstimatedTime] = useState(false)
+  const [riders, setRiders] = useState<
+    Array<{ id: string; name: string; phone: string; vehicleType: string }>
+  >([])
+  const [assigningRider, setAssigningRider] = useState(false)
   const hasSelectedOrderCoords =
     !!selectedOrder?.address &&
     Number.isFinite(selectedOrder.address.latitude) &&
@@ -119,6 +131,64 @@ export default function AdminOrders() {
   useEffect(() => {
     fetchOrders()
   }, [])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/partners')
+        if (!res.ok) return
+        const data = await res.json()
+        const list: Array<{
+          id: string
+          name: string
+          phone: string
+          vehicleType: string
+        }> = []
+        for (const p of data as Array<{
+          name: string
+          phone: string | null
+          partnerAccess?: { deliveryEnabled?: boolean } | null
+          deliveryPartner?: {
+            id: string
+            vehicleType: string
+          } | null
+        }>) {
+          if (
+            p.deliveryPartner &&
+            (p.partnerAccess?.deliveryEnabled ?? true)
+          ) {
+            list.push({
+              id: p.deliveryPartner.id,
+              name: p.name,
+              phone: p.phone || '',
+              vehicleType: p.deliveryPartner.vehicleType,
+            })
+          }
+        }
+        setRiders(list)
+      } catch {
+        /* ignore */
+      }
+    })()
+  }, [])
+
+  const assignRider = async (orderId: string, deliveryPartnerId: string | null) => {
+    setAssigningRider(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryPartnerId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSelectedOrder(updated)
+        fetchOrders()
+      }
+    } finally {
+      setAssigningRider(false)
+    }
+  }
 
   const handleEstimatedTimeUnitChange = (nextUnit: EstimatedTimeUnit) => {
     if (nextUnit === estimatedTimeUnit) return
@@ -722,6 +792,60 @@ export default function AdminOrders() {
                     <p className="mt-1 text-xs text-ink/45">
                       Ask the customer for this code before marking Delivered.
                     </p>
+                  </div>
+                ) : null}
+                {(selectedOrder.status === 'READY' ||
+                  selectedOrder.status === 'OUT_FOR_DELIVERY') &&
+                selectedOrder.fulfillmentType !== 'PICKUP' ? (
+                  <div className="mb-4 rounded-xl border border-wine/10 bg-wine/[0.03] p-3">
+                    <p className="mb-2 text-sm font-medium text-ink/70">
+                      Assign delivery partner
+                    </p>
+                    {selectedOrder.deliveryPartner ? (
+                      <p className="mb-2 text-sm text-ink">
+                        Current:{' '}
+                        <span className="font-semibold">
+                          {selectedOrder.deliveryPartner.name}
+                        </span>{' '}
+                        ({selectedOrder.deliveryPartner.phone})
+                      </p>
+                    ) : (
+                      <p className="mb-2 text-xs text-ink/50">
+                        Unassigned — riders can also accept from the open pool.
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <select
+                        disabled={assigningRider}
+                        className="flex-1 rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (!v) return
+                          void assignRider(selectedOrder.id, v)
+                          e.target.value = ''
+                        }}
+                      >
+                        <option value="">Select rider…</option>
+                        {riders.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} · {r.vehicleType}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedOrder.deliveryPartnerId ? (
+                        <button
+                          type="button"
+                          disabled={assigningRider}
+                          onClick={() =>
+                            void assignRider(selectedOrder.id, null)
+                          }
+                          className="rounded-xl border border-wine/20 px-3 py-2 text-sm text-wine"
+                        >
+                          Unassign
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
                 <div className="flex justify-between items-center mb-4">
