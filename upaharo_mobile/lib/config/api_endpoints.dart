@@ -123,6 +123,11 @@ class ApiEndpoints {
   /// Body: { phone, deviceId, deviceToken } -> { user, token, trusted: true }
   static const String otpTrustedLogin = '/api/otp/trusted-login';
 
+  /// Truecaller OAuth: exchange authorization code + PKCE verifier for session.
+  /// Body: { authorizationCode, codeVerifier, deviceId?, platform? }
+  /// -> { user, token } or { needsSignup, signupToken, phone, suggestedName?, suggestedEmail? }
+  static const String otpTruecaller = '/api/otp/truecaller';
+
   /// NextAuth session endpoint (used by the web OAuth flow).
   /// GET -> NextAuth session object
   static const String session = '/api/auth/session';

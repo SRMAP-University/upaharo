@@ -34,7 +34,8 @@ android {
 
     defaultConfig {
         applicationId = "com.upaharo.upaharo_mobile"
-        minSdk = maxOf(flutter.minSdkVersion, 23)
+        // Truecaller OAuth SDK requires API 24+.
+        minSdk = maxOf(flutter.minSdkVersion, 24)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

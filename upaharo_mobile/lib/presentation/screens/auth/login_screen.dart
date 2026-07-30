@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../../core/auth/truecaller_login_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/wishlist_provider.dart';
 import '../../widgets/auth_scaffold.dart';
@@ -38,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Timer? _resendTimer;
   /// After trusted-login fails, show an explicit Send OTP control (no auto-SMS).
   bool _offerManualOtp = false;
+  bool _truecallerAvailable = false;
 
   static const _groollGreen = Color(FlavorConfig.groollGreenValue);
 
@@ -46,7 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _prefillRememberedPhone();
+      _probeTruecaller();
     });
+  }
+
+  Future<void> _probeTruecaller() async {
+    if (!TruecallerLoginService.isSupported) return;
+    final usable = await TruecallerLoginService.isUsable();
+    if (!mounted) return;
+    setState(() => _truecallerAvailable = usable);
   }
 
   Future<void> _prefillRememberedPhone() async {
@@ -197,6 +207,85 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (success) await _onAuthenticated();
+  }
+
+  Future<void> _loginWithTruecaller() async {
+    FocusScope.of(context).unfocus();
+    final auth = context.read<AuthProvider>();
+    auth.clearError();
+    final result = await auth.loginWithTruecaller();
+    if (!mounted) return;
+
+    if (result.signedIn) {
+      await _onAuthenticated();
+      return;
+    }
+
+    if (auth.needsOtpSignup) {
+      final name = result.suggestedName?.trim();
+      final email = result.suggestedEmail?.trim();
+      if (name != null && name.isNotEmpty) {
+        _nameController.text = name;
+      }
+      if (email != null && email.isNotEmpty) {
+        _signupEmailController.text = email;
+      }
+      if (auth.otpVerifiedPhone != null &&
+          auth.otpVerifiedPhone!.isNotEmpty) {
+        _phoneController.text = _last10(auth.otpVerifiedPhone!);
+      }
+      setState(() => _phoneStep = _PhoneStep.completeSignup);
+    }
+  }
+
+  Widget _truecallerButton({required bool loading, required Color accent}) {
+    if (!_truecallerAvailable ||
+        _mode != _LoginMode.phone ||
+        _phoneStep != _PhoneStep.enterPhone) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.12))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                'or',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.charcoal.withValues(alpha: 0.45),
+                ),
+              ),
+            ),
+            Expanded(child: Divider(color: Colors.black.withValues(alpha: 0.12))),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton.icon(
+            onPressed: loading ? null : _loginWithTruecaller,
+            icon: const Icon(Icons.verified_user_outlined, size: 20),
+            label: const Text(
+              'Continue with Truecaller',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: accent,
+              side: BorderSide(color: accent.withValues(alpha: 0.45)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   void _switchMode(_LoginMode mode) {
@@ -407,6 +496,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
+                        _truecallerButton(loading: loading, accent: _groollGreen),
                         if (_mode == _LoginMode.phone &&
                             _phoneStep == _PhoneStep.enterPhone &&
                             auth.rememberedPhone != null &&
@@ -816,6 +906,7 @@ class _LoginScreenState extends State<LoginScreen> {
               loading: loading,
               onPressed: _primaryAction(auth, loading),
             ),
+            _truecallerButton(loading: loading, accent: AppTheme.wine),
             if (_offerManualOtp &&
                 _mode == _LoginMode.phone &&
                 _phoneStep == _PhoneStep.enterPhone)

@@ -13,7 +13,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -41,6 +41,10 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyBpyJlElaEjZnzGs-QZLHzD0051BlX2VWI" />
+        <!-- Truecaller OAuth Client ID (sandbox). Must match package + SHA-1 in Truecaller console. -->
+        <meta-data
+            android:name="com.truecaller.android.sdk.ClientId"
+            android:value="rlhxfbctueeryexcclhw7wnpikukvkbcnnqdbzjt0py" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

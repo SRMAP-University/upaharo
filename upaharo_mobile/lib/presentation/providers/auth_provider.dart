@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../core/notifications/order_progress_notification.dart';
 import '../../core/notifications/push_notification_service.dart';
+import '../../core/auth/truecaller_login_service.dart';
 import '../../data/models/user.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -201,6 +202,44 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = e.toString();
       _setStatus(AuthStatus.error);
       return false;
+    }
+  }
+
+  /// Truecaller OAuth login (Android). Same signup handoff as OTP when needed.
+  /// Returns a record with [signedIn] and optional suggested name/email for signup.
+  Future<({bool signedIn, String? suggestedName, String? suggestedEmail})>
+      loginWithTruecaller() async {
+    _setStatus(AuthStatus.loading);
+    try {
+      final oauth = await TruecallerLoginService.requestAuthorizationCode();
+      final result = await _authRepository.loginWithTruecaller(
+        authorizationCode: oauth.authorizationCode,
+        codeVerifier: oauth.codeVerifier,
+      );
+      _errorMessage = null;
+
+      if (result.needsSignup) {
+        _otpSignupToken = result.signupToken;
+        _otpVerifiedPhone = result.phone;
+        _user = null;
+        _setStatus(AuthStatus.unauthenticated);
+        return (
+          signedIn: false,
+          suggestedName: result.suggestedName,
+          suggestedEmail: result.suggestedEmail,
+        );
+      }
+
+      _user = result.user;
+      _clearOtpSignup();
+      _rememberedPhone = await _authRepository.readRememberedPhone();
+      _setStatus(AuthStatus.authenticated);
+      await PushNotificationService.instance.syncTokenWithBackend();
+      return (signedIn: true, suggestedName: null, suggestedEmail: null);
+    } catch (e) {
+      _errorMessage = e.toString();
+      _setStatus(AuthStatus.error);
+      return (signedIn: false, suggestedName: null, suggestedEmail: null);
     }
   }
 

@@ -15,6 +15,8 @@ class OtpVerifyResult {
     this.needsSignup = false,
     this.signupToken,
     this.phone,
+    this.suggestedName,
+    this.suggestedEmail,
   });
 
   factory OtpVerifyResult.authenticated(User user) =>
@@ -23,17 +25,23 @@ class OtpVerifyResult {
   factory OtpVerifyResult.signupRequired({
     required String signupToken,
     required String phone,
+    String? suggestedName,
+    String? suggestedEmail,
   }) =>
       OtpVerifyResult._(
         needsSignup: true,
         signupToken: signupToken,
         phone: phone,
+        suggestedName: suggestedName,
+        suggestedEmail: suggestedEmail,
       );
 
   final User? user;
   final bool needsSignup;
   final String? signupToken;
   final String? phone;
+  final String? suggestedName;
+  final String? suggestedEmail;
 }
 
 class AuthRepository {
@@ -204,6 +212,45 @@ class AuthRepository {
     );
 
     return _persistSession(data);
+  }
+
+  /// Exchange Truecaller OAuth authorization code for an Upaharo session.
+  Future<OtpVerifyResult> loginWithTruecaller({
+    required String authorizationCode,
+    required String codeVerifier,
+  }) async {
+    final deviceId = await TrustedDeviceStorage.getOrCreateDeviceId();
+    final data = await DioClient.request<Map<String, dynamic>>(
+      ApiEndpoints.otpTruecaller,
+      method: 'POST',
+      data: {
+        'authorizationCode': authorizationCode,
+        'codeVerifier': codeVerifier,
+        'deviceId': deviceId,
+        'platform': _platform,
+      },
+      parser: (json) => json as Map<String, dynamic>,
+    );
+
+    if (data['needsSignup'] == true) {
+      final signupToken = data['signupToken'] as String?;
+      final verifiedPhone = data['phone'] as String?;
+      if (signupToken == null ||
+          signupToken.isEmpty ||
+          verifiedPhone == null ||
+          verifiedPhone.isEmpty) {
+        throw Exception('Signup token missing from Truecaller response');
+      }
+      return OtpVerifyResult.signupRequired(
+        signupToken: signupToken,
+        phone: verifiedPhone,
+        suggestedName: data['suggestedName'] as String?,
+        suggestedEmail: data['suggestedEmail'] as String?,
+      );
+    }
+
+    final user = await _persistSession(data);
+    return OtpVerifyResult.authenticated(user);
   }
 
   Future<User> _persistSession(
