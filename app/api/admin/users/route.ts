@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       where: {
         role: { in: ['CUSTOMER', 'ADMIN'] },
         orders: { some: { storeId } },
+        NOT: { email: { endsWith: '@deleted.upaharo.local' } },
       },
       include: {
         orders: {

@@ -28,14 +28,23 @@ export async function PATCH(
       return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
     }
 
-    const sellerEnabled =
+    const grantAdmin =
+      body.grantAdmin !== undefined ? Boolean(body.grantAdmin) : user.role === 'ADMIN'
+
+    // Admin partners get full merchant + delivery in the partner app.
+    let sellerEnabled =
       body.sellerEnabled !== undefined
         ? Boolean(body.sellerEnabled)
         : user.partnerAccess?.sellerEnabled ?? Boolean(user.seller)
-    const deliveryEnabled =
+    let deliveryEnabled =
       body.deliveryEnabled !== undefined
         ? Boolean(body.deliveryEnabled)
         : user.partnerAccess?.deliveryEnabled ?? Boolean(user.deliveryPartner)
+    if (grantAdmin) {
+      sellerEnabled = true
+      deliveryEnabled = true
+    }
+
     const giftsEnabled =
       body.giftsEnabled !== undefined
         ? Boolean(body.giftsEnabled)
@@ -45,15 +54,12 @@ export async function PATCH(
         ? Boolean(body.groceryEnabled)
         : user.partnerAccess?.groceryEnabled ?? false
 
-    if (!sellerEnabled && !deliveryEnabled && body.grantAdmin !== true && user.role !== 'ADMIN') {
+    if (!sellerEnabled && !deliveryEnabled) {
       return NextResponse.json(
         { error: 'Enable at least Merchant or Delivery' },
         { status: 400 }
       )
     }
-
-    const grantAdmin =
-      body.grantAdmin !== undefined ? Boolean(body.grantAdmin) : user.role === 'ADMIN'
 
     await prisma.$transaction(async (tx) => {
       const nextRole = grantAdmin
@@ -76,13 +82,13 @@ export async function PATCH(
         where: { userId },
         create: {
           userId,
-          sellerEnabled: sellerEnabled || grantAdmin,
+          sellerEnabled,
           deliveryEnabled,
           giftsEnabled,
           groceryEnabled,
         },
         update: {
-          sellerEnabled: sellerEnabled || grantAdmin,
+          sellerEnabled,
           deliveryEnabled,
           giftsEnabled,
           groceryEnabled,
@@ -149,11 +155,18 @@ export async function PATCH(
                 String(body.businessAddress || '').trim() || '—',
               phone: user.phone || '',
               email: user.email,
-              commission: Number(body.commission) || 15,
+              commission: Number(body.commission) || (grantAdmin ? 0 : 15),
               isActive: true,
-              isVerified: Boolean(body.isVerified),
+              isVerified: grantAdmin ? true : Boolean(body.isVerified),
               ...cleaned,
             },
+          })
+        }
+
+        if (grantAdmin && user.seller) {
+          await tx.seller.update({
+            where: { userId },
+            data: { isActive: true, isVerified: true },
           })
         }
       } else if (user.seller) {

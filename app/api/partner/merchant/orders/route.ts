@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     const status = request.nextUrl.searchParams.get('status')
+    const fullAccess = partner.access.fullAccess
     const orders = await prisma.order.findMany({
       where: {
         storeId: { in: storeIds },
@@ -54,11 +55,15 @@ export async function GET(request: NextRequest) {
           AND: [{ paymentMethod: 'ONLINE' }, { paymentStatus: 'PENDING' }],
         },
         ...(status ? { status: status as OrderStatus } : {}),
-        items: {
-          some: {
-            product: { sellerId: partner.sellerId },
-          },
-        },
+        ...(fullAccess
+          ? {}
+          : {
+              items: {
+                some: {
+                  product: { sellerId: partner.sellerId },
+                },
+              },
+            }),
       },
       include: {
         store: { select: { id: true, slug: true, name: true } },
@@ -78,7 +83,9 @@ export async function GET(request: NextRequest) {
           },
         },
         items: {
-          where: { product: { sellerId: partner.sellerId } },
+          ...(fullAccess
+            ? {}
+            : { where: { product: { sellerId: partner.sellerId } } }),
           include: {
             product: {
               select: {
@@ -97,10 +104,9 @@ export async function GET(request: NextRequest) {
 
     const withFlags = await Promise.all(
       orders.map(async (order) => {
-        const canFulfill = await orderOwnedSolelyBySeller(
-          order.id,
-          partner.sellerId!
-        )
+        const canFulfill = fullAccess
+          ? true
+          : await orderOwnedSolelyBySeller(order.id, partner.sellerId!)
         return { ...order, canFulfill }
       })
     )
@@ -131,11 +137,18 @@ export async function PATCH(request: NextRequest) {
     }
 
     const storeIds = await resolveStoreIdsForPartner(partner.access, request)
+    const fullAccess = partner.access.fullAccess
     const existing = await prisma.order.findFirst({
       where: {
         id: orderId,
         storeId: { in: storeIds },
-        items: { some: { product: { sellerId: partner.sellerId } } },
+        ...(fullAccess
+          ? {}
+          : {
+              items: {
+                some: { product: { sellerId: partner.sellerId } },
+              },
+            }),
       },
       select: {
         id: true,
@@ -151,18 +164,20 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    const canFulfill = await orderOwnedSolelyBySeller(
-      existing.id,
-      partner.sellerId
-    )
-    if (!canFulfill) {
-      return NextResponse.json(
-        {
-          error:
-            'This order has items from other sellers. Ask admin to update status.',
-        },
-        { status: 403 }
+    if (!fullAccess) {
+      const canFulfill = await orderOwnedSolelyBySeller(
+        existing.id,
+        partner.sellerId
       )
+      if (!canFulfill) {
+        return NextResponse.json(
+          {
+            error:
+              'This order has items from other sellers. Ask admin to update status.',
+          },
+          { status: 403 }
+        )
+      }
     }
 
     const allowedNext = FORWARD[existing.status] || []

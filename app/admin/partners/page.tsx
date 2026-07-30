@@ -363,16 +363,20 @@ export default function PartnersPage() {
                       setForm((f) => ({
                         ...f,
                         grantAdmin: e.target.checked,
+                        ...(e.target.checked
+                          ? { sellerEnabled: true, deliveryEnabled: true }
+                          : {}),
                       }))
                     }
                   />
                   <span>
                     <span className="font-semibold text-purple-900">
-                      Grant admin panel access
+                      Grant admin access
                     </span>
                     <span className="mt-0.5 block text-xs text-purple-800/70">
-                      Lets this partner sign in to the web admin dashboard
-                      (full store management). Use carefully.
+                      Web admin dashboard plus full partner-app access: view,
+                      edit, and delete all products, manage all orders, and
+                      run delivery. Enables Merchant + Delivery automatically.
                     </span>
                   </span>
                 </label>

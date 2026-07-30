@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const storeIds = await resolveStoreIdsForPartner(partner.access, request)
     const products = await findManyProductsCompat({
       where: {
-        sellerId: partner.sellerId,
+        ...(partner.access.fullAccess ? {} : { sellerId: partner.sellerId }),
         ...(storeIds.length ? { storeId: { in: storeIds } } : {}),
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
       },
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const seller = await prisma.seller.findUnique({
       where: { id: partner.sellerId },
     })
-    if (!seller?.isActive || !seller.isVerified) {
+    if (!partner.access.fullAccess && (!seller?.isActive || !seller.isVerified)) {
       return NextResponse.json(
         {
           error:

@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
         deliveryEnabled: partner.access.deliveryEnabled,
         giftsEnabled: partner.access.giftsEnabled,
         groceryEnabled: partner.access.groceryEnabled,
+        fullAccess: partner.access.fullAccess,
         sellerId: partner.sellerId,
         deliveryPartnerId: partner.deliveryPartnerId,
       },

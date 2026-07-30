@@ -111,12 +111,24 @@ export default function AdminUsers() {
   }
 
   const deleteUser = async (userId: string) => {
-    if (!confirm('Delete this user? This will also delete all their orders and addresses.')) return
+    if (
+      !confirm(
+        'Delete this user? Their account will be permanently deactivated and personal data removed. Order history is kept for records.'
+      )
+    ) {
+      return
+    }
     try {
       const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' })
-      if (res.ok) fetchUsers()
+      if (res.ok) {
+        fetchUsers()
+        return
+      }
+      const data = await res.json().catch(() => null)
+      alert(data?.error || 'Failed to delete user')
     } catch (error) {
       console.error('Error deleting user:', error)
+      alert('Failed to delete user')
     }
   }
 

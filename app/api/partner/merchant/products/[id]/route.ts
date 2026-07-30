@@ -47,7 +47,7 @@ export async function GET(
     const product = await findFirstProductCompat({
       where: {
         id,
-        sellerId: partner.sellerId,
+        ...(partner.access.fullAccess ? {} : { sellerId: partner.sellerId }),
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
       },
     })
@@ -75,7 +75,10 @@ export async function PATCH(
     const body = await request.json()
 
     const existing = await prisma.product.findFirst({
-      where: { id, sellerId: partner.sellerId },
+      where: {
+        id,
+        ...(partner.access.fullAccess ? {} : { sellerId: partner.sellerId }),
+      },
       select: { id: true },
     })
     if (!existing) {
@@ -133,7 +136,10 @@ export async function DELETE(
 
     const { id } = await params
     const existing = await prisma.product.findFirst({
-      where: { id, sellerId: partner.sellerId },
+      where: {
+        id,
+        ...(partner.access.fullAccess ? {} : { sellerId: partner.sellerId }),
+      },
       select: { id: true, tags: true },
     })
     if (!existing) {

@@ -10,6 +10,8 @@ export type PartnerCapabilities = {
   deliveryEnabled: boolean
   giftsEnabled: boolean
   groceryEnabled: boolean
+  /** ADMIN partners can manage the full catalog + all store orders. */
+  fullAccess: boolean
 }
 
 export type PartnerIdentity = {
@@ -53,19 +55,128 @@ async function resolveUserId(request: NextRequest | Request): Promise<string | n
   return null
 }
 
+/**
+ * ADMIN partners get merchant + delivery in the partner app.
+ * Ensures Seller / DeliveryPartner rows exist so APIs can authorize.
+ */
+async function ensureAdminPartnerInfrastructure(user: {
+  id: string
+  email: string
+  name: string
+  phone: string | null
+  role: string
+  partnerAccess: {
+    sellerEnabled: boolean
+    deliveryEnabled: boolean
+    giftsEnabled: boolean
+    groceryEnabled: boolean
+  } | null
+  seller: { id: string; isActive: boolean } | null
+  deliveryPartner: { id: string } | null
+}) {
+  if (user.role !== 'ADMIN' || !user.partnerAccess) return user
+
+  let seller = user.seller
+  let deliveryPartner = user.deliveryPartner
+  let access = user.partnerAccess
+
+  const needsAccessUpdate =
+    !access.sellerEnabled || !access.deliveryEnabled
+
+  if (needsAccessUpdate) {
+    access = await prisma.partnerAccess.update({
+      where: { userId: user.id },
+      data: { sellerEnabled: true, deliveryEnabled: true },
+    })
+  }
+
+  if (!seller) {
+    seller = await prisma.seller.create({
+      data: {
+        userId: user.id,
+        businessName: user.name,
+        businessAddress: '—',
+        phone: user.phone || '',
+        email: user.email,
+        commission: 0,
+        isActive: true,
+        isVerified: true,
+      },
+      select: { id: true, isActive: true },
+    })
+  } else if (seller.isActive === false) {
+    seller = await prisma.seller.update({
+      where: { userId: user.id },
+      data: { isActive: true, isVerified: true },
+      select: { id: true, isActive: true },
+    })
+  }
+
+  if (!deliveryPartner) {
+    const phone =
+      user.phone || `admin-dp-${user.id.replace(/[^a-zA-Z0-9]/g, '').slice(-12)}`
+    try {
+      deliveryPartner = await prisma.deliveryPartner.create({
+        data: {
+          userId: user.id,
+          name: user.name,
+          phone,
+          email: user.email,
+          vehicleType: 'bike',
+          vehicleNumber: '',
+          isAvailable: false,
+        },
+        select: { id: true },
+      })
+    } catch (err) {
+      // Phone/email uniqueness — link an existing unlinked row or retry with unique phone
+      console.error('ensureAdminPartnerInfrastructure deliveryPartner:', err)
+      deliveryPartner = await prisma.deliveryPartner.create({
+        data: {
+          userId: user.id,
+          name: user.name,
+          phone: `admin-dp-${user.id.slice(-10)}-${Date.now().toString(36)}`,
+          email: `dp_${user.id}@partner.upaharo.local`,
+          vehicleType: 'bike',
+          vehicleNumber: '',
+          isAvailable: false,
+        },
+        select: { id: true },
+      })
+    }
+  }
+
+  return {
+    ...user,
+    partnerAccess: access,
+    seller,
+    deliveryPartner,
+  }
+}
+
 function toIdentity(user: {
   id: string
   email: string
   name: string
   phone: string | null
   role: string
-  partnerAccess: PartnerCapabilities | null
+  partnerAccess: {
+    sellerEnabled: boolean
+    deliveryEnabled: boolean
+    giftsEnabled: boolean
+    groceryEnabled: boolean
+  } | null
   seller: { id: string; isActive: boolean } | null
   deliveryPartner: { id: string } | null
 }): PartnerIdentity | null {
   const access = user.partnerAccess
   if (!access) return null
-  if (!access.sellerEnabled && !access.deliveryEnabled) return null
+
+  const fullAccess = user.role === 'ADMIN'
+  const sellerEnabled = fullAccess || access.sellerEnabled
+  const deliveryEnabled = fullAccess || access.deliveryEnabled
+
+  if (!sellerEnabled && !deliveryEnabled) return null
 
   return {
     userId: user.id,
@@ -74,13 +185,19 @@ function toIdentity(user: {
     phone: user.phone,
     role: user.role,
     access: {
-      sellerEnabled: access.sellerEnabled,
-      deliveryEnabled: access.deliveryEnabled,
+      sellerEnabled,
+      deliveryEnabled,
       giftsEnabled: access.giftsEnabled,
       groceryEnabled: access.groceryEnabled,
+      fullAccess,
     },
-    sellerId: access.sellerEnabled && user.seller?.isActive !== false ? user.seller?.id ?? null : null,
-    deliveryPartnerId: access.deliveryEnabled ? user.deliveryPartner?.id ?? null : null,
+    sellerId:
+      sellerEnabled && user.seller?.isActive !== false
+        ? user.seller?.id ?? null
+        : null,
+    deliveryPartnerId: deliveryEnabled
+      ? user.deliveryPartner?.id ?? null
+      : null,
   }
 }
 
@@ -103,7 +220,8 @@ export async function requirePartner(
   })
 
   if (!user) return null
-  return toIdentity(user)
+  const ensured = await ensureAdminPartnerInfrastructure(user)
+  return toIdentity(ensured)
 }
 
 export async function requireMerchant(
@@ -136,7 +254,8 @@ export async function loadPartnerByUserId(userId: string): Promise<PartnerIdenti
     },
   })
   if (!user) return null
-  return toIdentity(user)
+  const ensured = await ensureAdminPartnerInfrastructure(user)
+  return toIdentity(ensured)
 }
 
 /**

@@ -108,13 +108,88 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    if (!(await requireAdmin(request))) {
+    const admin = await requireAdmin(request)
+    if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
     const { id } = await params
-    await prisma.user.delete({
+
+    if (id === admin.id) {
+      return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+    }
+
+    const user = await prisma.user.findUnique({
       where: { id },
+      select: { id: true, email: true },
     })
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (user.email.endsWith('@deleted.upaharo.local')) {
+      return NextResponse.json({ error: 'User already deleted' }, { status: 400 })
+    }
+
+    const openStatuses = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY'] as const
+
+    // Soft-delete: anonymize PII and revoke access. Keep order rows for records
+    // (Order.user has no onDelete cascade, so hard delete fails for any customer with orders).
+    await prisma.$transaction(async (tx) => {
+      await tx.order.updateMany({
+        where: {
+          userId: id,
+          status: { in: [...openStatuses] },
+        },
+        data: {
+          status: 'CANCELLED',
+          cancelledAt: new Date(),
+        },
+      })
+
+      await tx.order.updateMany({
+        where: { userId: id },
+        data: { addressId: null, recipientId: null },
+      })
+
+      await tx.coupon.updateMany({
+        where: { createdByUserId: id },
+        data: { createdByUserId: null },
+      })
+
+      await tx.deliveryPartner.updateMany({
+        where: { userId: id },
+        data: { userId: null },
+      })
+
+      await tx.deviceToken.deleteMany({ where: { userId: id } })
+      await tx.appNotification.deleteMany({ where: { userId: id } })
+      await tx.session.deleteMany({ where: { userId: id } })
+      await tx.account.deleteMany({ where: { userId: id } })
+      await tx.trustedDevice.deleteMany({ where: { userId: id } })
+      await tx.address.deleteMany({ where: { userId: id } })
+      await tx.giftRecipient.deleteMany({ where: { userId: id } })
+      await tx.productViewEvent.deleteMany({ where: { userId: id } })
+      await tx.businessProfile.deleteMany({ where: { userId: id } })
+      await tx.wishlistItem.deleteMany({ where: { userId: id } })
+      await tx.partnerAccess.deleteMany({ where: { userId: id } })
+      await tx.seller.deleteMany({ where: { userId: id } })
+
+      await tx.user.update({
+        where: { id },
+        data: {
+          name: 'Deleted User',
+          email: `deleted_${id}@deleted.upaharo.local`,
+          phone: null,
+          password: null,
+          image: null,
+          emailVerified: null,
+          role: 'CUSTOMER',
+        },
+      })
+    })
+
     return NextResponse.json({ message: 'User deleted' })
   } catch (error) {
     console.error('Error deleting user:', error)

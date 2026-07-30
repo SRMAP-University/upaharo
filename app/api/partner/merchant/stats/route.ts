@@ -21,10 +21,17 @@ export async function GET(request: NextRequest) {
     }
 
     const storeIds = await resolveStoreIdsForPartner(partner.access, request)
+    const fullAccess = partner.access.fullAccess
+    const productSellerFilter = fullAccess
+      ? {}
+      : { sellerId: seller.id }
+    const orderItemSellerFilter = fullAccess
+      ? {}
+      : { items: { some: { product: { sellerId: seller.id } } } }
 
     const totalProducts = await prisma.product.count({
       where: {
-        sellerId: seller.id,
+        ...productSellerFilter,
         ...(storeIds.length ? { storeId: { in: storeIds } } : {}),
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
       },
@@ -32,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const activeProducts = await prisma.product.count({
       where: {
-        sellerId: seller.id,
+        ...productSellerFilter,
         isAvailable: true,
         ...(storeIds.length ? { storeId: { in: storeIds } } : {}),
         NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
@@ -42,12 +49,12 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: {
         ...(storeIds.length ? { storeId: { in: storeIds } } : {}),
-        items: { some: { product: { sellerId: seller.id } } },
+        ...orderItemSellerFilter,
       },
       include: {
-        items: {
-          where: { product: { sellerId: seller.id } },
-        },
+        items: fullAccess
+          ? true
+          : { where: { product: { sellerId: seller.id } } },
       },
     })
 
@@ -55,12 +62,14 @@ export async function GET(request: NextRequest) {
     const pendingOrders = orders.filter((o) => o.status === 'PENDING').length
     const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED')
 
+    const commissionRate = fullAccess ? 0 : seller.commission / 100
+
     const totalRevenue = orders.reduce((sum, order) => {
       const sellerItemsTotal = order.items.reduce(
         (itemSum, item) => itemSum + item.price * item.quantity,
         0
       )
-      return sum + sellerItemsTotal * (1 - seller.commission / 100)
+      return sum + sellerItemsTotal * (1 - commissionRate)
     }, 0)
 
     const grossSales = orders.reduce((sum, order) => {
@@ -83,7 +92,7 @@ export async function GET(request: NextRequest) {
         (itemSum, item) => itemSum + item.price * item.quantity,
         0
       )
-      return sum + sellerItemsTotal * (1 - seller.commission / 100)
+      return sum + sellerItemsTotal * (1 - commissionRate)
     }, 0)
 
     return NextResponse.json({
@@ -95,7 +104,8 @@ export async function GET(request: NextRequest) {
       totalRevenue,
       grossSales,
       thisMonthRevenue,
-      commissionPercent: seller.commission,
+      commissionPercent: fullAccess ? 0 : seller.commission,
+      fullAccess,
     })
   } catch (error) {
     console.error('Partner merchant stats:', error)
