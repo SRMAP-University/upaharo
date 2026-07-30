@@ -341,13 +341,18 @@ export async function notifyPartnerSellersNewOrder(params: {
     names: string[]
   }
   const bySeller = new Map<string, SellerBucket>()
+  let totalItems = 0
+  const allNames: string[] = []
 
   for (const item of order.items) {
+    const qty = item.quantity || 1
+    totalItems += qty
+    const name = item.product?.name || 'Item'
+    if (allNames.length < 3) allNames.push(name)
+
     const seller = item.product?.seller
     if (!seller?.userId || !seller.isActive) continue
-    const qty = item.quantity || 1
     const existing = bySeller.get(seller.userId)
-    const name = item.product?.name || 'Item'
     if (existing) {
       existing.itemCount += qty
       if (existing.names.length < 3) existing.names.push(name)
@@ -361,6 +366,45 @@ export async function notifyPartnerSellersNewOrder(params: {
     }
   }
 
+  // Many grocery products have no sellerId. Fall back to all merchant partners
+  // for this storefront so the partner app still gets loud new-order alerts.
+  if (bySeller.size === 0 && storeId) {
+    const slug = (storeSlug || order.store?.slug || '').toLowerCase()
+    const storePartners = await prisma.partnerAccess.findMany({
+      where: {
+        sellerEnabled: true,
+        ...(slug === 'grocery'
+          ? { groceryEnabled: true }
+          : slug === 'gifts'
+            ? { giftsEnabled: true }
+            : {}),
+      },
+      select: { userId: true },
+    })
+    const admins = await prisma.user.findMany({
+      where: { role: 'ADMIN', partnerAccess: { isNot: null } },
+      select: { id: true },
+    })
+    const fallbackIds = new Set<string>([
+      ...storePartners.map((r) => r.userId),
+      ...admins.map((a) => a.id),
+    ])
+    for (const userId of fallbackIds) {
+      bySeller.set(userId, {
+        userId,
+        businessName: 'Store',
+        itemCount: totalItems || order.items.length || 1,
+        names: allNames,
+      })
+    }
+    if (!fallbackIds.size) {
+      console.warn(
+        '[notifications] Partner new-order: no product sellers and no store partners',
+        { orderId: order.id, storeId, storeSlug: slug }
+      )
+    }
+  }
+
   await Promise.all(
     [...bySeller.values()].map(async (seller) => {
       const preview = seller.names.join(', ')
@@ -369,7 +413,7 @@ export async function notifyPartnerSellersNewOrder(params: {
           ? ` +${seller.itemCount - seller.names.length} more`
           : ''
       try {
-        await notifyUser({
+        const result = await notifyUser({
           userId: seller.userId,
           storeId,
           storeSlug,
@@ -386,6 +430,11 @@ export async function notifyPartnerSellersNewOrder(params: {
             route: 'merchant-orders',
             audience: 'partner',
           },
+        })
+        console.log('[notifications] Partner new-order push', {
+          userId: seller.userId,
+          orderNumber: order.orderNumber,
+          pushSuccess: result.pushSuccess,
         })
       } catch (err) {
         console.error('[notifications] Partner seller push failed:', err)

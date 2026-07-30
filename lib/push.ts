@@ -219,7 +219,7 @@ export async function sendPushToUser(
   storeId?: string | null
 ): Promise<number> {
   const partner = isPartnerPush(payload)
-  const devices = await prisma.deviceToken.findMany({
+  let devices = await prisma.deviceToken.findMany({
     where: {
       userId,
       ...(storeId ? { storeId } : {}),
@@ -228,6 +228,24 @@ export async function sendPushToUser(
     },
     select: { token: true },
   })
+
+  // Legacy partner installs may still be tagged customer until they reopen the app.
+  if (partner && devices.length === 0) {
+    devices = await prisma.deviceToken.findMany({
+      where: {
+        userId,
+        ...(storeId ? { storeId } : {}),
+      },
+      select: { token: true },
+    })
+    if (devices.length) {
+      console.warn(
+        '[push] partner push falling back to untagged tokens for user',
+        userId
+      )
+    }
+  }
+
   return sendPushToTokens(
     devices.map((d) => d.token),
     payload
