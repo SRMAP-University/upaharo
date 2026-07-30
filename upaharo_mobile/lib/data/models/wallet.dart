@@ -1,3 +1,5 @@
+import '../../core/utils/delivery_radius.dart';
+
 /// Wallet balance, cashback rules and recent ledger entries for one customer.
 class WalletSummary {
   const WalletSummary({
@@ -12,6 +14,7 @@ class WalletSummary {
     this.checkoutMinOrderAmount = 0,
     this.freeDeliveryMinAmount = 199,
     this.deliveryFeeAmount = 40,
+    this.deliveryRadiusTiers = const [],
     this.transactions = const [],
   });
 
@@ -26,6 +29,7 @@ class WalletSummary {
   final double checkoutMinOrderAmount;
   final double freeDeliveryMinAmount;
   final double deliveryFeeAmount;
+  final List<DeliveryRadiusTier> deliveryRadiusTiers;
   final List<WalletTransaction> transactions;
 
   static const empty = WalletSummary(
@@ -54,6 +58,8 @@ class WalletSummary {
       freeDeliveryMinAmount:
           (json['freeDeliveryMinAmount'] as num?)?.toDouble() ?? 199,
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
+      deliveryRadiusTiers:
+          parseDeliveryRadiusTiers(json['deliveryRadiusTiers']),
       transactions: rawTransactions
           .whereType<Map>()
           .map((e) => WalletTransaction.fromJson(Map<String, dynamic>.from(e)))
@@ -73,11 +79,24 @@ class WalletSummary {
   }
 
   /// Delivery fee from admin rules for a goods total of [goodsTotal]
-  /// (items + gift wrap).
-  double deliveryFeeFor(double goodsTotal) {
-    if (deliveryFeeAmount <= 0) return 0;
+  /// (items + gift wrap). When [distanceKm] is set and zones exist, uses the
+  /// matching zone fee. Pass [tiers] to prefer settings over wallet payload.
+  double deliveryFeeFor(
+    double goodsTotal, {
+    double? distanceKm,
+    List<DeliveryRadiusTier>? tiers,
+  }) {
     final goods = goodsTotal < 0 ? 0.0 : goodsTotal;
-    if (goods >= freeDeliveryMinAmount) return 0;
+    if (freeDeliveryMinAmount > 0 && goods >= freeDeliveryMinAmount) {
+      return 0;
+    }
+    final zoneTiers = tiers ?? deliveryRadiusTiers;
+    if (zoneTiers.isNotEmpty && distanceKm != null && !distanceKm.isNaN) {
+      final tier = matchDeliveryRadiusTier(zoneTiers, distanceKm);
+      if (tier == null) return 0;
+      return _round(tier.feeAmount < 0 ? 0 : tier.feeAmount);
+    }
+    if (deliveryFeeAmount <= 0) return 0;
     return _round(deliveryFeeAmount);
   }
 

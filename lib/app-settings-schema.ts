@@ -62,6 +62,36 @@ export const MAX_SCHEDULE_DAY_COUNT = 14
 export const MAX_SCHEDULE_DAYS_AHEAD = 90
 export const MAX_DELIVERY_SLOTS = 8
 
+/** One delivery zone ring measured from the store map pin. */
+export type DeliveryRadiusTier = {
+  /** Stable key, e.g. `r-3`. */
+  id: string
+  /** Inclusive upper bound in kilometres from the store pin. */
+  maxRadiusKm: number
+  /** Fee charged for addresses that fall in this ring (Rs). */
+  feeAmount: number
+  /** Lower bound of the ETA shown to customers (minutes). */
+  etaMinMinutes: number
+  /** Upper bound of the ETA shown to customers (minutes). */
+  etaMaxMinutes: number
+  /** Optional label, e.g. "Near store". */
+  label: string
+}
+
+export const MAX_DELIVERY_RADIUS_TIERS = 12
+
+export function radiusTierIdFor(maxRadiusKm: number): string {
+  const km = Math.round(maxRadiusKm * 100) / 100
+  return `r-${km}`
+}
+
+export function formatRadiusEta(minMinutes: number, maxMinutes: number): string {
+  const lo = Math.max(1, Math.round(minMinutes))
+  const hi = Math.max(lo, Math.round(maxMinutes))
+  if (lo === hi) return `Estimated delivery: ${lo} minutes`
+  return `Estimated delivery: ${lo}-${hi} minutes`
+}
+
 export const UI_DENSITIES = ['COMPACT', 'COMFORTABLE', 'SPACIOUS'] as const
 
 /** Spacing multiplier the app applies for each density option. */
@@ -139,6 +169,11 @@ export type PublicAppSettings = {
   freeDeliveryMinAmount: number
   /** Delivery fee when below the free-delivery threshold (Rs). */
   deliveryFeeAmount: number
+  /**
+   * Distance zones from the store pin. Empty = use flat deliveryFeeAmount.
+   * Sorted ascending by maxRadiusKm.
+   */
+  deliveryRadiusTiers: DeliveryRadiusTier[]
   /** Bookable scheduled-delivery windows. Empty disables scheduling. */
   deliverySlots: DeliverySlotConfig[]
   /** Quick day chips offered in the picker, including today. */
@@ -211,6 +246,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   checkoutMinOrderAmount: 0,
   freeDeliveryMinAmount: 199,
   deliveryFeeAmount: 40,
+  deliveryRadiusTiers: [],
   deliverySlots: DEFAULT_DELIVERY_SLOTS,
   scheduleDayCount: 3,
   scheduleMaxDaysAhead: 30,
@@ -411,6 +447,48 @@ export function normalizeDeliverySlots(raw: unknown): DeliverySlotConfig[] {
   }
 
   return slots.sort((a, b) => a.startHour - b.startHour)
+}
+
+/**
+ * Validate stored distance zones. Sorted ascending by radius. Duplicate radii
+ * are dropped. Empty / missing means distance pricing is off (flat fee used).
+ */
+export function normalizeDeliveryRadiusTiers(raw: unknown): DeliveryRadiusTier[] {
+  if (!Array.isArray(raw)) return []
+
+  const tiers: DeliveryRadiusTier[] = []
+  const seen = new Set<number>()
+
+  for (const item of raw) {
+    const entry = (item ?? {}) as Record<string, unknown>
+    const maxRadiusKm = clampFloat(entry.maxRadiusKm, -1, 0.1, 200)
+    if (maxRadiusKm < 0.1) continue
+
+    const radiusKey = Math.round(maxRadiusKm * 100)
+    if (seen.has(radiusKey)) continue
+    seen.add(radiusKey)
+
+    const feeAmount = clampFloat(entry.feeAmount, 0, 0, 1_000_000)
+    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, 24 * 60)
+    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, 24 * 60)
+    if (etaMaxMinutes < etaMinMinutes) {
+      ;[etaMinMinutes, etaMaxMinutes] = [etaMaxMinutes, etaMinMinutes]
+    }
+
+    const label = String(entry.label ?? '').trim().slice(0, 80)
+    tiers.push({
+      id: radiusTierIdFor(maxRadiusKm),
+      maxRadiusKm,
+      feeAmount,
+      etaMinMinutes,
+      etaMaxMinutes,
+      label,
+    })
+
+    if (tiers.length >= MAX_DELIVERY_RADIUS_TIERS) break
+  }
+
+  return tiers.sort((a, b) => a.maxRadiusKm - b.maxRadiusKm)
 }
 
 /**

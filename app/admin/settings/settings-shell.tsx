@@ -145,6 +145,7 @@ export const SETTINGS_TABS = [
   { id: 'home', label: 'Home page', description: 'Sections, banners and features' },
   { id: 'navigation', label: 'Navigation', description: 'Bottom tab labels' },
   { id: 'checkout', label: 'Checkout', description: 'Wallet, fees and scheduling' },
+  { id: 'map', label: 'Delivery map', description: 'Zones, fees and ETA by distance' },
   { id: 'support', label: 'Support & map', description: 'Contact and delivery info' },
 ] as const
 

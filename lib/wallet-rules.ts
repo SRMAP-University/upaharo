@@ -5,6 +5,9 @@
  * components can preview the same numbers the API will enforce.
  */
 
+import type { DeliveryRadiusTier } from '@/lib/app-settings-schema'
+import { matchDeliveryRadiusTier } from '@/lib/delivery-radius'
+
 export type WalletRules = {
   walletEnabled: boolean
   cashbackPercent: number
@@ -18,6 +21,8 @@ export type WalletRules = {
 export type DeliveryRules = {
   freeDeliveryMinAmount: number
   deliveryFeeAmount: number
+  /** When non-empty, fee is taken from the matching distance tier. */
+  deliveryRadiusTiers?: DeliveryRadiusTier[]
 }
 
 /** Money is stored as Float; round every write so balances never drift. */
@@ -43,11 +48,30 @@ export function computeCashback(cashPaidAmount: number, rules: WalletRules): num
 /**
  * Delivery fee from admin rules. `goodsTotal` is items + gift wrap (before
  * coupon/wallet). Free when goodsTotal >= freeDeliveryMinAmount.
+ *
+ * When radius tiers are configured and `distanceKm` is provided, the matching
+ * tier fee is used (still subject to free-delivery threshold). Without a
+ * distance, falls back to the flat `deliveryFeeAmount`.
  */
-export function computeDeliveryFee(goodsTotal: number, rules: DeliveryRules): number {
+export function computeDeliveryFee(
+  goodsTotal: number,
+  rules: DeliveryRules,
+  options?: { distanceKm?: number | null }
+): number {
   const goods = Math.max(0, goodsTotal)
+  if (goods >= rules.freeDeliveryMinAmount && rules.freeDeliveryMinAmount > 0) {
+    return 0
+  }
+
+  const tiers = rules.deliveryRadiusTiers ?? []
+  const distanceKm = options?.distanceKm
+  if (tiers.length > 0 && distanceKm != null && Number.isFinite(distanceKm)) {
+    const tier = matchDeliveryRadiusTier(tiers, distanceKm)
+    if (!tier) return 0
+    return roundMoney(Math.max(0, tier.feeAmount))
+  }
+
   if (rules.deliveryFeeAmount <= 0) return 0
-  if (goods >= rules.freeDeliveryMinAmount) return 0
   return roundMoney(rules.deliveryFeeAmount)
 }
 

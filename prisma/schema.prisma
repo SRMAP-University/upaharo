@@ -845,6 +845,10 @@ model AppSettings {
   freeDeliveryMinAmount        Float    @default(199)
   /// Delivery fee charged when the goods total is below freeDeliveryMinAmount.
   deliveryFeeAmount            Float    @default(40)
+  /// Distance-based delivery zones from the store pin:
+  /// `[{ id, maxRadiusKm, feeAmount, etaMinMinutes, etaMaxMinutes, label }]`.
+  /// Null/empty = use flat deliveryFeeAmount only.
+  deliveryRadiusTiers          Json?
   /// Bookable delivery windows: `[{ id, startHour, endHour, label }]` in Nepal
   /// time. Null = use built-in defaults; empty array = scheduling disabled.
   deliverySlots                Json?

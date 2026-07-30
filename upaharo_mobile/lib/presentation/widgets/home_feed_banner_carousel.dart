@@ -71,6 +71,8 @@ class _HomeFeedBannerCarouselState extends State<HomeFeedBannerCarousel> {
     if (!_infinite) return;
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_controller.hasClients) return;
+      final outer = Scrollable.maybeOf(context)?.position;
+      if (outer != null && outer.isScrollingNotifier.value) return;
       _controller.nextPage(
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOutCubic,
@@ -154,6 +156,8 @@ class _HomeFeedBannerCarouselState extends State<HomeFeedBannerCarousel> {
                               ProgressiveNetworkImage(
                                 url: url,
                                 fit: BoxFit.cover,
+                                progressive: false,
+                                fadeDuration: Duration.zero,
                               )
                             else
                               ColoredBox(

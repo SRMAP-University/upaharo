@@ -7,8 +7,8 @@ import 'shimmer_loader.dart';
 
 /// Progressive network image: small preview first, then full quality fade-in.
 ///
-/// Intentionally avoids [ImageFiltered] blur — that was causing scroll jank
-/// (especially on the home Value Deals section with many tiles).
+/// Set [progressive] to false for scroll-heavy feeds (home grid, deals) — one
+/// decode only, much smoother while scrolling.
 class ProgressiveNetworkImage extends StatelessWidget {
   const ProgressiveNetworkImage({
     super.key,
@@ -23,6 +23,10 @@ class ProgressiveNetworkImage extends StatelessWidget {
     /// Unused — kept so call sites that passed blur flags still compile.
     this.lowBlurSigma = 0,
     this.enableBlur = false,
+    /// When false, load a single medium-quality image (preferred in lists).
+    this.progressive = true,
+    /// Explicit decode width in logical px (skips LayoutBuilder when set with [width]).
+    this.memCacheLogicalWidth,
   });
 
   final String? url;
@@ -35,6 +39,8 @@ class ProgressiveNetworkImage extends StatelessWidget {
   final Widget? errorWidget;
   final double lowBlurSigma;
   final bool enableBlur;
+  final bool progressive;
+  final double? memCacheLogicalWidth;
 
   Widget get _defaultPlaceholder => const ShimmerLoader();
 
@@ -54,6 +60,13 @@ class ProgressiveNetworkImage extends StatelessWidget {
 
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
+    if (!progressive) {
+      final layoutW = memCacheLogicalWidth ??
+          width ??
+          (height != null ? height! * 1.1 : 160.0);
+      return _wrap(_buildSimple(layoutW: layoutW, dpr: dpr));
+    }
+
     // Prefer fixed width when given so we skip LayoutBuilder rebuilds.
     if (width != null && width!.isFinite && width! > 0) {
       return _wrap(_buildStack(layoutW: width!, dpr: dpr));
@@ -67,6 +80,32 @@ class ProgressiveNetworkImage extends StatelessWidget {
           return _buildStack(layoutW: layoutW, dpr: dpr);
         },
       ),
+    );
+  }
+
+  Widget _buildSimple({required double layoutW, required double dpr}) {
+    final cache =
+        (ImageResolver.memCacheWidth(layoutW, dpr) ?? 360).clamp(64, 480);
+    final imageUrl = ImageResolver.resolveQuality(
+      url,
+      quality: ImageQuality.medium,
+      targetWidth: cache,
+    );
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: fit,
+      width: width ?? double.infinity,
+      height: height ?? double.infinity,
+      memCacheWidth: cache,
+      memCacheHeight: height != null
+          ? (ImageResolver.memCacheWidth(height!, dpr) ?? cache)
+          : null,
+      fadeInDuration: fadeDuration,
+      fadeOutDuration: Duration.zero,
+      filterQuality: FilterQuality.low,
+      placeholder: (_, _) => placeholder ?? _defaultPlaceholder,
+      errorWidget: (_, _, _) => errorWidget ?? _defaultError,
     );
   }
 

@@ -8,6 +8,7 @@ import '../../widgets/progressive_network_image.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/utils/delivery_slots.dart';
+import '../../../core/utils/delivery_radius.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/address.dart';
 import '../../../data/models/gift_recipient.dart';
@@ -711,8 +712,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               : 0.0)
         : cart.totalPrice + wrapPrice;
     final goodsTotal = cart.totalPrice + wrapPrice;
+    final address = _selectedAddress;
+    final settings = context.read<SettingsProvider>().settings;
+    double? distanceKm;
+    if (!_usingPickup &&
+        address != null &&
+        settings.deliveryRadiusTiers.isNotEmpty &&
+        !(address.latitude == 0 && address.longitude == 0)) {
+      distanceKm = distanceKmBetween(
+        settings.mapLatitude,
+        settings.mapLongitude,
+        address.latitude,
+        address.longitude,
+      );
+    }
     final deliveryFee = deliveryGoods > 0
-        ? _wallet.deliveryFeeFor(deliveryGoods)
+        ? _wallet.deliveryFeeFor(
+            deliveryGoods,
+            distanceKm: distanceKm,
+            tiers: settings.deliveryRadiusTiers,
+          )
         : 0.0;
     final totalBeforeWallet = (goodsTotal + deliveryFee - _couponDiscount)
         .clamp(0.0, double.infinity);
@@ -747,6 +766,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_needsAddress && address == null) {
       setState(() => _error = 'Please select a delivery address');
       return;
+    }
+    if (_needsAddress && address != null) {
+      final settings = context.read<SettingsProvider>().settings;
+      if (settings.deliveryRadiusTiers.isNotEmpty &&
+          !(address.latitude == 0 && address.longitude == 0)) {
+        final zone = resolveDeliveryZone(
+          tiers: settings.deliveryRadiusTiers,
+          storeLat: settings.mapLatitude,
+          storeLng: settings.mapLongitude,
+          addressLat: address.latitude,
+          addressLng: address.longitude,
+        );
+        if (zone != null && !zone.inRange) {
+          setState(() {
+            _error =
+                'Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toStringAsFixed(1)} km away).';
+          });
+          return;
+        }
+      }
     }
     if (_isGift && (_recipientId == null || _recipientId!.isEmpty)) {
       setState(() => _error = 'Please select a gift recipient');
@@ -938,15 +977,35 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final savings = _couponDiscount + totals.walletApplied;
     final pageBg = const Color(0xFFF2F2F2);
     final estimate = settings.deliveryEstimate.trim();
+    final address = _selectedAddress;
+    String? zoneEstimate;
+    if (!_usingPickup &&
+        address != null &&
+        settings.deliveryRadiusTiers.isNotEmpty &&
+        !(address.latitude == 0 && address.longitude == 0)) {
+      final zone = resolveDeliveryZone(
+        tiers: settings.deliveryRadiusTiers,
+        storeLat: settings.mapLatitude,
+        storeLng: settings.mapLongitude,
+        addressLat: address.latitude,
+        addressLng: address.longitude,
+      );
+      if (zone != null && zone.inRange) {
+        zoneEstimate = zone.estimate;
+      }
+    }
 
     // A booked window replaces the ASAP estimate, so the header never promises
     // "20-30 minutes" on an order scheduled for tomorrow.
     final scheduledSummary = _scheduledFor != null
         ? 'Arriving ${slotSummary(_scheduleDayIndex!, _scheduleSlot!)}'
         : null;
-    final deliveryLabel =
-        scheduledSummary ?? (estimate.isNotEmpty ? estimate : 'Fast delivery');
-    final showSuperfast = scheduledSummary == null && estimate.isNotEmpty;
+    final deliveryLabel = scheduledSummary ??
+        ((zoneEstimate ?? estimate).isNotEmpty
+            ? (zoneEstimate ?? estimate)
+            : 'Fast delivery');
+    final showSuperfast =
+        scheduledSummary == null && (zoneEstimate ?? estimate).isNotEmpty;
 
     return Scaffold(
       backgroundColor: pageBg,

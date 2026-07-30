@@ -5,6 +5,9 @@ enum ImageQuality {
   /// Tiny preview (~64–96px) — first paint.
   low,
 
+  /// Single-pass list tiles (~180–360px) — scroll-friendly.
+  medium,
+
   /// Display-sized decode (~viewport).
   high,
 }
@@ -76,6 +79,14 @@ class ImageResolver {
         );
       }
       return resolved;
+    }
+
+    if (quality == ImageQuality.medium) {
+      return variant(
+        resolved,
+        width: targetWidth ?? 384,
+        quality: 65,
+      );
     }
 
     return variant(

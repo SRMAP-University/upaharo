@@ -4,6 +4,7 @@ import {
   clampFloat,
   clampInt,
   DEFAULT_APP_SETTINGS,
+  normalizeDeliveryRadiusTiers,
   normalizeDeliverySlots,
   normalizeDensity,
   normalizeHeaderCategoryIds,
@@ -17,6 +18,27 @@ import { isMissingAppSettingsTableError } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+
+async function loadDeliveryRadiusTiers(storeId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ deliveryRadiusTiers: unknown }>>`
+      SELECT "deliveryRadiusTiers" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1
+    `
+    return normalizeDeliveryRadiusTiers(rows[0]?.deliveryRadiusTiers)
+  } catch {
+    return []
+  }
+}
+
+async function saveDeliveryRadiusTiers(storeId: string, raw: unknown) {
+  const tiers = normalizeDeliveryRadiusTiers(raw)
+  await prisma.$executeRawUnsafe(
+    `UPDATE "AppSettings" SET "deliveryRadiusTiers" = $1::jsonb WHERE "storeId" = $2`,
+    JSON.stringify(tiers),
+    storeId
+  )
+  return tiers
+}
 
 function toNumber(value: unknown, fallback: number) {
   if (value === '' || value === null || value === undefined) {
@@ -244,6 +266,7 @@ export async function GET(request: NextRequest) {
     const settings = await prisma.appSettings.findUnique({
       where: { storeId: storeContext.store.id },
     })
+    const deliveryRadiusTiers = await loadDeliveryRadiusTiers(storeContext.store.id)
 
     return NextResponse.json({
       id: settings?.id,
@@ -253,6 +276,7 @@ export async function GET(request: NextRequest) {
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
       headerCategoryIds: normalizeHeaderCategoryIds(settings?.headerCategoryIds),
       deliverySlots: normalizeDeliverySlots(settings?.deliverySlots),
+      deliveryRadiusTiers,
       ...normalizeScheduleDays(
         settings?.scheduleDayCount,
         settings?.scheduleMaxDaysAhead
@@ -303,12 +327,17 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
+    const deliveryRadiusTiers = await saveDeliveryRadiusTiers(
+      storeContext.store.id,
+      body.deliveryRadiusTiers
+    )
+
     await redis.del(
       REDIS_KEYS.APP_SETTINGS(storeContext.slug),
       REDIS_KEYS.HOME(storeContext.slug)
     )
 
-    return NextResponse.json(settings)
+    return NextResponse.json({ ...settings, deliveryRadiusTiers })
   } catch (error) {
     if (isMissingAppSettingsTableError(error)) {
       return NextResponse.json(

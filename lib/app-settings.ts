@@ -3,6 +3,7 @@ import {
   clampInt,
   DEFAULT_APP_SETTINGS,
   normalizeDeliverySlots,
+  normalizeDeliveryRadiusTiers,
   normalizeDensity,
   normalizeHexColor,
   normalizeHeaderCategoryIds,
@@ -45,6 +46,20 @@ export async function getAppSettings(
 
       if (!settings) {
         return DEFAULT_APP_SETTINGS
+      }
+
+      let deliveryRadiusTiersRaw: unknown = (
+        settings as { deliveryRadiusTiers?: unknown }
+      ).deliveryRadiusTiers
+      if (deliveryRadiusTiersRaw === undefined) {
+        try {
+          const rows = await prisma.$queryRaw<
+            Array<{ deliveryRadiusTiers: unknown }>
+          >`SELECT "deliveryRadiusTiers" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+          deliveryRadiusTiersRaw = rows[0]?.deliveryRadiusTiers
+        } catch {
+          deliveryRadiusTiersRaw = []
+        }
       }
 
       return {
@@ -182,6 +197,7 @@ export async function getAppSettings(
           0,
           1_000_000
         ),
+        deliveryRadiusTiers: normalizeDeliveryRadiusTiers(deliveryRadiusTiersRaw),
         deliverySlots: normalizeDeliverySlots(settings.deliverySlots),
         ...normalizeScheduleDays(
           settings.scheduleDayCount,

@@ -211,6 +211,8 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
 
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
       if (!mounted || !_controller.hasClients || _userDragging) return;
+      final outer = Scrollable.maybeOf(context)?.position;
+      if (outer != null && outer.isScrollingNotifier.value) return;
       final current = _controller.page?.round() ?? _controller.initialPage;
       // Always advance one virtual page — content loops via modulo.
       _controller.animateToPage(
@@ -421,6 +423,8 @@ class _PromoBannerCard extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,
+                progressive: false,
+                fadeDuration: Duration.zero,
                 placeholder: const ColoredBox(color: Color(0xFFF0F0F0)),
                 errorWidget: ColoredBox(
                   color: Color(0xFFF0F0F0),
@@ -531,6 +535,9 @@ class _BannerProductTile extends StatelessWidget {
             ProgressiveNetworkImage(
               url: product.image,
               fit: BoxFit.cover,
+              progressive: false,
+              memCacheLogicalWidth: 96,
+              fadeDuration: Duration.zero,
               errorWidget: ColoredBox(
                 color: Color(0xFFF0F0F0),
                 child: Icon(Icons.local_florist,

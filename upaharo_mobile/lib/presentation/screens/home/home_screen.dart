@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen>
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
-            cacheExtent: 180,
+            cacheExtent: 480,
             slivers: [
               CupertinoSliverRefreshControl(
                 refreshTriggerPullDistance: 110,
@@ -799,14 +799,19 @@ class _HomeScreenState extends State<HomeScreen>
           crossAxisSpacing: spacing,
           childAspectRatio: settings.productCardAspectRatio,
         ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final product = products[index];
-          return _PlainHomeProductTile(
-            product: product,
-            settings: settings,
-            onTap: () => _openProduct(product, peers: products),
-          );
-        }, childCount: products.length),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final product = products[index];
+            return _PlainHomeProductTile(
+              product: product,
+              settings: settings,
+              onTap: () => _openProduct(product, peers: products),
+            );
+          },
+          childCount: products.length,
+          addAutomaticKeepAlives: false,
+          addRepaintBoundaries: true,
+        ),
       ),
     );
   }
@@ -847,55 +852,59 @@ class _PlainHomeProductTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ProgressiveNetworkImage(
-                    url: product.image,
-                    fit: BoxFit.cover,
-                    fadeDuration: Duration.zero,
-                    placeholder: ColoredBox(color: AppTheme.creamDeep),
-                    errorWidget: ColoredBox(
-                      color: AppTheme.creamDeep,
-                      child: const Icon(
-                        Icons.image_not_supported,
-                        color: Colors.grey,
+              child: RepaintBoundary(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ProgressiveNetworkImage(
+                      url: product.image,
+                      fit: BoxFit.cover,
+                      progressive: false,
+                      memCacheLogicalWidth: 180,
+                      fadeDuration: Duration.zero,
+                      placeholder: ColoredBox(color: AppTheme.creamDeep),
+                      errorWidget: ColoredBox(
+                        color: AppTheme.creamDeep,
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                        ),
                       ),
                     ),
-                  ),
-                  if (showBadge)
-                    Positioned(
-                      left: 6,
-                      top: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.wine,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '-${discount.round()}%',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                    if (showBadge)
+                      Positioned(
+                        left: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.wine,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '-${discount.round()}%',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
+                    Positioned(
+                      right: 6,
+                      bottom: 6,
+                      child: AddToCartPlus(
+                        product: product,
+                        size: 28,
+                        iconSize: 16,
+                      ),
                     ),
-                  Positioned(
-                    right: 6,
-                    bottom: 6,
-                    child: AddToCartPlus(
-                      product: product,
-                      size: 28,
-                      iconSize: 16,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             Padding(
@@ -1137,9 +1146,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                   child: Align(
                     alignment: Alignment.topCenter,
                     heightFactor: locationProgress,
-                    child: Opacity(
-                      opacity: locationProgress,
-                      child: SizedBox(
+                    child: SizedBox(
                         height: _locationHeight,
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -1251,7 +1258,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                       ),
                     ),
                   ),
-                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
                   child: Row(
@@ -1453,20 +1459,19 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                     },
                   ),
                 ),
-                if (showPromo && promoH > 0)
+                if (showPromo && promoH > 0 && promoProgress > 0.02)
                   ClipRect(
                     child: Align(
                       alignment: Alignment.topCenter,
                       heightFactor: promoProgress,
-                      child: Opacity(
-                        opacity: promoProgress,
-                        child: SizedBox(
-                          height: promoH,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: _catsPromoGap),
-                              Expanded(
+                      child: SizedBox(
+                        height: promoH,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: _catsPromoGap),
+                            Expanded(
+                              child: RepaintBoundary(
                                 child: HomeHeaderPromo(
                                   // Remount when banner set changes so infinite
                                   // PageController starts in the virtual middle.
@@ -1491,8 +1496,8 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                   onBannerWashChanged: onBannerWashChanged,
                                 ),
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -1546,6 +1551,7 @@ class _CategoryHeaderThumb extends StatelessWidget {
         fit: BoxFit.cover,
         width: size,
         height: size,
+        progressive: false,
         enableBlur: false,
         fadeDuration: Duration.zero,
         placeholder: const SizedBox.shrink(),
@@ -1630,6 +1636,7 @@ Widget _netImage(String? url, {BoxFit fit = BoxFit.cover}) {
     fit: fit,
     width: double.infinity,
     height: double.infinity,
+    progressive: false,
     fadeDuration: Duration.zero,
   );
 }

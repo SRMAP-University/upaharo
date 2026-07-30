@@ -191,146 +191,75 @@ class ValueDealsSection extends StatelessWidget {
   }
 }
 
-class _BrandMark extends StatefulWidget {
+class _BrandMark extends StatelessWidget {
   const _BrandMark({required this.label});
 
   final String label;
 
   @override
-  State<_BrandMark> createState() => _BrandMarkState();
-}
-
-class _BrandMarkState extends State<_BrandMark>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _bob;
-  late final Animation<double> _pulse;
-  late final Animation<double> _spin;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
-
-    _bob = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: -4), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: -4, end: 0), weight: 50),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-
-    _pulse = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1, end: 1.06), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.06, end: 1), weight: 50),
-    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-
-    _spin = Tween<double>(begin: 0, end: 1).animate(_ctrl);
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final short = widget.label.length <= 6
-        ? widget.label
-        : '${widget.label.substring(0, 5)}…';
+    final short = label.length <= 6
+        ? label
+        : '${label.substring(0, 5)}…';
 
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) {
-        return SizedBox(
-          width: 64,
-          height: 64,
-          child: Stack(
-            alignment: Alignment.center,
-            clipBehavior: Clip.none,
-            children: [
-              // Orbiting sparkles (like floating coins in the reference)
-              Transform.rotate(
-                angle: _spin.value * 2 * math.pi,
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: Stack(
-                    children: [
-                      Positioned(
-                        top: 2,
-                        right: 4,
-                        child: _SparkDot(
-                          size: 7,
-                          opacity: 0.55 + 0.35 * (1 - (_spin.value - 0.25).abs().clamp(0, 1)),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 6,
-                        left: 2,
-                        child: _SparkDot(
-                          size: 5,
-                          opacity: 0.4 + 0.4 * math.sin(_spin.value * 2 * math.pi).abs(),
-                        ),
-                      ),
-                      Positioned(
-                        top: 18,
-                        left: 0,
-                        child: _SparkDot(
-                          size: 4,
-                          opacity: 0.35 + 0.35 * math.cos(_spin.value * 2 * math.pi).abs(),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              Transform.translate(
-                offset: Offset(0, _bob.value),
-                child: Transform.scale(
-                  scale: _pulse.value,
-                  child: child,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      child: Container(
-        width: 54,
-        height: 54,
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF6E5FE0),
-              ValueDealsSection._accent,
-              Color(0xFF4A3DB0),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: ValueDealsSection._accent.withAlpha(70),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(
         alignment: Alignment.center,
-        child: Text(
-          short,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          style: const TextStyle(
-            color: Color(0xFFFFE566),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-            height: 1.05,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: 2,
+            right: 4,
+            child: _SparkDot(size: 7, opacity: 0.7),
           ),
-        ),
+          Positioned(
+            bottom: 6,
+            left: 2,
+            child: _SparkDot(size: 5, opacity: 0.55),
+          ),
+          Positioned(
+            top: 18,
+            left: 0,
+            child: _SparkDot(size: 4, opacity: 0.45),
+          ),
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF6E5FE0),
+                  ValueDealsSection._accent,
+                  Color(0xFF4A3DB0),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: ValueDealsSection._accent.withAlpha(70),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              short,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: const TextStyle(
+                color: Color(0xFFFFE566),
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                height: 1.05,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -412,6 +341,8 @@ class _ValueDealProductCard extends StatelessWidget {
                       child: ProgressiveNetworkImage(
                         url: product.image,
                         fit: BoxFit.cover,
+                        progressive: false,
+                        memCacheLogicalWidth: 140,
                         fadeDuration: Duration.zero,
                         placeholder: const ColoredBox(color: Colors.white),
                         errorWidget: ColoredBox(

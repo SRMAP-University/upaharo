@@ -8,6 +8,7 @@ import {
   DEFAULT_HOME_SECTIONS,
   MAX_SCHEDULE_DAY_COUNT,
   MAX_SCHEDULE_DAYS_AHEAD,
+  normalizeDeliveryRadiusTiers,
   normalizeDeliverySlots,
   normalizeDensity,
   normalizeHeaderCategoryIds,
@@ -17,7 +18,9 @@ import {
   UI_DENSITIES,
 } from '@/lib/app-settings-schema'
 import SubProductSelector from '@/components/admin/SubProductSelector'
+import { DeliveryRadiusTiersEditor } from './delivery-radius-tiers-editor'
 import { DeliverySlotsEditor } from './delivery-slots-editor'
+import { DeliveryZonesMap } from './delivery-zones-map'
 import { MobilePreview } from './mobile-preview'
 import { SectionLayoutEditor } from './section-layout-editor'
 import { HeaderCategoriesEditor } from './header-categories-editor'
@@ -187,6 +190,7 @@ export default function AdminSettingsPage() {
           0,
           1_000_000
         ),
+        deliveryRadiusTiers: normalizeDeliveryRadiusTiers(data.deliveryRadiusTiers),
         deliverySlots: normalizeDeliverySlots(data.deliverySlots),
         ...normalizeScheduleDays(data.scheduleDayCount, data.scheduleMaxDaysAhead),
       })
@@ -814,10 +818,14 @@ export default function AdminSettingsPage() {
                   </SettingsGrid>
                   <InfoBanner>
                     Goods total ≥ Rs {formData.freeDeliveryMinAmount} → free delivery. Otherwise Rs{' '}
-                    {formData.deliveryFeeAmount} delivery fee.
+                    {formData.deliveryFeeAmount} delivery fee
+                    {formData.deliveryRadiusTiers.length > 0
+                      ? ' (overridden by Delivery map zones when an address is in range).'
+                      : '.'}
                     {formData.checkoutMinOrderAmount > 0
                       ? ` Checkout also requires a minimum order of Rs ${formData.checkoutMinOrderAmount}.`
-                      : ''}
+                      : ''}{' '}
+                    Configure distance-based fees under the Delivery map tab.
                   </InfoBanner>
                 </SettingsPanel>
 
@@ -877,6 +885,73 @@ export default function AdminSettingsPage() {
                         }, and allows custom dates up to ${
                           Math.max(formData.scheduleDayCount, formData.scheduleMaxDaysAhead) - 1
                         } days out. Windows that have already started are hidden automatically.`}
+                  </InfoBanner>
+                </SettingsPanel>
+              </>
+            )}
+
+            {activeTab === 'map' && (
+              <>
+                <SettingsPanel
+                  title="Store pin"
+                  description="The centre of every delivery zone. Drag the pin or click the map, then save."
+                >
+                  <DeliveryZonesMap
+                    latitude={Number(formData.mapLatitude) || 27.7172}
+                    longitude={Number(formData.mapLongitude) || 85.324}
+                    tiers={formData.deliveryRadiusTiers}
+                    onStorePinChange={(lat, lng) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        mapLatitude: String(lat),
+                        mapLongitude: String(lng),
+                      }))
+                    }}
+                  />
+                  <div className="mt-4">
+                    <SettingsGrid>
+                      <TextField
+                        label="Latitude"
+                        value={formData.mapLatitude}
+                        onChange={(value) => set('mapLatitude', value)}
+                      />
+                      <TextField
+                        label="Longitude"
+                        value={formData.mapLongitude}
+                        onChange={(value) => set('mapLongitude', value)}
+                      />
+                      <TextField
+                        label="Store address"
+                        value={formData.storeAddress}
+                        onChange={(value) => set('storeAddress', value)}
+                        hint="Shown on support / about screens."
+                      />
+                    </SettingsGrid>
+                  </div>
+                </SettingsPanel>
+
+                <SettingsPanel
+                  title="Delivery zones"
+                  description="Charge a fee and show an ETA based on how far the customer is from the store pin. Outer edge of the last zone is the max delivery range."
+                >
+                  <DeliveryRadiusTiersEditor
+                    tiers={formData.deliveryRadiusTiers}
+                    onChange={(deliveryRadiusTiers) =>
+                      set('deliveryRadiusTiers', deliveryRadiusTiers)
+                    }
+                  />
+                  <InfoBanner>
+                    {formData.deliveryRadiusTiers.length === 0
+                      ? `Distance pricing is off. Checkout uses the flat fee (Rs ${formData.deliveryFeeAmount}) and free delivery over Rs ${formData.freeDeliveryMinAmount} from the Checkout tab.`
+                      : `${formData.deliveryRadiusTiers.length} zone${
+                          formData.deliveryRadiusTiers.length === 1 ? '' : 's'
+                        } active. Free delivery over Rs ${
+                          formData.freeDeliveryMinAmount
+                        } still applies. Addresses beyond ${
+                          Math.max(
+                            ...formData.deliveryRadiusTiers.map((t) => t.maxRadiusKm)
+                          )
+                        } km are blocked at checkout.`}
                   </InfoBanner>
                 </SettingsPanel>
               </>

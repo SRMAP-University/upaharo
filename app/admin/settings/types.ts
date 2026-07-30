@@ -1,6 +1,7 @@
 import {
   DEFAULT_DELIVERY_SLOTS,
   DEFAULT_HOME_SECTIONS,
+  type DeliveryRadiusTier,
   type DeliverySlotConfig,
   type HomeSectionConfig,
 } from '@/lib/app-settings-schema'
@@ -71,6 +72,8 @@ export type SettingsForm = {
   checkoutMinOrderAmount: number
   freeDeliveryMinAmount: number
   deliveryFeeAmount: number
+  /** Empty = flat fee only. */
+  deliveryRadiusTiers: DeliveryRadiusTier[]
   /** Empty disables scheduled delivery. */
   deliverySlots: DeliverySlotConfig[]
   scheduleDayCount: number
@@ -139,6 +142,7 @@ export const EMPTY_FORM: SettingsForm = {
   checkoutMinOrderAmount: 0,
   freeDeliveryMinAmount: 199,
   deliveryFeeAmount: 40,
+  deliveryRadiusTiers: [],
   deliverySlots: DEFAULT_DELIVERY_SLOTS,
   scheduleDayCount: 3,
   scheduleMaxDaysAhead: 30,

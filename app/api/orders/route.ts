@@ -25,6 +25,7 @@ import {
   redeemWallet,
   roundMoney,
 } from '@/lib/wallet'
+import { resolveDeliveryZone } from '@/lib/delivery-radius'
 
 export async function POST(request: NextRequest) {
   try {
@@ -242,7 +243,46 @@ export async function POST(request: NextRequest) {
     }
 
     // Server-authoritative delivery fee from admin settings; pickup never pays one.
-    const resolvedDeliveryFee = isPickup ? 0 : computeDeliveryFee(goodsTotal, deliveryRules)
+    let resolvedDeliveryFee = 0
+    if (!isPickup) {
+      const tiers = deliveryRules.deliveryRadiusTiers ?? []
+      let distanceKm: number | null = null
+
+      if (tiers.length > 0 && address) {
+        const lat =
+          typeof addressLatitude === 'number' ? addressLatitude : Number(addressLatitude)
+        const lng =
+          typeof addressLongitude === 'number' ? addressLongitude : Number(addressLongitude)
+        const hasIncoming = Number.isFinite(lat) && Number.isFinite(lng)
+        const addressLat = hasIncoming ? lat : address.latitude
+        const addressLng = hasIncoming ? lng : address.longitude
+
+        const zone = resolveDeliveryZone({
+          tiers,
+          storeLat: deliveryRules.mapLatitude,
+          storeLng: deliveryRules.mapLongitude,
+          addressLat,
+          addressLng,
+        })
+
+        if (zone && !zone.inRange) {
+          return NextResponse.json(
+            {
+              error: `Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toFixed(1)} km away).`,
+            },
+            { status: 400 }
+          )
+        }
+
+        if (zone?.inRange) {
+          distanceKm = zone.distanceKm
+        }
+      }
+
+      resolvedDeliveryFee = computeDeliveryFee(goodsTotal, deliveryRules, {
+        distanceKm,
+      })
+    }
 
     // Server-authoritative total (includes gift wrap when selected).
     const totalBeforeWallet = Math.max(

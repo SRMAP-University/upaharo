@@ -1,4 +1,5 @@
 import '../../core/utils/delivery_slots.dart';
+import '../../core/utils/delivery_radius.dart';
 import '../../config/flavor.dart';
 
 /// One reorderable mobile home section, configured from the admin panel.
@@ -108,6 +109,8 @@ class AppSettings {
   final String navTopPicksLabel;
   final double freeDeliveryMinAmount;
   final double deliveryFeeAmount;
+  /// Distance zones from the store pin. Empty = flat fee only.
+  final List<DeliveryRadiusTier> deliveryRadiusTiers;
 
   /// Bookable delivery windows. Empty means the admin turned scheduling off.
   final List<DeliverySlot> deliverySlots;
@@ -172,6 +175,7 @@ class AppSettings {
     this.navTopPicksLabel = 'Top picks',
     this.freeDeliveryMinAmount = 199,
     this.deliveryFeeAmount = 40,
+    this.deliveryRadiusTiers = const [],
     this.deliverySlots = defaultDeliverySlots,
     this.scheduleDayCount = defaultScheduleDayCount,
     this.scheduleMaxDaysAhead = defaultScheduleMaxDaysAhead,
@@ -349,6 +353,8 @@ class AppSettings {
       freeDeliveryMinAmount:
           (json['freeDeliveryMinAmount'] as num?)?.toDouble() ?? 199,
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
+      deliveryRadiusTiers:
+          parseDeliveryRadiusTiers(json['deliveryRadiusTiers']),
       deliverySlots: DeliverySchedule.parseSlots(json['deliverySlots']),
       scheduleDayCount:
           (json['scheduleDayCount'] as num?)?.toInt() ??
@@ -422,6 +428,8 @@ class AppSettings {
     'navTopPicksLabel': navTopPicksLabel,
     'freeDeliveryMinAmount': freeDeliveryMinAmount,
     'deliveryFeeAmount': deliveryFeeAmount,
+    'deliveryRadiusTiers':
+        deliveryRadiusTiers.map((e) => e.toJson()).toList(),
     'deliverySlots': deliverySlots.map((e) => e.toJson()).toList(),
     'scheduleDayCount': scheduleDayCount,
     'scheduleMaxDaysAhead': scheduleMaxDaysAhead,

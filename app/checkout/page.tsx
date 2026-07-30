@@ -15,6 +15,8 @@ import SkeletonLoader from '@/components/SkeletonLoader'
 import { SessionSync } from '@/components/SessionSync'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { computeCashback, computeDeliveryFee, computeMaxWalletSpend, type WalletRules } from '@/lib/wallet-rules'
+import { distanceKmBetween, resolveDeliveryZone } from '@/lib/delivery-radius'
+import { normalizeDeliveryRadiusTiers } from '@/lib/app-settings-schema'
 
 interface GiftWrap {
   id: string
@@ -49,6 +51,9 @@ interface AppSettings {
   supportHours: string
   deliveryEstimate: string
   deliveryNote: string
+  mapLatitude: number
+  mapLongitude: number
+  deliveryRadiusTiers: import('@/lib/app-settings-schema').DeliveryRadiusTier[]
 }
 
 type WalletInfo = WalletRules & {
@@ -57,6 +62,7 @@ type WalletInfo = WalletRules & {
   checkoutMinOrderAmount: number
   freeDeliveryMinAmount: number
   deliveryFeeAmount: number
+  deliveryRadiusTiers: import('@/lib/app-settings-schema').DeliveryRadiusTier[]
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -65,6 +71,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   supportHours: '9:00 AM - 9:00 PM',
   deliveryEstimate: 'Estimated delivery: 20-30 minutes',
   deliveryNote: 'Delivery timings may vary based on address and order volume.',
+  mapLatitude: 27.7172,
+  mapLongitude: 85.324,
+  deliveryRadiusTiers: [],
 }
 
 function WalletToggle({
@@ -157,20 +166,65 @@ export default function CheckoutPage() {
   const subtotal = getTotalPrice()
   const giftWrapPrice = giftOptions.giftWrapId ? (giftWraps.find(w => w.id === giftOptions.giftWrapId)?.price || 0) : 0
   const goodsTotal = subtotal + giftWrapPrice
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const freeDeliveryMinAmount = wallet?.freeDeliveryMinAmount ?? 199
   const deliveryFeeAmount = wallet?.deliveryFeeAmount ?? 40
   const pickupAvailable = Boolean(pickupLocation)
   const isPickup = pickupAvailable && wantsPickup
+  const radiusTiers =
+    appSettings.deliveryRadiusTiers.length > 0
+      ? appSettings.deliveryRadiusTiers
+      : wallet?.deliveryRadiusTiers ?? []
+  const selectedCoords = selectedAddress
+    ? {
+        lat: Number(selectedAddress.latitude),
+        lng: Number(selectedAddress.longitude),
+      }
+    : null
+  const deliveryDistanceKm =
+    !isPickup &&
+    radiusTiers.length > 0 &&
+    selectedCoords &&
+    Number.isFinite(selectedCoords.lat) &&
+    Number.isFinite(selectedCoords.lng) &&
+    !(selectedCoords.lat === 0 && selectedCoords.lng === 0)
+      ? distanceKmBetween(
+          appSettings.mapLatitude,
+          appSettings.mapLongitude,
+          selectedCoords.lat,
+          selectedCoords.lng
+        )
+      : null
+  const deliveryZone =
+    deliveryDistanceKm != null
+      ? resolveDeliveryZone({
+          tiers: radiusTiers,
+          storeLat: appSettings.mapLatitude,
+          storeLng: appSettings.mapLongitude,
+          addressLat: selectedCoords!.lat,
+          addressLng: selectedCoords!.lng,
+        })
+      : null
   const deliveryFee = isPickup
     ? 0
     : wallet
-      ? computeDeliveryFee(goodsTotal, {
-          freeDeliveryMinAmount,
-          deliveryFeeAmount,
-        })
+      ? computeDeliveryFee(
+          goodsTotal,
+          {
+            freeDeliveryMinAmount,
+            deliveryFeeAmount,
+            deliveryRadiusTiers: radiusTiers,
+          },
+          { distanceKm: deliveryDistanceKm }
+        )
       : goodsTotal >= 199
         ? 0
         : 40
+  const outOfDeliveryRange = Boolean(deliveryZone && !deliveryZone.inRange)
+  const deliveryEstimateLabel =
+    deliveryZone && deliveryZone.inRange
+      ? deliveryZone.estimate
+      : appSettings.deliveryEstimate
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
   const taxDisplay = Math.round(subtotal * 0.05 * 100) / 100
@@ -187,7 +241,6 @@ export default function CheckoutPage() {
   const minOrderAmount = wallet?.checkoutMinOrderAmount ?? 0
   const belowMinOrder = minOrderAmount > 0 && goodsTotal < minOrderAmount
   const cartProductKey = items.map((item) => item.id).filter(Boolean).join(',')
-  const selectedAddress = addresses.find((address) => address.id === selectedAddressId) || null
   const isSelectedAddressServiceable = selectedAddress
     ? isKathmanduValleyLocation({
         city: selectedAddress.city,
@@ -325,6 +378,9 @@ export default function CheckoutPage() {
           supportHours: String(data.supportHours || DEFAULT_SETTINGS.supportHours),
           deliveryEstimate: String(data.deliveryEstimate || DEFAULT_SETTINGS.deliveryEstimate),
           deliveryNote: String(data.deliveryNote || DEFAULT_SETTINGS.deliveryNote),
+          mapLatitude: Number(data.mapLatitude) || DEFAULT_SETTINGS.mapLatitude,
+          mapLongitude: Number(data.mapLongitude) || DEFAULT_SETTINGS.mapLongitude,
+          deliveryRadiusTiers: normalizeDeliveryRadiusTiers(data.deliveryRadiusTiers),
         })
       }
     } catch (error) {
@@ -350,6 +406,7 @@ export default function CheckoutPage() {
         checkoutMinOrderAmount: Number(data.checkoutMinOrderAmount) || 0,
         freeDeliveryMinAmount: Number(data.freeDeliveryMinAmount) || 199,
         deliveryFeeAmount: Number(data.deliveryFeeAmount) || 40,
+        deliveryRadiusTiers: normalizeDeliveryRadiusTiers(data.deliveryRadiusTiers),
       })
     } catch (error) {
       console.error('Error fetching wallet:', error)
@@ -471,6 +528,13 @@ export default function CheckoutPage() {
 
       if (!isSelectedAddressServiceable) {
         alert(SERVICE_AREA_UNAVAILABLE_MESSAGE)
+        return
+      }
+
+      if (outOfDeliveryRange && deliveryZone && !deliveryZone.inRange) {
+        alert(
+          `Sorry, we only deliver within ${deliveryZone.maxRadiusKm} km of the store (you are about ${deliveryZone.distanceKm.toFixed(1)} km away).`
+        )
         return
       }
     }
@@ -647,6 +711,12 @@ export default function CheckoutPage() {
                   {!isSelectedAddressServiceable && selectedAddress ? (
                     <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                       {SERVICE_AREA_UNAVAILABLE_MESSAGE}
+                    </div>
+                  ) : null}
+                  {outOfDeliveryRange && deliveryZone && !deliveryZone.inRange ? (
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                      Outside delivery range — we deliver up to {deliveryZone.maxRadiusKm}{' '}
+                      km (you are about {deliveryZone.distanceKm.toFixed(1)} km away).
                     </div>
                   ) : null}
                   {addresses.map((addr) => (
@@ -1168,7 +1238,7 @@ export default function CheckoutPage() {
                 <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
                 </svg>
-                <span>{appSettings.deliveryEstimate}</span>
+                <span>{deliveryEstimateLabel}</span>
               </div>
 
               <div className="bg-cream-deep border border-wine/10 rounded-xl p-3 mb-4 text-sm text-ink/70 space-y-1">
@@ -1192,6 +1262,7 @@ export default function CheckoutPage() {
                 disabled={
                   isLoading ||
                   belowMinOrder ||
+                  outOfDeliveryRange ||
                   (giftOptions.isGift && !giftOptions.recipientId)
                 }
                 className="w-full bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-wine-deep"
@@ -1330,6 +1401,7 @@ export default function CheckoutPage() {
                     disabled={
                   isLoading ||
                   belowMinOrder ||
+                  outOfDeliveryRange ||
                   (giftOptions.isGift && !giftOptions.recipientId)
                 }
                     className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:bg-wine-deep"
@@ -1350,7 +1422,7 @@ export default function CheckoutPage() {
                     )}
                   </motion.button>
                 </div>
-                <p className="text-xs text-ink/55">{appSettings.deliveryEstimate}</p>
+                <p className="text-xs text-ink/55">{deliveryEstimateLabel}</p>
               </div>
             </div>
           </div>
