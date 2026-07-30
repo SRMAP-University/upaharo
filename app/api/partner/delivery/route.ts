@@ -11,7 +11,16 @@ const orderInclude = {
   address: true,
   items: {
     include: {
-      product: { select: { id: true, name: true, image: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          pickupLatitude: true,
+          pickupLongitude: true,
+          pickupAddress: true,
+        },
+      },
     },
   },
 } as const
@@ -82,7 +91,7 @@ export async function GET(request: NextRequest) {
     }
 
     const view = request.nextUrl.searchParams.get('view') || 'pool'
-    const storeIds = await resolveStoreIdsForPartner(partner.access)
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
 
     if (view === 'active') {
       const active = await prisma.order.findFirst({
@@ -101,6 +110,7 @@ export async function GET(request: NextRequest) {
         where: {
           deliveryPartnerId: partner.deliveryPartnerId,
           status: 'DELIVERED',
+          ...(storeIds.length ? { storeId: { in: storeIds } } : {}),
         },
         include: orderInclude,
         orderBy: { deliveredAt: 'desc' },

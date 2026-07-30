@@ -151,6 +151,22 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> updateProfile(Map<String, dynamic> body) async {
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      await DioClient.instance.patch('/api/partner/me', data: body);
+      await refreshProfile();
+    } catch (e) {
+      error = DioClient.errorMessage(e);
+      rethrow;
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> logout() async {
     await TokenStorage.deleteToken();
     isLoggedIn = false;

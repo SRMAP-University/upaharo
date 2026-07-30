@@ -45,40 +45,44 @@ export async function PATCH(
         ? Boolean(body.groceryEnabled)
         : user.partnerAccess?.groceryEnabled ?? false
 
-    if (!sellerEnabled && !deliveryEnabled) {
+    if (!sellerEnabled && !deliveryEnabled && body.grantAdmin !== true && user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: 'Enable at least Merchant or Delivery' },
         { status: 400 }
       )
     }
 
+    const grantAdmin =
+      body.grantAdmin !== undefined ? Boolean(body.grantAdmin) : user.role === 'ADMIN'
+
     await prisma.$transaction(async (tx) => {
-      if (typeof body.name === 'string' && body.name.trim()) {
-        await tx.user.update({
-          where: { id: userId },
-          data: {
-            name: body.name.trim(),
-            role: sellerEnabled ? 'SELLER' : 'DELIVERY_PARTNER',
-          },
-        })
-      } else {
-        await tx.user.update({
-          where: { id: userId },
-          data: { role: sellerEnabled ? 'SELLER' : 'DELIVERY_PARTNER' },
-        })
-      }
+      const nextRole = grantAdmin
+        ? 'ADMIN'
+        : sellerEnabled
+          ? 'SELLER'
+          : 'DELIVERY_PARTNER'
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(typeof body.name === 'string' && body.name.trim()
+            ? { name: body.name.trim() }
+            : {}),
+          role: nextRole,
+        },
+      })
 
       await tx.partnerAccess.upsert({
         where: { userId },
         create: {
           userId,
-          sellerEnabled,
+          sellerEnabled: sellerEnabled || grantAdmin,
           deliveryEnabled,
           giftsEnabled,
           groceryEnabled,
         },
         update: {
-          sellerEnabled,
+          sellerEnabled: sellerEnabled || grantAdmin,
           deliveryEnabled,
           giftsEnabled,
           groceryEnabled,

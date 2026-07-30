@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/merchant_provider.dart';
 
 class MerchantEarningsTab extends StatelessWidget {
@@ -11,6 +12,8 @@ class MerchantEarningsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final m = context.watch<MerchantProvider>();
+    final auth = context.watch<AuthProvider>();
+    final primary = AppTheme.primary(auth.storeSlug);
     final s = m.stats;
     final fmt = NumberFormat.currency(symbol: 'Rs ', decimalDigits: 0);
 
@@ -24,7 +27,7 @@ class MerchantEarningsTab extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.wine.withValues(alpha: 0.08)),
+          border: Border.all(color: primary.withValues(alpha: 0.1)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,10 +42,10 @@ class MerchantEarningsTab extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.wine,
+                color: primary,
               ),
             ),
           ],

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Seller not found' }, { status: 404 })
     }
 
-    const storeIds = await resolveStoreIdsForPartner(partner.access)
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
 
     const totalProducts = await prisma.product.count({
       where: {

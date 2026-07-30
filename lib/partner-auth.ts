@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { getTokenFromRequest, verifyToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { resolveStoreSlug } from '@/lib/store-context'
 
 export type PartnerCapabilities = {
   sellerEnabled: boolean
@@ -138,11 +139,24 @@ export async function loadPartnerByUserId(userId: string): Promise<PartnerIdenti
   return toIdentity(user)
 }
 
+/**
+ * Store IDs the partner may access.
+ * When `request` is provided, scopes to the selected store (`X-Store` / `?store=`).
+ */
 export async function resolveStoreIdsForPartner(
-  access: PartnerCapabilities
+  access: PartnerCapabilities,
+  request?: NextRequest | Request
 ): Promise<string[]> {
-  const slugs = allowedStoreSlugs(access)
+  let slugs = allowedStoreSlugs(access)
   if (slugs.length === 0) return []
+
+  if (request) {
+    const requested = resolveStoreSlug(request)
+    if (!slugs.includes(requested)) {
+      return []
+    }
+    slugs = [requested]
+  }
 
   const stores = await prisma.store.findMany({
     where: { slug: { in: slugs }, isActive: true },

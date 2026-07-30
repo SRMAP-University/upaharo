@@ -1,4 +1,9 @@
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter_android/google_maps_flutter_android.dart';
+import 'package:google_maps_flutter_platform_interface/google_maps_flutter_platform_interface.dart';
 import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
@@ -9,8 +14,23 @@ import 'presentation/screens/home/partner_shell.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/splash_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb && Platform.isAndroid) {
+    final mapsImplementation = GoogleMapsFlutterPlatform.instance;
+    if (mapsImplementation is GoogleMapsFlutterAndroid) {
+      mapsImplementation.useAndroidViewSurface = true;
+      try {
+        await mapsImplementation.initializeWithRenderer(
+          AndroidMapRenderer.latest,
+        );
+      } catch (e) {
+        debugPrint('[maps] renderer init failed: $e');
+      }
+    }
+  }
+
   runApp(const PartnerApp());
 }
 
@@ -25,11 +45,15 @@ class PartnerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MerchantProvider()),
         ChangeNotifierProvider(create: (_) => DeliveryProvider()),
       ],
-      child: MaterialApp(
-        title: 'Upaharo Partner',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
-        home: const _Root(),
+      child: Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          return MaterialApp(
+            title: 'Partner',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.forStore(auth.storeSlug),
+            home: const _Root(),
+          );
+        },
       ),
     );
   }

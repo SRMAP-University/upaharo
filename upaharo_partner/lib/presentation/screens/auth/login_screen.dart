@@ -59,78 +59,120 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 48),
-              const Text(
-                'Upaharo Partner',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.wine,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Merchant & delivery login via phone OTP',
-                style: TextStyle(color: AppTheme.ink.withValues(alpha: 0.6)),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _phone,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(10),
-                ],
-                decoration: const InputDecoration(
-                  labelText: 'Mobile number',
-                  hintText: '98xxxxxxxx',
-                  prefixText: '+977 ',
-                ),
-              ),
-              if (_otpSent) ...[
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _otp,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(6),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: AppTheme.groollGreen,
+        statusBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: AppTheme.groollGreen,
+        body: Column(
+          children: [
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 36, 24, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Partner',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 34,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 6),
+                    Text(
+                      'Merchant & delivery for Grooll & Upaharo',
+                      style: TextStyle(color: Colors.white70, fontSize: 15),
+                    ),
                   ],
-                  decoration: const InputDecoration(
-                    labelText: '6-digit OTP',
+                ),
+              ),
+            ),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'Login with phone',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _phone,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Mobile number',
+                          hintText: '98xxxxxxxx',
+                          prefixText: '+977 ',
+                        ),
+                      ),
+                      if (_otpSent) ...[
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: _otp,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(6),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: '6-digit OTP',
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 22),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.groollGreen,
+                        ),
+                        onPressed: auth.busy
+                            ? null
+                            : (_otpSent ? _verify : _send),
+                        child: auth.busy
+                            ? const SizedBox(
+                                height: 22,
+                                width: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(_otpSent ? 'Verify & continue' : 'Send OTP'),
+                      ),
+                      if (_otpSent)
+                        TextButton(
+                          onPressed: auth.busy ? null : _send,
+                          child: const Text(
+                            'Resend OTP',
+                            style: TextStyle(color: AppTheme.groollGreen),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: auth.busy
-                    ? null
-                    : (_otpSent ? _verify : _send),
-                child: auth.busy
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(_otpSent ? 'Verify & login' : 'Send OTP'),
               ),
-              if (_otpSent)
-                TextButton(
-                  onPressed: auth.busy ? null : _send,
-                  child: const Text('Resend OTP'),
-                ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -17,7 +17,16 @@ const orderInclude = {
   address: true,
   items: {
     include: {
-      product: { select: { id: true, name: true, image: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          pickupLatitude: true,
+          pickupLongitude: true,
+          pickupAddress: true,
+        },
+      },
     },
   },
 } as const
@@ -41,7 +50,7 @@ export async function POST(
     const action = String(body.action || 'claim')
 
     if (action === 'claim') {
-      const storeIds = await resolveStoreIdsForPartner(partner.access)
+      const storeIds = await resolveStoreIdsForPartner(partner.access, request)
 
       // One active job at a time
       const existingActive = await prisma.order.findFirst({

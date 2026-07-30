@@ -7,6 +7,7 @@ import '../../providers/merchant_provider.dart';
 import 'merchant_earnings_tab.dart';
 import 'merchant_orders_tab.dart';
 import 'merchant_products_tab.dart';
+import 'merchant_profile_tab.dart';
 
 class MerchantHome extends StatefulWidget {
   const MerchantHome({super.key});
@@ -21,6 +22,8 @@ class _MerchantHomeState extends State<MerchantHome> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final primary = AppTheme.primary(auth.storeSlug);
+
     return Column(
       children: [
         if (auth.seller != null)
@@ -28,14 +31,22 @@ class _MerchantHomeState extends State<MerchantHome> {
             color: Colors.white,
             child: ListTile(
               dense: true,
+              leading: CircleAvatar(
+                backgroundColor: primary.withValues(alpha: 0.12),
+                child: Icon(Icons.storefront, color: primary, size: 20),
+              ),
               title: Text(
                 auth.seller!.businessName,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
               subtitle: Text(
                 auth.seller!.isVerified
-                    ? 'Verified · ${auth.seller!.commission.toStringAsFixed(0)}% commission'
+                    ? (auth.seller!.businessAddress.isEmpty
+                        ? 'Verified · ${auth.seller!.commission.toStringAsFixed(0)}% commission'
+                        : auth.seller!.businessAddress)
                     : 'Awaiting verification',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               trailing: IconButton(
                 icon: const Icon(Icons.refresh),
@@ -50,13 +61,13 @@ class _MerchantHomeState extends State<MerchantHome> {
               MerchantOrdersTab(),
               MerchantProductsTab(),
               MerchantEarningsTab(),
+              MerchantProfileTab(),
             ],
           ),
         ),
         NavigationBar(
           selectedIndex: _index,
           onDestinationSelected: (i) => setState(() => _index = i),
-          indicatorColor: AppTheme.wine.withValues(alpha: 0.15),
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.receipt_long_outlined),
@@ -72,6 +83,11 @@ class _MerchantHomeState extends State<MerchantHome> {
               icon: Icon(Icons.payments_outlined),
               selectedIcon: Icon(Icons.payments),
               label: 'Earnings',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.store_outlined),
+              selectedIcon: Icon(Icons.store),
+              label: 'Shop',
             ),
           ],
         ),

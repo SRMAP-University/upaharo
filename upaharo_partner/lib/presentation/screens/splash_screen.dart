@@ -7,7 +7,7 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: AppTheme.wine,
+      backgroundColor: AppTheme.groollGreen,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -17,7 +17,7 @@ class SplashScreen extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 32,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
             SizedBox(height: 8),

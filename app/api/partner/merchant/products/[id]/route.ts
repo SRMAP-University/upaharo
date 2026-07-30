@@ -102,7 +102,13 @@ export async function PATCH(
     if (body.prepTime !== undefined) data.prepTime = body.prepTime
     if (body.tags !== undefined) data.tags = sanitizeProductTags(body.tags)
     if (body.discount !== undefined) data.discount = body.discount || 0
-    if (body.stockQty !== undefined) data.stockQty = Number(body.stockQty)
+    if (body.trackStock !== undefined) data.trackStock = Boolean(body.trackStock)
+    if (body.stockQty !== undefined) {
+      data.stockQty =
+        body.trackStock === false ? null : Number(body.stockQty)
+    }
+    if (body.sku !== undefined) data.sku = body.sku || null
+    if (body.discount !== undefined) data.discount = body.discount || 0
 
     const product = await withProductWriteCompatibility(data, (safeData) =>
       prisma.product.update({ where: { id }, data: safeData })

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const storeIds = await resolveStoreIdsForPartner(partner.access)
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
     const products = await findManyProductsCompat({
       where: {
         sellerId: partner.sellerId,
@@ -119,7 +119,13 @@ export async function POST(request: NextRequest) {
       tags,
       discount: body.discount || 0,
       sellerId: partner.sellerId,
-      stockQty: body.stockQty !== undefined ? Number(body.stockQty) : undefined,
+      trackStock: body.trackStock === true,
+      stockQty:
+        body.trackStock === true
+          ? body.stockQty !== undefined
+            ? Number(body.stockQty)
+            : 0
+          : null,
       sku: body.sku || undefined,
     }
 

@@ -37,6 +37,7 @@ class _PartnerShellState extends State<PartnerShell> {
     final dual = (auth.access?.sellerEnabled ?? false) &&
         (auth.access?.deliveryEnabled ?? false);
     final stores = auth.access?.storeSlugs ?? const ['gifts'];
+    final primary = AppTheme.primary(auth.storeSlug);
 
     return Scaffold(
       appBar: AppBar(
@@ -45,7 +46,7 @@ class _PartnerShellState extends State<PartnerShell> {
           children: [
             Text(
               auth.mode == PartnerMode.merchant ? 'Merchant' : 'Delivery',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             Text(
               auth.user?.name ?? '',
@@ -79,10 +80,20 @@ class _PartnerShellState extends State<PartnerShell> {
                 child: Chip(
                   label: Text(
                     auth.storeSlug == 'grocery' ? 'Grooll' : 'Upaharo',
-                    style: const TextStyle(fontSize: 12),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  avatar: Icon(
+                    auth.storeSlug == 'grocery'
+                        ? Icons.local_grocery_store
+                        : Icons.card_giftcard,
+                    size: 16,
+                    color: Colors.white,
                   ),
                   backgroundColor: Colors.white24,
-                  labelStyle: const TextStyle(color: Colors.white),
                   side: BorderSide.none,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -109,6 +120,7 @@ class _PartnerShellState extends State<PartnerShell> {
                         _ModeTab(
                           label: 'Merchant',
                           selected: auth.mode == PartnerMode.merchant,
+                          selectedColor: primary,
                           onTap: () async {
                             await auth.setMode(PartnerMode.merchant);
                             if (!context.mounted) return;
@@ -118,6 +130,7 @@ class _PartnerShellState extends State<PartnerShell> {
                         _ModeTab(
                           label: 'Delivery',
                           selected: auth.mode == PartnerMode.delivery,
+                          selectedColor: primary,
                           onTap: () async {
                             await auth.setMode(PartnerMode.delivery);
                             if (!context.mounted) return;
@@ -144,11 +157,13 @@ class _ModeTab extends StatelessWidget {
   const _ModeTab({
     required this.label,
     required this.selected,
+    required this.selectedColor,
     required this.onTap,
   });
 
   final String label;
   final bool selected;
+  final Color selectedColor;
   final VoidCallback onTap;
 
   @override
@@ -167,8 +182,8 @@ class _ModeTab extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? AppTheme.wine : Colors.white,
-              fontWeight: FontWeight.w600,
+              color: selected ? selectedColor : Colors.white,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

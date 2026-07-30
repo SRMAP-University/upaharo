@@ -38,6 +38,7 @@ const emptyForm = {
   deliveryEnabled: false,
   giftsEnabled: true,
   groceryEnabled: false,
+  grantAdmin: false,
   businessName: '',
   businessAddress: '',
   commission: 15,
@@ -88,6 +89,7 @@ export default function PartnersPage() {
         p.partnerAccess?.deliveryEnabled ?? Boolean(p.deliveryPartner),
       giftsEnabled: p.partnerAccess?.giftsEnabled ?? true,
       groceryEnabled: p.partnerAccess?.groceryEnabled ?? false,
+      grantAdmin: p.role === 'ADMIN',
       businessName: p.seller?.businessName || '',
       businessAddress: '',
       commission: p.seller?.commission ?? 15,
@@ -187,6 +189,11 @@ export default function PartnersPage() {
                       {(access?.deliveryEnabled || p.deliveryPartner) && (
                         <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-800">
                           Delivery
+                        </span>
+                      )}
+                      {p.role === 'ADMIN' && (
+                        <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs text-purple-800">
+                          Admin
                         </span>
                       )}
                     </div>
@@ -345,6 +352,31 @@ export default function PartnersPage() {
                   Grooll
                 </label>
               </div>
+
+              {editing ? (
+                <label className="flex items-start gap-2 rounded-xl border border-purple-200 bg-purple-50/60 p-3 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={form.grantAdmin}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        grantAdmin: e.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    <span className="font-semibold text-purple-900">
+                      Grant admin panel access
+                    </span>
+                    <span className="mt-0.5 block text-xs text-purple-800/70">
+                      Lets this partner sign in to the web admin dashboard
+                      (full store management). Use carefully.
+                    </span>
+                  </span>
+                </label>
+              ) : null}
 
               {form.sellerEnabled && (
                 <div className="space-y-3 rounded-xl border border-wine/10 p-3">

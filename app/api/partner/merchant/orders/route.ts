@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const storeIds = await resolveStoreIdsForPartner(partner.access)
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
     if (storeIds.length === 0) {
       return NextResponse.json([])
     }
@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
           select: {
             street: true,
             apartment: true,
+            landmark: true,
             city: true,
             state: true,
             pincode: true,
@@ -129,7 +130,7 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    const storeIds = await resolveStoreIdsForPartner(partner.access)
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
     const existing = await prisma.order.findFirst({
       where: {
         id: orderId,

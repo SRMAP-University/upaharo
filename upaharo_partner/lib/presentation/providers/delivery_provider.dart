@@ -14,6 +14,9 @@ class DeliveryProvider extends ChangeNotifier {
   Future<void> refresh() async {
     loading = true;
     error = null;
+    pool = [];
+    // Keep active if still relevant; clear pool/history for store switch clarity
+    history = [];
     notifyListeners();
     try {
       await Future.wait([loadPool(), loadActive(), loadHistory()]);
@@ -107,5 +110,31 @@ class DeliveryProvider extends ChangeNotifier {
       data: {'action': 'deliver', 'deliveryOtp': otp},
     );
     await refresh();
+  }
+
+  Future<Position?> currentPosition() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission != LocationPermission.whileInUse &&
+        permission != LocationPermission.always) {
+      return null;
+    }
+    return Geolocator.getCurrentPosition();
+  }
+
+  Future<void> pingLocation() async {
+    if (!online) return;
+    final pos = await currentPosition();
+    if (pos == null) return;
+    await DioClient.instance.post(
+      '/api/partner/delivery',
+      data: {
+        'action': 'location',
+        'lat': pos.latitude,
+        'lng': pos.longitude,
+      },
+    );
   }
 }

@@ -12,6 +12,9 @@ class MerchantProvider extends ChangeNotifier {
   Future<void> loadAll() async {
     loading = true;
     error = null;
+    orders = [];
+    products = [];
+    stats = null;
     notifyListeners();
     try {
       await Future.wait([loadOrders(), loadProducts(), loadStats()]);
