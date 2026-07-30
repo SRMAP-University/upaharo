@@ -206,7 +206,7 @@ export async function PATCH(request: NextRequest) {
         orderNumber: existing.orderNumber,
         status: nextStatus,
         storeId: existing.storeId,
-        deliveryOtp: issuedOtp,
+        deliveryOtp: issuedOtp ?? undefined,
       }).catch((err) => console.error('notifyOrderStatus', err))
     }
 
