@@ -29,6 +29,21 @@ function extensionForMime(mime: string): string {
   return '.jpg'
 }
 
+function mimeFromFilename(name: string): string {
+  const lower = name.toLowerCase()
+  if (lower.endsWith('.png')) return 'image/png'
+  if (lower.endsWith('.webp')) return 'image/webp'
+  if (lower.endsWith('.gif')) return 'image/gif'
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  return ''
+}
+
+function resolveImageMime(file: File): string {
+  const typed = (file.type || '').toLowerCase().trim()
+  if (ALLOWED_IMAGE_TYPES.has(typed)) return typed === 'image/jpg' ? 'image/jpeg' : typed
+  return mimeFromFilename(file.name)
+}
+
 type R2Config = {
   endpoint: string
   bucket: string
@@ -205,7 +220,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
     }
 
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+    const contentType = resolveImageMime(file)
+    if (!contentType || !ALLOWED_IMAGE_TYPES.has(contentType)) {
       return NextResponse.json(
         { error: 'Only JPG, PNG, WEBP and GIF images are allowed' },
         { status: 400 }
@@ -221,7 +237,7 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const extension = extensionForMime(file.type)
+    const extension = extensionForMime(contentType)
     const filename = `${Date.now()}-${randomUUID()}${extension}`
     const key = `uploads/${folderName}/${filename}`
 
@@ -238,20 +254,38 @@ export async function POST(request: Request) {
 
     const client = getR2Client(r2Config)
 
-    await client.send(
-      new PutObjectCommand({
-        Bucket: r2Config.bucket,
-        Key: key,
-        Body: buffer,
-        ContentType: file.type,
-        CacheControl: 'public, max-age=31536000, immutable',
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: r2Config.bucket,
+          Key: key,
+          Body: buffer,
+          ContentType: contentType,
+          CacheControl: 'public, max-age=31536000, immutable',
+        })
+      )
+    } catch (putError: any) {
+      console.error('R2 PutObject failed:', {
+        name: putError?.name,
+        message: putError?.message,
+        bucket: r2Config.bucket,
+        key,
       })
-    )
+      return NextResponse.json(
+        {
+          error:
+            putError?.name === 'AccessDenied' || putError?.$metadata?.httpStatusCode === 403
+              ? 'R2 access denied — check bucket credentials and permissions.'
+              : 'Failed to upload image to storage.',
+        },
+        { status: 500 }
+      )
+    }
 
     const normalizedKey = key.replace(/\\/g, '/')
     const url = getObjectUrl(normalizedKey, r2Config)
 
-    return NextResponse.json({ url, filename, size: file.size, type: file.type })
+    return NextResponse.json({ url, filename, size: file.size, type: contentType })
   } catch (error) {
     console.error('Image upload failed:', error)
     return NextResponse.json({ error: 'Failed to upload image' }, { status: 500 })

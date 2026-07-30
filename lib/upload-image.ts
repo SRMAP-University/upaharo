@@ -21,6 +21,7 @@ async function uploadImageToFolder(file: File, folder: string): Promise<string> 
   const response = await fetch('/api/uploads', {
     method: 'POST',
     body: formData,
+    credentials: 'include',
   })
 
   let payload: UploadImageResponse | { error?: string } | null = null
@@ -31,10 +32,16 @@ async function uploadImageToFolder(file: File, folder: string): Promise<string> 
   }
 
   if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error('Image is too large for the server (max ~5MB). Try a smaller file.')
+    }
+    if (response.status === 401) {
+      throw new Error('Session expired — refresh and sign in again as admin.')
+    }
     const message =
       payload && 'error' in payload && payload.error
         ? payload.error
-        : 'Failed to upload image'
+        : `Failed to upload image (${response.status})`
     throw new Error(message)
   }
 
