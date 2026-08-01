@@ -13,6 +13,7 @@ import {
 } from '@/lib/notifications'
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
+import { digitalBillUrl } from '@/lib/digital-bill'
 
 const MERCHANT_ALLOWED: OrderStatus[] = [
   'ACCEPTED',
@@ -127,7 +128,11 @@ export async function GET(request: NextRequest) {
         const canFulfill = fullAccess
           ? true
           : await orderOwnedSolelyBySeller(order.id, partner.sellerId!)
-        return { ...order, canFulfill }
+        return {
+          ...order,
+          canFulfill,
+          digitalBillUrl: digitalBillUrl(order.orderNumber),
+        }
       })
     )
 
@@ -375,7 +380,11 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ...order, canFulfill: true })
+    return NextResponse.json({
+      ...order,
+      canFulfill: true,
+      digitalBillUrl: digitalBillUrl(order.orderNumber),
+    })
   } catch (error) {
     console.error('Partner merchant orders PATCH:', error)
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })

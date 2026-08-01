@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 
 type BeforeInstallPromptEvent = Event & {
@@ -9,10 +10,17 @@ type BeforeInstallPromptEvent = Event & {
 }
 
 export default function PWAInstallPrompt() {
+  const pathname = usePathname() || ''
+  const hideOnBill =
+    pathname.startsWith('/bill/') || pathname.startsWith('/b/')
   const [showInstall, setShowInstall] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
+    if (hideOnBill) {
+      setShowInstall(false)
+      return
+    }
     const handler = (e: Event) => {
       // Check if user has dismissed the prompt before
       const dismissed = localStorage.getItem('pwa-install-dismissed')
@@ -31,7 +39,7 @@ export default function PWAInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler)
 
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+  }, [hideOnBill])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return
@@ -53,6 +61,8 @@ export default function PWAInstallPrompt() {
     localStorage.setItem('pwa-install-dismissed', Date.now().toString())
     setShowInstall(false)
   }
+
+  if (hideOnBill) return null
 
   return (
     <AnimatePresence>

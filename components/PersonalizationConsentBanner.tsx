@@ -1,16 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { getPersonalizationConsent, setPersonalizationConsent } from '@/lib/personalization-consent'
 
 export default function PersonalizationConsentBanner() {
+  const pathname = usePathname() || ''
   const [visible, setVisible] = useState(false)
+  const hideOnBill =
+    pathname.startsWith('/bill/') || pathname.startsWith('/b/')
 
   useEffect(() => {
+    if (hideOnBill) {
+      setVisible(false)
+      return
+    }
     setVisible(getPersonalizationConsent() === 'unset')
-  }, [])
+  }, [hideOnBill])
 
-  if (!visible) {
+  if (!visible || hideOnBill) {
     return null
   }
 
