@@ -40,6 +40,17 @@ export async function GET(
         recipient: true,
         giftWrap: true,
         occasion: true,
+        deliveryPartner: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleType: true,
+            vehicleNumber: true,
+            currentLat: true,
+            currentLng: true,
+          },
+        },
       },
     })
 
@@ -62,7 +73,34 @@ export async function GET(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ order })
+    // Live rider GPS while assigned and not finished/cancelled.
+    const liveStatuses = new Set(['READY', 'OUT_FOR_DELIVERY'])
+    const partner = order.deliveryPartner
+    const canShareLive =
+      !!partner &&
+      liveStatuses.has(order.status) &&
+      partner.currentLat != null &&
+      partner.currentLng != null
+
+    const { deliveryPartner, ...rest } = order
+    return NextResponse.json({
+      order: {
+        ...rest,
+        deliveryPartner: deliveryPartner
+          ? {
+              id: deliveryPartner.id,
+              name: deliveryPartner.name,
+              phone: canShareLive && deliveryPartner.phone
+                ? `••••${String(deliveryPartner.phone).slice(-4)}`
+                : null,
+              vehicleType: deliveryPartner.vehicleType,
+              vehicleNumber: deliveryPartner.vehicleNumber,
+              currentLat: canShareLive ? deliveryPartner.currentLat : null,
+              currentLng: canShareLive ? deliveryPartner.currentLng : null,
+            }
+          : null,
+      },
+    })
   } catch (error) {
     console.error('Error fetching order:', error)
     return NextResponse.json(
