@@ -49,6 +49,7 @@ export async function GET(
             vehicleNumber: true,
             currentLat: true,
             currentLng: true,
+            currentHeading: true,
           },
         },
       },
@@ -97,6 +98,9 @@ export async function GET(
               vehicleNumber: deliveryPartner.vehicleNumber,
               currentLat: canShareLive ? deliveryPartner.currentLat : null,
               currentLng: canShareLive ? deliveryPartner.currentLng : null,
+              currentHeading: canShareLive
+                ? deliveryPartner.currentHeading
+                : null,
             }
           : null,
       },

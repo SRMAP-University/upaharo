@@ -599,6 +599,8 @@ model DeliveryPartner {
   isAvailable   Boolean  @default(false)
   currentLat    Float?
   currentLng    Float?
+  /// Degrees clockwise from north (0–360). From device GPS or movement bearing.
+  currentHeading Float?
   orders        Order[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

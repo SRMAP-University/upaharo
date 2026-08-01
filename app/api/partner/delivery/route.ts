@@ -25,6 +25,40 @@ const orderInclude = {
   },
 } as const
 
+/** Bearing degrees clockwise from north (0–360). */
+function bearingDegrees(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const φ1 = toRad(lat1)
+  const φ2 = toRad(lat2)
+  const Δλ = toRad(lng2 - lng1)
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x =
+    Math.cos(φ1) * Math.sin(φ2) -
+    Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+function distanceMeters(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const R = 6371000
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
 /** Online / offline + optional location. */
 export async function POST(request: NextRequest) {
   try {
@@ -62,14 +96,40 @@ export async function POST(request: NextRequest) {
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         return NextResponse.json({ error: 'Invalid coordinates' }, { status: 400 })
       }
+
+      const prev = await prisma.deliveryPartner.findUnique({
+        where: { id: partner.deliveryPartnerId },
+        select: { currentLat: true, currentLng: true, currentHeading: true },
+      })
+
+      // Prefer device compass/GPS heading; else derive from movement.
+      let heading: number | null = null
+      const rawHeading = Number(body.heading)
+      if (Number.isFinite(rawHeading) && rawHeading >= 0 && rawHeading <= 360) {
+        heading = rawHeading
+      } else if (
+        prev?.currentLat != null &&
+        prev?.currentLng != null &&
+        distanceMeters(prev.currentLat, prev.currentLng, lat, lng) >= 8
+      ) {
+        heading = bearingDegrees(prev.currentLat, prev.currentLng, lat, lng)
+      } else if (prev?.currentHeading != null) {
+        heading = prev.currentHeading
+      }
+
       const updated = await prisma.deliveryPartner.update({
         where: { id: partner.deliveryPartnerId },
-        data: { currentLat: lat, currentLng: lng },
+        data: {
+          currentLat: lat,
+          currentLng: lng,
+          ...(heading != null ? { currentHeading: heading } : {}),
+        },
         select: {
           id: true,
           isAvailable: true,
           currentLat: true,
           currentLng: true,
+          currentHeading: true,
         },
       })
       return NextResponse.json(updated)
