@@ -78,6 +78,12 @@ export default function AdminSettingsPage() {
         supportMessage: String(data.supportMessage || ''),
         deliveryEstimate: String(data.deliveryEstimate || ''),
         deliveryNote: String(data.deliveryNote || ''),
+        rainExtraMinutes: clampInt(
+          data.rainExtraMinutes,
+          EMPTY_FORM.rainExtraMinutes,
+          0,
+          180
+        ),
         announcementText: String(data.announcementText || ''),
         storeAddress: String(data.storeAddress || ''),
         mapLatitude: String(data.mapLatitude ?? ''),
@@ -191,6 +197,7 @@ export default function AdminSettingsPage() {
           1_000_000
         ),
         deliveryRadiusTiers: normalizeDeliveryRadiusTiers(data.deliveryRadiusTiers),
+        deliveryZones: Array.isArray(data.deliveryZones) ? data.deliveryZones : [],
         deliverySlots: normalizeDeliverySlots(data.deliverySlots),
         ...normalizeScheduleDays(data.scheduleDayCount, data.scheduleMaxDaysAhead),
       })
@@ -1003,6 +1010,19 @@ export default function AdminSettingsPage() {
                       label="Delivery note"
                       value={formData.deliveryNote}
                       onChange={(value) => set('deliveryNote', value)}
+                    />
+                    <TextField
+                      label="Extra minutes when raining"
+                      type="number"
+                      step="1"
+                      value={String(formData.rainExtraMinutes)}
+                      onChange={(value) =>
+                        set(
+                          'rainExtraMinutes',
+                          clampInt(value, EMPTY_FORM.rainExtraMinutes, 0, 180)
+                        )
+                      }
+                      hint="Added to the delivery ETA while rain is detected. 0 = no time bump."
                     />
                     <div className="md:col-span-2">
                       <TextField

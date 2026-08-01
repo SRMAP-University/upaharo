@@ -5,12 +5,14 @@ import {
   requireMerchant,
   resolveStoreIdsForPartner,
 } from '@/lib/partner-auth'
-import { generateDeliveryOtp } from '@/lib/delivery-otp'
+import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
 import {
   notifyDeliveryPartnersJobAvailable,
   notifyOrderStatus,
   statusTimestampFields,
 } from '@/lib/notifications'
+import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
+import { creditPendingCashback } from '@/lib/wallet'
 
 const MERCHANT_ALLOWED: OrderStatus[] = [
   'ACCEPTED',
@@ -18,10 +20,21 @@ const MERCHANT_ALLOWED: OrderStatus[] = [
   'READY',
 ]
 
+const ADMIN_ALLOWED: OrderStatus[] = [
+  'ACCEPTED',
+  'PREPARING',
+  'READY',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'CANCELLED',
+]
+
 const FORWARD: Record<string, OrderStatus[]> = {
-  PENDING: ['ACCEPTED'],
-  ACCEPTED: ['PREPARING'],
-  PREPARING: ['READY'],
+  PENDING: ['ACCEPTED', 'CANCELLED'],
+  ACCEPTED: ['PREPARING', 'CANCELLED'],
+  PREPARING: ['READY', 'CANCELLED'],
+  READY: ['OUT_FOR_DELIVERY', 'CANCELLED'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'CANCELLED'],
 }
 
 async function orderOwnedSolelyBySeller(orderId: string, sellerId: string) {
@@ -70,6 +83,9 @@ export async function GET(request: NextRequest) {
         store: { select: { id: true, slug: true, name: true } },
         user: {
           select: { name: true, email: true, phone: true },
+        },
+        deliveryPartner: {
+          select: { id: true, name: true, phone: true, vehicleType: true },
         },
         address: {
           select: {
@@ -131,9 +147,19 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json()
     const orderId = String(body.orderId || body.id || '')
-    const nextStatus = String(body.status || '') as OrderStatus
+    const nextStatus = body.status
+      ? (String(body.status) as OrderStatus)
+      : null
+    const fullAccess = partner.access.fullAccess
 
-    if (!orderId || !MERCHANT_ALLOWED.includes(nextStatus)) {
+    if (!orderId) {
+      return NextResponse.json({ error: 'orderId is required' }, { status: 400 })
+    }
+
+    if (
+      nextStatus &&
+      !(fullAccess ? ADMIN_ALLOWED : MERCHANT_ALLOWED).includes(nextStatus)
+    ) {
       return NextResponse.json(
         { error: 'Invalid orderId or status' },
         { status: 400 }
@@ -141,7 +167,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const storeIds = await resolveStoreIdsForPartner(partner.access, request)
-    const fullAccess = partner.access.fullAccess
     const existing = await prisma.order.findFirst({
       where: {
         id: orderId,
@@ -161,6 +186,7 @@ export async function PATCH(request: NextRequest) {
         status: true,
         deliveryOtp: true,
         storeId: true,
+        deliveryPartnerId: true,
       },
     })
 
@@ -184,26 +210,121 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    const allowedNext = FORWARD[existing.status] || []
-    if (!allowedNext.includes(nextStatus)) {
-      return NextResponse.json(
-        {
-          error: `Cannot move from ${existing.status} to ${nextStatus}`,
-        },
-        { status: 400 }
-      )
-    }
-
-    const updateData: Record<string, unknown> = {
-      status: nextStatus,
-      ...statusTimestampFields(nextStatus),
-    }
-
+    const updateData: Record<string, unknown> = {}
     let issuedOtp: string | null = null
-    if (nextStatus === 'READY' && !existing.deliveryOtp) {
-      issuedOtp = generateDeliveryOtp()
-      updateData.deliveryOtp = issuedOtp
-      updateData.deliveryOtpCreatedAt = new Date()
+    let effectiveStatus = existing.status
+
+    if (nextStatus) {
+      if (fullAccess) {
+        if (
+          nextStatus === 'DELIVERED' &&
+          existing.status !== 'DELIVERED'
+        ) {
+          if (!existing.deliveryOtp) {
+            return NextResponse.json(
+              {
+                error:
+                  'No delivery OTP on this order. Mark it Out for delivery first.',
+              },
+              { status: 400 }
+            )
+          }
+          if (!deliveryOtpsMatch(existing.deliveryOtp, body.deliveryOtp)) {
+            return NextResponse.json(
+              { error: 'Invalid delivery OTP' },
+              { status: 400 }
+            )
+          }
+        }
+
+        const allowedNext = FORWARD[existing.status] || []
+        // Admin can jump more freely among forward statuses + cancel
+        const adminOk =
+          nextStatus === existing.status ||
+          allowedNext.includes(nextStatus) ||
+          nextStatus === 'CANCELLED' ||
+          (existing.status === 'READY' && nextStatus === 'OUT_FOR_DELIVERY') ||
+          (existing.status === 'OUT_FOR_DELIVERY' && nextStatus === 'DELIVERED')
+        if (!adminOk && nextStatus !== existing.status) {
+          // Still allow ACCEPTED→READY skip for admin convenience
+          const looseOk =
+            (existing.status === 'PENDING' && nextStatus === 'ACCEPTED') ||
+            (existing.status === 'ACCEPTED' &&
+              ['PREPARING', 'READY'].includes(nextStatus)) ||
+            (existing.status === 'PREPARING' && nextStatus === 'READY')
+          if (!looseOk) {
+            return NextResponse.json(
+              {
+                error: `Cannot move from ${existing.status} to ${nextStatus}`,
+              },
+              { status: 400 }
+            )
+          }
+        }
+      } else {
+        const allowedNext = FORWARD[existing.status]?.filter((s) =>
+          MERCHANT_ALLOWED.includes(s)
+        ) || []
+        if (!allowedNext.includes(nextStatus)) {
+          return NextResponse.json(
+            {
+              error: `Cannot move from ${existing.status} to ${nextStatus}`,
+            },
+            { status: 400 }
+          )
+        }
+      }
+
+      updateData.status = nextStatus
+      Object.assign(updateData, statusTimestampFields(nextStatus))
+      effectiveStatus = nextStatus
+
+      if (nextStatus !== existing.status) {
+        if (nextStatus === 'OUT_FOR_DELIVERY') {
+          issuedOtp = generateDeliveryOtp()
+          updateData.deliveryOtp = issuedOtp
+          updateData.deliveryOtpCreatedAt = new Date()
+        } else if (nextStatus === 'READY' && !existing.deliveryOtp) {
+          issuedOtp = generateDeliveryOtp()
+          updateData.deliveryOtp = issuedOtp
+          updateData.deliveryOtpCreatedAt = new Date()
+        }
+      }
+    }
+
+    if (fullAccess && body.deliveryPartnerId !== undefined) {
+      if (body.deliveryPartnerId === null || body.deliveryPartnerId === '') {
+        updateData.deliveryPartnerId = null
+      } else {
+        const rider = await prisma.deliveryPartner.findUnique({
+          where: { id: String(body.deliveryPartnerId) },
+          select: { id: true },
+        })
+        if (!rider) {
+          return NextResponse.json(
+            { error: 'Delivery partner not found' },
+            { status: 400 }
+          )
+        }
+        updateData.deliveryPartnerId = rider.id
+        if (
+          (!nextStatus || nextStatus === existing.status) &&
+          existing.status === 'READY'
+        ) {
+          updateData.status = 'OUT_FOR_DELIVERY'
+          Object.assign(updateData, statusTimestampFields('OUT_FOR_DELIVERY'))
+          effectiveStatus = 'OUT_FOR_DELIVERY'
+          if (!existing.deliveryOtp) {
+            issuedOtp = generateDeliveryOtp()
+            updateData.deliveryOtp = issuedOtp
+            updateData.deliveryOtpCreatedAt = new Date()
+          }
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
 
     const order = await prisma.order.update({
@@ -211,6 +332,9 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
       include: {
         user: { select: { name: true, email: true, phone: true } },
+        deliveryPartner: {
+          select: { id: true, name: true, phone: true, vehicleType: true },
+        },
         items: {
           include: {
             product: { select: { name: true, image: true } },
@@ -219,23 +343,35 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
-    if (nextStatus !== existing.status) {
+    if (effectiveStatus !== existing.status) {
       void notifyOrderStatus({
         userId: existing.userId,
         orderId: existing.id,
         orderNumber: existing.orderNumber,
-        status: nextStatus,
+        status: effectiveStatus,
         storeId: existing.storeId,
         deliveryOtp: issuedOtp ?? undefined,
       }).catch((err) => console.error('notifyOrderStatus', err))
 
-      if (nextStatus === 'READY') {
+      if (effectiveStatus === 'READY') {
         void notifyDeliveryPartnersJobAvailable({
           orderId: existing.id,
           orderNumber: existing.orderNumber,
           storeId: existing.storeId,
           excludeUserId: partner.userId,
         }).catch((err) => console.error('notifyDeliveryPartnersJobAvailable', err))
+      }
+
+      if (effectiveStatus === 'CANCELLED') {
+        void releaseOrderWallet(existing.id).catch((err) =>
+          console.error('releaseOrderWallet', err)
+        )
+      }
+
+      if (effectiveStatus === 'DELIVERED') {
+        void creditPendingCashback(existing.id).catch((err) =>
+          console.error('creditPendingCashback', err)
+        )
       }
     }
 

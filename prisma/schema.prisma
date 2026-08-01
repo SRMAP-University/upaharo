@@ -882,6 +882,9 @@ model AppSettings {
   /// `[{ id, maxRadiusKm, feeAmount, etaMinMinutes, etaMaxMinutes, label }]`.
   /// Null/empty = use flat deliveryFeeAmount only.
   deliveryRadiusTiers          Json?
+  /// Polygon zones: `[{ id, label, feeAmount, etaMinMinutes, etaMaxMinutes, polygon:[{lat,lng}] }]`.
+  /// When non-empty, replaces circle tiers for delivery matching.
+  deliveryZones                Json?
   /// Bookable delivery windows: `[{ id, startHour, endHour, label }]` in Nepal
   /// time. Null = use built-in defaults; empty array = scheduling disabled.
   deliverySlots                Json?

@@ -3,6 +3,7 @@ import {
   DEFAULT_HOME_SECTIONS,
   type DeliveryRadiusTier,
   type DeliverySlotConfig,
+  type DeliveryZone,
   type HomeSectionConfig,
 } from '@/lib/app-settings-schema'
 
@@ -15,6 +16,8 @@ export type SettingsForm = {
   supportMessage: string
   deliveryEstimate: string
   deliveryNote: string
+  /** Extra minutes added to ETA while raining. 0 = no bump. */
+  rainExtraMinutes: number
   announcementText: string
   storeAddress: string
   mapLatitude: string
@@ -74,6 +77,7 @@ export type SettingsForm = {
   deliveryFeeAmount: number
   /** Empty = flat fee only. */
   deliveryRadiusTiers: DeliveryRadiusTier[]
+  deliveryZones: DeliveryZone[]
   /** Empty disables scheduled delivery. */
   deliverySlots: DeliverySlotConfig[]
   scheduleDayCount: number
@@ -88,6 +92,7 @@ export const EMPTY_FORM: SettingsForm = {
   supportMessage: '',
   deliveryEstimate: '',
   deliveryNote: '',
+  rainExtraMinutes: 15,
   announcementText: '',
   storeAddress: '',
   mapLatitude: '',
@@ -143,6 +148,7 @@ export const EMPTY_FORM: SettingsForm = {
   freeDeliveryMinAmount: 199,
   deliveryFeeAmount: 40,
   deliveryRadiusTiers: [],
+  deliveryZones: [],
   deliverySlots: DEFAULT_DELIVERY_SLOTS,
   scheduleDayCount: 3,
   scheduleMaxDaysAhead: 30,

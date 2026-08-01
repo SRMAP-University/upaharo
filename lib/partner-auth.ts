@@ -240,6 +240,30 @@ export async function requireDelivery(
   return partner
 }
 
+/** Partner with User.role = ADMIN (fullAccess). */
+export async function requirePartnerAdmin(
+  request: NextRequest | Request
+): Promise<PartnerIdentity | null> {
+  const partner = await requirePartner(request)
+  if (!partner?.access.fullAccess) return null
+  return partner
+}
+
+/** Store context for the partner's selected X-Store / ?store=. */
+export async function resolvePartnerStoreContext(
+  partner: PartnerIdentity,
+  request: NextRequest | Request
+): Promise<{ slug: string; store: { id: string; slug: string; name: string } } | null> {
+  const storeIds = await resolveStoreIdsForPartner(partner.access, request)
+  if (storeIds.length === 0) return null
+  const store = await prisma.store.findFirst({
+    where: { id: storeIds[0], isActive: true },
+    select: { id: true, slug: true, name: true },
+  })
+  if (!store) return null
+  return { slug: store.slug, store }
+}
+
 /** Resolve partner by user id (e.g. after OTP). */
 export async function loadPartnerByUserId(userId: string): Promise<PartnerIdentity | null> {
   const user = await prisma.user.findUnique({

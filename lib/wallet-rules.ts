@@ -5,7 +5,7 @@
  * components can preview the same numbers the API will enforce.
  */
 
-import type { DeliveryRadiusTier } from '@/lib/app-settings-schema'
+import type { DeliveryRadiusTier, DeliveryZone } from '@/lib/app-settings-schema'
 import { matchDeliveryRadiusTier } from '@/lib/delivery-radius'
 
 export type WalletRules = {
@@ -23,6 +23,8 @@ export type DeliveryRules = {
   deliveryFeeAmount: number
   /** When non-empty, fee is taken from the matching distance tier. */
   deliveryRadiusTiers?: DeliveryRadiusTier[]
+  /** When non-empty, polygon zones replace circle tiers. */
+  deliveryZones?: DeliveryZone[]
 }
 
 /** Money is stored as Float; round every write so balances never drift. */
@@ -56,11 +58,16 @@ export function computeCashback(cashPaidAmount: number, rules: WalletRules): num
 export function computeDeliveryFee(
   goodsTotal: number,
   rules: DeliveryRules,
-  options?: { distanceKm?: number | null }
+  options?: { distanceKm?: number | null; matchedFeeAmount?: number | null }
 ): number {
   const goods = Math.max(0, goodsTotal)
   if (goods >= rules.freeDeliveryMinAmount && rules.freeDeliveryMinAmount > 0) {
     return 0
+  }
+
+  const matched = options?.matchedFeeAmount
+  if (matched != null && Number.isFinite(matched)) {
+    return roundMoney(Math.max(0, matched))
   }
 
   const tiers = rules.deliveryRadiusTiers ?? []

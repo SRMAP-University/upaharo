@@ -4,6 +4,7 @@ import {
   DEFAULT_APP_SETTINGS,
   normalizeDeliverySlots,
   normalizeDeliveryRadiusTiers,
+  normalizeDeliveryZones,
   normalizeDensity,
   normalizeHexColor,
   normalizeHeaderCategoryIds,
@@ -62,6 +63,34 @@ export async function getAppSettings(
         }
       }
 
+      let deliveryZonesRaw: unknown = (
+        settings as { deliveryZones?: unknown }
+      ).deliveryZones
+      if (deliveryZonesRaw === undefined) {
+        try {
+          const rows = await prisma.$queryRaw<
+            Array<{ deliveryZones: unknown }>
+          >`SELECT "deliveryZones" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+          deliveryZonesRaw = rows[0]?.deliveryZones
+        } catch {
+          deliveryZonesRaw = []
+        }
+      }
+
+      let rainExtraMinutesRaw: unknown = (
+        settings as { rainExtraMinutes?: unknown }
+      ).rainExtraMinutes
+      if (rainExtraMinutesRaw === undefined) {
+        try {
+          const rows = await prisma.$queryRaw<
+            Array<{ rainExtraMinutes: number | null }>
+          >`SELECT "rainExtraMinutes" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+          rainExtraMinutesRaw = rows[0]?.rainExtraMinutes
+        } catch {
+          rainExtraMinutesRaw = DEFAULT_APP_SETTINGS.rainExtraMinutes
+        }
+      }
+
       return {
         siteName:
           !settings.siteName || settings.siteName === 'Flowers N Petals'
@@ -73,6 +102,12 @@ export async function getAppSettings(
         supportMessage: settings.supportMessage || DEFAULT_APP_SETTINGS.supportMessage,
         deliveryEstimate: settings.deliveryEstimate || DEFAULT_APP_SETTINGS.deliveryEstimate,
         deliveryNote: settings.deliveryNote || DEFAULT_APP_SETTINGS.deliveryNote,
+        rainExtraMinutes: clampInt(
+          rainExtraMinutesRaw,
+          DEFAULT_APP_SETTINGS.rainExtraMinutes,
+          0,
+          180
+        ),
         announcementText: settings.announcementText || DEFAULT_APP_SETTINGS.announcementText,
         storeAddress: settings.storeAddress || DEFAULT_APP_SETTINGS.storeAddress,
         mapLatitude: settings.mapLatitude ?? DEFAULT_APP_SETTINGS.mapLatitude,
@@ -198,6 +233,7 @@ export async function getAppSettings(
           1_000_000
         ),
         deliveryRadiusTiers: normalizeDeliveryRadiusTiers(deliveryRadiusTiersRaw),
+        deliveryZones: normalizeDeliveryZones(deliveryZonesRaw),
         deliverySlots: normalizeDeliverySlots(settings.deliverySlots),
         ...normalizeScheduleDays(
           settings.scheduleDayCount,

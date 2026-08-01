@@ -15,8 +15,11 @@ import SkeletonLoader from '@/components/SkeletonLoader'
 import { SessionSync } from '@/components/SessionSync'
 import { isKathmanduValleyLocation, SERVICE_AREA_UNAVAILABLE_MESSAGE } from '@/lib/service-area'
 import { computeCashback, computeDeliveryFee, computeMaxWalletSpend, type WalletRules } from '@/lib/wallet-rules'
-import { distanceKmBetween, resolveDeliveryZone } from '@/lib/delivery-radius'
-import { normalizeDeliveryRadiusTiers } from '@/lib/app-settings-schema'
+import { resolveDeliveryCoverage } from '@/lib/delivery-radius'
+import {
+  normalizeDeliveryRadiusTiers,
+  normalizeDeliveryZones,
+} from '@/lib/app-settings-schema'
 
 interface GiftWrap {
   id: string
@@ -54,6 +57,7 @@ interface AppSettings {
   mapLatitude: number
   mapLongitude: number
   deliveryRadiusTiers: import('@/lib/app-settings-schema').DeliveryRadiusTier[]
+  deliveryZones: import('@/lib/app-settings-schema').DeliveryZone[]
 }
 
 type WalletInfo = WalletRules & {
@@ -74,6 +78,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   mapLatitude: 27.7172,
   mapLongitude: 85.324,
   deliveryRadiusTiers: [],
+  deliveryZones: [],
 }
 
 function WalletToggle({
@@ -175,36 +180,31 @@ export default function CheckoutPage() {
     appSettings.deliveryRadiusTiers.length > 0
       ? appSettings.deliveryRadiusTiers
       : wallet?.deliveryRadiusTiers ?? []
+  const polygonZones = appSettings.deliveryZones ?? []
   const selectedCoords = selectedAddress
     ? {
         lat: Number(selectedAddress.latitude),
         lng: Number(selectedAddress.longitude),
       }
     : null
-  const deliveryDistanceKm =
+  const hasDeliveryCoords =
     !isPickup &&
-    radiusTiers.length > 0 &&
+    (polygonZones.length > 0 || radiusTiers.length > 0) &&
     selectedCoords &&
     Number.isFinite(selectedCoords.lat) &&
     Number.isFinite(selectedCoords.lng) &&
     !(selectedCoords.lat === 0 && selectedCoords.lng === 0)
-      ? distanceKmBetween(
-          appSettings.mapLatitude,
-          appSettings.mapLongitude,
-          selectedCoords.lat,
-          selectedCoords.lng
-        )
-      : null
-  const deliveryZone =
-    deliveryDistanceKm != null
-      ? resolveDeliveryZone({
-          tiers: radiusTiers,
-          storeLat: appSettings.mapLatitude,
-          storeLng: appSettings.mapLongitude,
-          addressLat: selectedCoords!.lat,
-          addressLng: selectedCoords!.lng,
-        })
-      : null
+  const deliveryZone = hasDeliveryCoords
+    ? resolveDeliveryCoverage({
+        zones: polygonZones,
+        tiers: radiusTiers,
+        storeLat: appSettings.mapLatitude,
+        storeLng: appSettings.mapLongitude,
+        addressLat: selectedCoords!.lat,
+        addressLng: selectedCoords!.lng,
+      })
+    : null
+  const deliveryDistanceKm = deliveryZone?.distanceKm ?? null
   const deliveryFee = isPickup
     ? 0
     : wallet
@@ -214,8 +214,12 @@ export default function CheckoutPage() {
             freeDeliveryMinAmount,
             deliveryFeeAmount,
             deliveryRadiusTiers: radiusTiers,
+            deliveryZones: polygonZones,
           },
-          { distanceKm: deliveryDistanceKm }
+          {
+            distanceKm: deliveryDistanceKm,
+            matchedFeeAmount: deliveryZone?.inRange ? deliveryZone.feeAmount : null,
+          }
         )
       : goodsTotal >= 199
         ? 0
@@ -381,6 +385,7 @@ export default function CheckoutPage() {
           mapLatitude: Number(data.mapLatitude) || DEFAULT_SETTINGS.mapLatitude,
           mapLongitude: Number(data.mapLongitude) || DEFAULT_SETTINGS.mapLongitude,
           deliveryRadiusTiers: normalizeDeliveryRadiusTiers(data.deliveryRadiusTiers),
+          deliveryZones: normalizeDeliveryZones(data.deliveryZones),
         })
       }
     } catch (error) {

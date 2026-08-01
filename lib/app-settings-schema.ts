@@ -80,6 +80,29 @@ export type DeliveryRadiusTier = {
 
 export const MAX_DELIVERY_RADIUS_TIERS = 12
 
+/** One lat/lng vertex of a delivery polygon. */
+export type DeliveryZonePoint = {
+  lat: number
+  lng: number
+}
+
+/**
+ * Drawable multi-point delivery zone (zigzag / irregular polygon).
+ * When any zones exist, they replace circle radius tiers for matching.
+ */
+export type DeliveryZone = {
+  id: string
+  label: string
+  feeAmount: number
+  etaMinMinutes: number
+  etaMaxMinutes: number
+  /** Closed ring; at least 3 distinct points. */
+  polygon: DeliveryZonePoint[]
+}
+
+export const MAX_DELIVERY_ZONES = 24
+export const MIN_POLYGON_POINTS = 3
+
 export function radiusTierIdFor(maxRadiusKm: number): string {
   const km = Math.round(maxRadiusKm * 100) / 100
   return `r-${km}`
@@ -109,6 +132,11 @@ export type PublicAppSettings = {
   supportMessage: string
   deliveryEstimate: string
   deliveryNote: string
+  /**
+   * Extra minutes added to delivery ETA while rain is detected near the customer.
+   * 0 = show rain UI only (no time bump).
+   */
+  rainExtraMinutes: number
   announcementText: string
   storeAddress: string
   mapLatitude: number
@@ -172,8 +200,14 @@ export type PublicAppSettings = {
   /**
    * Distance zones from the store pin. Empty = use flat deliveryFeeAmount.
    * Sorted ascending by maxRadiusKm.
+   * Ignored for matching when `deliveryZones` is non-empty.
    */
   deliveryRadiusTiers: DeliveryRadiusTier[]
+  /**
+   * Polygon delivery zones (multi-point). When non-empty, these replace
+   * circle `deliveryRadiusTiers` for fee/ETA/coverage matching.
+   */
+  deliveryZones: DeliveryZone[]
   /** Bookable scheduled-delivery windows. Empty disables scheduling. */
   deliverySlots: DeliverySlotConfig[]
   /** Quick day chips offered in the picker, including today. */
@@ -194,6 +228,11 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   supportMessage: 'Need help with your order? Our team is available during support hours.',
   deliveryEstimate: 'Estimated delivery: 20-30 minutes',
   deliveryNote: 'Delivery timings may vary depending on location and order volume.',
+  /**
+   * Extra minutes added to delivery ETA while rain is detected near the customer.
+   * 0 = show rain UI only (no time bump).
+   */
+  rainExtraMinutes: 15,
   announcementText: 'Same day gifting with live support and doorstep delivery.',
   storeAddress: '',
   mapLatitude: 27.7172,
@@ -247,6 +286,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   freeDeliveryMinAmount: 199,
   deliveryFeeAmount: 40,
   deliveryRadiusTiers: [],
+  deliveryZones: [],
   deliverySlots: DEFAULT_DELIVERY_SLOTS,
   scheduleDayCount: 3,
   scheduleMaxDaysAhead: 30,
@@ -489,6 +529,70 @@ export function normalizeDeliveryRadiusTiers(raw: unknown): DeliveryRadiusTier[]
   }
 
   return tiers.sort((a, b) => a.maxRadiusKm - b.maxRadiusKm)
+}
+
+function normalizePolygonPoint(raw: unknown): DeliveryZonePoint | null {
+  const entry = (raw ?? {}) as Record<string, unknown>
+  const lat = Number(entry.lat ?? entry.latitude)
+  const lng = Number(entry.lng ?? entry.longitude)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
+  return {
+    lat: Math.round(lat * 1e6) / 1e6,
+    lng: Math.round(lng * 1e6) / 1e6,
+  }
+}
+
+/** Normalize polygon zones; drops invalid rings (< 3 points). */
+export function normalizeDeliveryZones(raw: unknown): DeliveryZone[] {
+  if (!Array.isArray(raw)) return []
+
+  const zones: DeliveryZone[] = []
+  const seenIds = new Set<string>()
+
+  for (const item of raw) {
+    const entry = (item ?? {}) as Record<string, unknown>
+    const polygonRaw = Array.isArray(entry.polygon) ? entry.polygon : []
+    const polygon: DeliveryZonePoint[] = []
+    const pointKeys = new Set<string>()
+    for (const p of polygonRaw) {
+      const point = normalizePolygonPoint(p)
+      if (!point) continue
+      const key = `${point.lat},${point.lng}`
+      if (pointKeys.has(key)) continue
+      pointKeys.add(key)
+      polygon.push(point)
+      if (polygon.length >= 64) break
+    }
+    if (polygon.length < MIN_POLYGON_POINTS) continue
+
+    const feeAmount = clampFloat(entry.feeAmount, 0, 0, 1_000_000)
+    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, 24 * 60)
+    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, 24 * 60)
+    if (etaMaxMinutes < etaMinMinutes) {
+      ;[etaMinMinutes, etaMaxMinutes] = [etaMaxMinutes, etaMinMinutes]
+    }
+
+    let id = String(entry.id ?? '').trim().slice(0, 64)
+    if (!id || seenIds.has(id)) {
+      id = `z-${zones.length + 1}-${Date.now().toString(36)}`
+    }
+    seenIds.add(id)
+
+    const label = String(entry.label ?? '').trim().slice(0, 80) || `Zone ${zones.length + 1}`
+    zones.push({
+      id,
+      label,
+      feeAmount,
+      etaMinMinutes,
+      etaMaxMinutes,
+      polygon,
+    })
+
+    if (zones.length >= MAX_DELIVERY_ZONES) break
+  }
+
+  return zones
 }
 
 /**

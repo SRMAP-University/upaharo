@@ -5,6 +5,7 @@ import {
   clampInt,
   DEFAULT_APP_SETTINGS,
   normalizeDeliveryRadiusTiers,
+  normalizeDeliveryZones,
   normalizeDeliverySlots,
   normalizeDensity,
   normalizeHeaderCategoryIds,
@@ -38,6 +39,31 @@ async function saveDeliveryRadiusTiers(storeId: string, raw: unknown) {
     storeId
   )
   return tiers
+}
+
+async function loadDeliveryZones(storeId: string) {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ deliveryZones: unknown }>>`
+      SELECT "deliveryZones" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1
+    `
+    return normalizeDeliveryZones(rows[0]?.deliveryZones)
+  } catch {
+    return []
+  }
+}
+
+async function saveDeliveryZones(storeId: string, raw: unknown) {
+  const zones = normalizeDeliveryZones(raw)
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "AppSettings" SET "deliveryZones" = $1::jsonb WHERE "storeId" = $2`,
+      JSON.stringify(zones),
+      storeId
+    )
+  } catch (err) {
+    console.error('saveDeliveryZones:', err)
+  }
+  return zones
 }
 
 function toNumber(value: unknown, fallback: number) {
@@ -164,6 +190,12 @@ function settingsPayload(body: Record<string, unknown>) {
     supportMessage: String(body?.supportMessage || '').trim() || null,
     deliveryEstimate: String(body?.deliveryEstimate || DEFAULT_APP_SETTINGS.deliveryEstimate).trim(),
     deliveryNote: String(body?.deliveryNote || '').trim() || null,
+    rainExtraMinutes: clampInt(
+      body?.rainExtraMinutes,
+      DEFAULT_APP_SETTINGS.rainExtraMinutes,
+      0,
+      180
+    ),
     announcementText: String(body?.announcementText || '').trim() || null,
     storeAddress: String(body?.storeAddress || '').trim() || null,
     mapLatitude: toNumber(body?.mapLatitude, DEFAULT_APP_SETTINGS.mapLatitude),
@@ -267,16 +299,37 @@ export async function GET(request: NextRequest) {
       where: { storeId: storeContext.store.id },
     })
     const deliveryRadiusTiers = await loadDeliveryRadiusTiers(storeContext.store.id)
+    const deliveryZones = await loadDeliveryZones(storeContext.store.id)
+
+    let rainExtraMinutes = (settings as { rainExtraMinutes?: unknown } | null)
+      ?.rainExtraMinutes
+    if (rainExtraMinutes === undefined) {
+      try {
+        const rows = await prisma.$queryRaw<
+          Array<{ rainExtraMinutes: number | null }>
+        >`SELECT "rainExtraMinutes" FROM "AppSettings" WHERE "storeId" = ${storeContext.store.id} LIMIT 1`
+        rainExtraMinutes = rows[0]?.rainExtraMinutes
+      } catch {
+        rainExtraMinutes = DEFAULT_APP_SETTINGS.rainExtraMinutes
+      }
+    }
 
     return NextResponse.json({
       id: settings?.id,
       store: storeContext.store,
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
+      rainExtraMinutes: clampInt(
+        rainExtraMinutes,
+        DEFAULT_APP_SETTINGS.rainExtraMinutes,
+        0,
+        180
+      ),
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
       headerCategoryIds: normalizeHeaderCategoryIds(settings?.headerCategoryIds),
       deliverySlots: normalizeDeliverySlots(settings?.deliverySlots),
       deliveryRadiusTiers,
+      deliveryZones,
       ...normalizeScheduleDays(
         settings?.scheduleDayCount,
         settings?.scheduleMaxDaysAhead
@@ -317,27 +370,63 @@ export async function PATCH(request: NextRequest) {
     }
     const body = (await request.json()) as Record<string, unknown>
     const payload = settingsPayload(body)
+    const rainExtraMinutes = clampInt(
+      payload.rainExtraMinutes,
+      DEFAULT_APP_SETTINGS.rainExtraMinutes,
+      0,
+      180
+    )
+    // Persist rainExtraMinutes even when the generated Prisma client is stale.
+    const { rainExtraMinutes: _rain, ...payloadWithoutRain } = payload as typeof payload & {
+      rainExtraMinutes?: number
+    }
 
-    const settings = await prisma.appSettings.upsert({
-      where: { storeId: storeContext.store.id },
-      update: payload,
-      create: {
-        storeId: storeContext.store.id,
-        ...payload,
-      },
-    })
+    let settings
+    try {
+      settings = await prisma.appSettings.upsert({
+        where: { storeId: storeContext.store.id },
+        update: payload,
+        create: {
+          storeId: storeContext.store.id,
+          ...payload,
+        },
+      })
+    } catch {
+      settings = await prisma.appSettings.upsert({
+        where: { storeId: storeContext.store.id },
+        update: payloadWithoutRain,
+        create: {
+          storeId: storeContext.store.id,
+          ...payloadWithoutRain,
+        },
+      })
+      await prisma.$executeRaw`
+        UPDATE "AppSettings"
+        SET "rainExtraMinutes" = ${rainExtraMinutes}
+        WHERE "storeId" = ${storeContext.store.id}
+      `
+    }
 
     const deliveryRadiusTiers = await saveDeliveryRadiusTiers(
       storeContext.store.id,
       body.deliveryRadiusTiers
     )
+    const deliveryZones =
+      body.deliveryZones !== undefined
+        ? await saveDeliveryZones(storeContext.store.id, body.deliveryZones)
+        : await loadDeliveryZones(storeContext.store.id)
 
     await redis.del(
       REDIS_KEYS.APP_SETTINGS(storeContext.slug),
       REDIS_KEYS.HOME(storeContext.slug)
     )
 
-    return NextResponse.json({ ...settings, deliveryRadiusTiers })
+    return NextResponse.json({
+      ...settings,
+      rainExtraMinutes,
+      deliveryRadiusTiers,
+      deliveryZones,
+    })
   } catch (error) {
     if (isMissingAppSettingsTableError(error)) {
       return NextResponse.json(

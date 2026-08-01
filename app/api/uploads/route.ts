@@ -3,6 +3,8 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
+import { requirePartner } from '@/lib/partner-auth'
+import { prisma } from '@/lib/prisma'
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -198,12 +200,25 @@ export async function GET(request: Request) {
   }
 }
 
+async function canUpload(request: Request): Promise<boolean> {
+  const session = await getServerSession(authOptions)
+  const role = session?.user?.role
+  if (session && (role === 'ADMIN' || role === 'SELLER')) return true
+
+  const partner = await requirePartner(request)
+  if (!partner) return false
+  if (partner.access.fullAccess) return true
+  if (!partner.sellerId) return false
+  const seller = await prisma.seller.findUnique({
+    where: { id: partner.sellerId },
+    select: { isVerified: true, isActive: true },
+  })
+  return Boolean(seller?.isVerified && seller.isActive !== false)
+}
+
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
-    const role = session?.user?.role
-
-    if (!session || (role !== 'ADMIN' && role !== 'SELLER')) {
+    if (!(await canUpload(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

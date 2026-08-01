@@ -1,7 +1,7 @@
 import { Prisma, WalletTxStatus, WalletTxType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getAppSettings, type StoreSettingsTarget } from '@/lib/app-settings'
-import type { DeliveryRadiusTier } from '@/lib/app-settings-schema'
+import type { DeliveryRadiusTier, DeliveryZone } from '@/lib/app-settings-schema'
 import { roundMoney, type WalletRules } from '@/lib/wallet-rules'
 
 type Tx = Prisma.TransactionClient
@@ -34,6 +34,7 @@ export async function getDeliveryRules(store?: StoreSettingsTarget) {
     freeDeliveryMinAmount: settings.freeDeliveryMinAmount,
     deliveryFeeAmount: settings.deliveryFeeAmount,
     deliveryRadiusTiers: settings.deliveryRadiusTiers,
+    deliveryZones: settings.deliveryZones,
     checkoutMinOrderAmount: settings.checkoutMinOrderAmount,
     mapLatitude: settings.mapLatitude,
     mapLongitude: settings.mapLongitude,
@@ -361,6 +362,7 @@ export type WalletSummary = {
   freeDeliveryMinAmount: number
   deliveryFeeAmount: number
   deliveryRadiusTiers: DeliveryRadiusTier[]
+  deliveryZones: DeliveryZone[]
 }
 
 export async function getWalletSummary(
@@ -390,5 +392,6 @@ export async function getWalletSummary(
     freeDeliveryMinAmount: settings.freeDeliveryMinAmount,
     deliveryFeeAmount: settings.deliveryFeeAmount,
     deliveryRadiusTiers: settings.deliveryRadiusTiers,
+    deliveryZones: settings.deliveryZones,
   }
 }

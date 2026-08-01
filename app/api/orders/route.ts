@@ -25,7 +25,7 @@ import {
   redeemWallet,
   roundMoney,
 } from '@/lib/wallet'
-import { resolveDeliveryZone } from '@/lib/delivery-radius'
+import { resolveDeliveryCoverage } from '@/lib/delivery-radius'
 
 export async function POST(request: NextRequest) {
   try {
@@ -246,9 +246,11 @@ export async function POST(request: NextRequest) {
     let resolvedDeliveryFee = 0
     if (!isPickup) {
       const tiers = deliveryRules.deliveryRadiusTiers ?? []
+      const polygonZones = deliveryRules.deliveryZones ?? []
       let distanceKm: number | null = null
+      let matchedFeeAmount: number | null = null
 
-      if (tiers.length > 0 && address) {
+      if ((polygonZones.length > 0 || tiers.length > 0) && address) {
         const lat =
           typeof addressLatitude === 'number' ? addressLatitude : Number(addressLatitude)
         const lng =
@@ -257,7 +259,8 @@ export async function POST(request: NextRequest) {
         const addressLat = hasIncoming ? lat : address.latitude
         const addressLng = hasIncoming ? lng : address.longitude
 
-        const zone = resolveDeliveryZone({
+        const zone = resolveDeliveryCoverage({
+          zones: polygonZones,
           tiers,
           storeLat: deliveryRules.mapLatitude,
           storeLng: deliveryRules.mapLongitude,
@@ -266,21 +269,22 @@ export async function POST(request: NextRequest) {
         })
 
         if (zone && !zone.inRange) {
-          return NextResponse.json(
-            {
-              error: `Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toFixed(1)} km away).`,
-            },
-            { status: 400 }
-          )
+          const msg =
+            polygonZones.length > 0
+              ? `Sorry, your address is outside our delivery area (about ${zone.distanceKm.toFixed(1)} km from the store).`
+              : `Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toFixed(1)} km away).`
+          return NextResponse.json({ error: msg }, { status: 400 })
         }
 
         if (zone?.inRange) {
           distanceKm = zone.distanceKm
+          matchedFeeAmount = zone.feeAmount
         }
       }
 
       resolvedDeliveryFee = computeDeliveryFee(goodsTotal, deliveryRules, {
         distanceKm,
+        matchedFeeAmount,
       })
     }
 
