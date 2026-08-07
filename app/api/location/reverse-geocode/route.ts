@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  mapNominatimResult,
+  nominatimHeaders,
+  type NominatimParsedAddress,
+} from '@/lib/nominatim'
 
-type ParsedAddress = {
-  street: string
-  area: string
-  landmark: string
-  city: string
-  state: string
-  pincode: string
-  country: string
-}
+type ParsedAddress = NominatimParsedAddress
 
 type GeocodeResult = {
   address: string
@@ -181,60 +178,19 @@ async function reverseGeocodeNominatim(
 
   const response = await fetch(url.toString(), {
     cache: 'no-store',
-    headers: {
-      // Nominatim requires a identifying User-Agent.
-      'User-Agent': 'UpaharoDelivery/1.0 (support@upaharo.com)',
-      Accept: 'application/json',
-      'Accept-Language': 'en',
-    },
+    headers: nominatimHeaders(),
   })
 
   if (!response.ok) return null
 
   const data = await response.json()
-  const address = data?.address
-  if (!address && !data?.display_name) return null
-
-  const road =
-    address?.road ||
-    address?.pedestrian ||
-    address?.path ||
-    address?.residential ||
-    ''
-  const neighbourhood =
-    address?.neighbourhood ||
-    address?.suburb ||
-    address?.quarter ||
-    address?.city_district ||
-    ''
-  const city =
-    address?.city ||
-    address?.town ||
-    address?.municipality ||
-    address?.village ||
-    address?.county ||
-    ''
-  const state = address?.state || address?.region || ''
-  const pincode = address?.postcode || ''
-  const country = address?.country || ''
-  const house =
-    [address?.house_number, address?.building].filter(Boolean).join(' ') || ''
-  const streetParts = [house, road, neighbourhood].filter(Boolean)
-  const detailedStreet = streetParts.join(', ')
-  const landmark = address?.amenity || address?.shop || address?.tourism || neighbourhood || ''
+  const mapped = mapNominatimResult(data)
+  if (!mapped) return null
 
   return {
-    address: data.display_name || detailedStreet,
+    address: mapped.address,
     source: 'nominatim',
-    parsed: {
-      street: detailedStreet || data.display_name?.split(',')[0] || '',
-      area: neighbourhood || road || '',
-      landmark,
-      city,
-      state,
-      pincode,
-      country,
-    },
+    parsed: mapped.parsed,
   }
 }
 

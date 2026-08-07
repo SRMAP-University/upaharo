@@ -227,12 +227,12 @@ select:focus {
   }
 
   .u-btn-primary {
-    @apply u-btn bg-wine px-5 py-2.5 text-white hover:bg-wine-deep;
-    box-shadow: 0 16px 34px -22px rgba(124, 42, 71, 0.95);
+    @apply u-btn bg-blush px-5 py-2.5 text-white hover:bg-[#d44f7c];
+    box-shadow: 0 16px 34px -22px rgba(232, 90, 140, 0.85);
   }
 
   .u-btn-secondary {
-    @apply u-btn border border-wine/20 bg-white px-5 py-2.5 text-wine hover:border-wine/40 hover:bg-cream;
+    @apply u-btn border border-blush/25 bg-white px-5 py-2.5 text-blush hover:border-blush/40 hover:bg-blush-soft;
   }
 
   .u-btn-ghost {
@@ -248,10 +248,10 @@ select:focus {
   }
 
   .u-chip-active {
-    @apply border-transparent bg-wine text-white hover:border-transparent;
+    @apply border-transparent bg-blush text-white hover:border-transparent;
   }
 
   .u-badge {
-    @apply inline-flex items-center rounded-full bg-rose-soft px-2.5 py-0.5 text-[11px] font-semibold text-wine;
+    @apply inline-flex items-center rounded-full bg-blush-soft px-2.5 py-0.5 text-[11px] font-semibold text-blush;
   }
 }

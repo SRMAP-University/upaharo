@@ -193,7 +193,7 @@ export default function Header() {
             )}
 
             {/* User - Only on desktop */}
-              <Link href={user ? '/account' : '/auth'} className="hidden lg:block">
+              <Link href={user ? '/account' : '/login'} className="hidden lg:block">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}

@@ -1,21 +1,30 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
+
+type ParsedFields = {
+  street?: string
+  area?: string
+  landmark?: string
+  city?: string
+  state?: string
+  pincode?: string
+}
+
+type SearchResult = {
+  address: string
+  lat: number
+  lng: number
+  parsed: ParsedFields
+}
 
 interface MapPickerProps {
   onLocationSelect: (
     lat: number,
     lng: number,
     address: string,
-    parsed?: {
-      street?: string
-      area?: string
-      landmark?: string
-      city?: string
-      state?: string
-      pincode?: string
-    }
+    parsed?: ParsedFields
   ) => void
   initialLat?: number
   initialLng?: number
@@ -30,13 +39,59 @@ declare global {
 export default function MapPicker({ onLocationSelect, initialLat, initialLng }: MapPickerProps) {
   const mapRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const searchAbortRef = useRef<AbortController | null>(null)
+  const lookupIdRef = useRef(0)
   const [map, setMap] = useState<any | null>(null)
   const [marker, setMarker] = useState<any | null>(null)
-  const [geocoder, setGeocoder] = useState<any | null>(null)
-  const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(null)
+  const [selectedPosition, setSelectedPosition] = useState<{ lat: number; lng: number } | null>(
+    null
+  )
   const [isLoading, setIsLoading] = useState(true)
   const [locationStatus, setLocationStatus] = useState<string>('Detecting your location...')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [showResults, setShowResults] = useState(false)
   const mapInitialized = useRef(false)
+
+  const reverseGeocode = useCallback(
+    async (lat: number, lng: number) => {
+      const lookupId = ++lookupIdRef.current
+      onLocationSelect(lat, lng, 'Resolving exact address...')
+
+      try {
+        const controller = new AbortController()
+        const timeoutId = window.setTimeout(() => controller.abort(), 10000)
+        const response = await fetch(
+          `/api/location/reverse-geocode?lat=${lat}&lng=${lng}`,
+          { cache: 'no-store', signal: controller.signal }
+        )
+        window.clearTimeout(timeoutId)
+
+        if (lookupId !== lookupIdRef.current) return
+
+        if (!response.ok) {
+          onLocationSelect(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+          return
+        }
+
+        const data = await response.json()
+        if (lookupId !== lookupIdRef.current) return
+
+        onLocationSelect(
+          lat,
+          lng,
+          data.address || `${lat.toFixed(5)}, ${lng.toFixed(5)}`,
+          data.parsed
+        )
+      } catch (error) {
+        if (lookupId !== lookupIdRef.current) return
+        console.warn('Reverse geocoding failed:', error)
+        onLocationSelect(lat, lng, `${lat.toFixed(5)}, ${lng.toFixed(5)}`)
+      }
+    },
+    [onLocationSelect]
+  )
 
   // Auto-detect user location on mount
   useEffect(() => {
@@ -72,7 +127,6 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
       const loader = new Loader({
         apiKey,
         version: 'weekly',
-        libraries: ['places'],
       })
 
       loader
@@ -91,9 +145,7 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
                 const userLng = position.coords.longitude
                 const accuracy = position.coords.accuracy
 
-                console.log(`Got location: ${userLat}, ${userLng} (accuracy: ${accuracy}m)`)
                 setLocationStatus(`Location found (±${Math.round(accuracy)}m)`)
-
                 initializeMap(google, userLat, userLng, accuracy)
               },
               (error) => {
@@ -120,72 +172,14 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
     }
 
     void loadMap()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLat, initialLng])
-
-  const parseGeocoderResult = (result: any) => {
-    const addressComponents = result?.address_components || []
-    const parsed: Record<string, string> = {}
-
-    addressComponents.forEach((component: any) => {
-      const types = component.types || []
-
-      if (types.includes('establishment')) parsed.establishment = component.long_name
-      if (types.includes('point_of_interest')) parsed.pointOfInterest = component.long_name
-      if (types.includes('subpremise')) parsed.subpremise = component.long_name
-      if (types.includes('premise')) parsed.premise = component.long_name
-      if (types.includes('street_number')) parsed.streetNumber = component.long_name
-      if (types.includes('route')) parsed.route = component.long_name
-      if (types.includes('sublocality_level_3')) parsed.sublocality3 = component.long_name
-      if (types.includes('sublocality_level_2')) parsed.sublocality2 = component.long_name
-      if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
-        parsed.sublocality = component.long_name
-      }
-      if (types.includes('neighborhood')) parsed.neighborhood = component.long_name
-      if (types.includes('locality')) parsed.city = component.long_name
-      if (types.includes('administrative_area_level_2')) parsed.district = component.long_name
-      if (types.includes('administrative_area_level_1')) parsed.state = component.long_name
-      if (types.includes('postal_code')) parsed.pincode = component.long_name
-    })
-
-    const streetParts = [
-      parsed.subpremise,
-      parsed.premise,
-      parsed.streetNumber,
-      parsed.route,
-      parsed.sublocality3,
-      parsed.sublocality2,
-      parsed.sublocality,
-    ].filter(Boolean)
-
-    const area =
-      parsed.sublocality3 ||
-      parsed.sublocality2 ||
-      parsed.sublocality ||
-      parsed.neighborhood ||
-      parsed.route ||
-      ''
-
-    return {
-      street: streetParts.join(', ') || result?.formatted_address?.split(',')[0] || '',
-      area,
-      landmark:
-        parsed.establishment ||
-        parsed.pointOfInterest ||
-        parsed.premise ||
-        parsed.neighborhood ||
-        area ||
-        '',
-      city: parsed.city || parsed.district || '',
-      state: parsed.state || '',
-      pincode: parsed.pincode || '',
-    }
-  }
 
   const initializeMap = (google: any, lat: number, lng: number, accuracy: number) => {
     if (!mapRef.current) return
-    
-    // Calculate zoom based on accuracy
-    const zoomLevel = accuracy < 20 ? 20 : accuracy < 50 ? 19 : accuracy < 100 ? 18 : accuracy < 300 ? 17 : 16
+
+    const zoomLevel =
+      accuracy < 20 ? 20 : accuracy < 50 ? 19 : accuracy < 100 ? 18 : accuracy < 300 ? 17 : 16
 
     const mapInstance = new google.maps.Map(mapRef.current, {
       center: { lat, lng },
@@ -202,89 +196,97 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
       map: mapInstance,
       draggable: true,
       animation: google.maps.Animation.DROP,
-      title: 'Drag to adjust location'
+      title: 'Drag to adjust location',
     })
-
-    const geocoderInstance = new google.maps.Geocoder()
-    const autocompleteInstance =
-      searchInputRef.current
-        ? new google.maps.places.Autocomplete(searchInputRef.current, {
-            fields: ['address_components', 'formatted_address', 'geometry', 'name'],
-            componentRestrictions: { country: 'np' },
-          })
-        : null
 
     setMap(mapInstance)
     setMarker(markerInstance)
-    setGeocoder(geocoderInstance)
     setSelectedPosition({ lat, lng })
     setIsLoading(false)
 
-    if (autocompleteInstance) {
-      autocompleteInstance.addListener('place_changed', () => {
-        const place = autocompleteInstance.getPlace()
-        const location = place?.geometry?.location
-
-        if (!location) return
-
-        const placeLat = location.lat()
-        const placeLng = location.lng()
-        const nextPosition = { lat: placeLat, lng: placeLng }
-
-        mapInstance.panTo(nextPosition)
-        mapInstance.setZoom(18)
-        markerInstance.setPosition(nextPosition)
-        setSelectedPosition(nextPosition)
-
-        onLocationSelect(
-          placeLat,
-          placeLng,
-          place.formatted_address || place.name || 'Selected place',
-          parseGeocoderResult(place)
-        )
-
-        reverseGeocode(placeLat, placeLng, geocoderInstance)
-      })
-    }
-
-    // Handle map click
     mapInstance.addListener('click', (e: any) => {
       if (e.latLng) {
         const clickLat = e.latLng.lat()
         const clickLng = e.latLng.lng()
         markerInstance.setPosition(e.latLng)
         setSelectedPosition({ lat: clickLat, lng: clickLng })
-        reverseGeocode(clickLat, clickLng, geocoderInstance)
+        void reverseGeocode(clickLat, clickLng)
       }
     })
 
-    // Handle marker drag
     markerInstance.addListener('dragend', () => {
       const position = markerInstance.getPosition()
       if (position) {
         const dragLat = position.lat()
         const dragLng = position.lng()
         setSelectedPosition({ lat: dragLat, lng: dragLng })
-        reverseGeocode(dragLat, dragLng, geocoderInstance)
+        void reverseGeocode(dragLat, dragLng)
       }
     })
 
-    // Get initial address
-    reverseGeocode(lat, lng, geocoderInstance)
+    void reverseGeocode(lat, lng)
   }
 
-  const reverseGeocode = (lat: number, lng: number, geocoderInstance: any) => {
-    const fallbackAddress = 'Resolving exact address...'
+  // OpenStreetMap Nominatim place search (debounced)
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (q.length < 2) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
 
-    geocoderInstance.geocode({ location: { lat, lng } }, (results: any, status: any) => {
-      if (status === 'OK' && results && results[0]) {
-        onLocationSelect(lat, lng, results[0].formatted_address, parseGeocoderResult(results[0]))
-      } else {
-        // Keep selection usable even when geocoding is unavailable.
-        console.warn('Reverse geocoding failed:', status)
-        onLocationSelect(lat, lng, fallbackAddress)
+    setIsSearching(true)
+    const timer = window.setTimeout(async () => {
+      searchAbortRef.current?.abort()
+      const controller = new AbortController()
+      searchAbortRef.current = controller
+
+      try {
+        const response = await fetch(
+          `/api/location/search?q=${encodeURIComponent(q)}`,
+          { cache: 'no-store', signal: controller.signal }
+        )
+        if (!response.ok) {
+          setSearchResults([])
+          return
+        }
+        const data = await response.json()
+        setSearchResults(Array.isArray(data.results) ? data.results : [])
+        setShowResults(true)
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.warn('Place search failed:', error)
+          setSearchResults([])
+        }
+      } finally {
+        setIsSearching(false)
       }
-    })
+    }, 400)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [searchQuery])
+
+  const selectSearchResult = (place: SearchResult) => {
+    const nextPosition = { lat: place.lat, lng: place.lng }
+    setSelectedPosition(nextPosition)
+    setSearchQuery(place.address)
+    setShowResults(false)
+    setSearchResults([])
+
+    if (map) {
+      map.panTo(nextPosition)
+      map.setZoom(18)
+    }
+    if (marker) {
+      marker.setPosition(nextPosition)
+    }
+
+    onLocationSelect(place.lat, place.lng, place.address, place.parsed)
+    // Refresh via reverse-geocode (Google → Nominatim) for consistent parsed fields
+    void reverseGeocode(place.lat, place.lng)
   }
 
   const handleUseCurrentLocation = () => {
@@ -294,28 +296,31 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
         (position) => {
           const lat = position.coords.latitude
           const lng = position.coords.longitude
-          const accuracy = position.coords.accuracy // accuracy in meters
+          const accuracy = position.coords.accuracy
           const newPosition = { lat, lng }
-          
-          console.log(`Location accuracy: ${accuracy} meters`)
-          
+
           setSelectedPosition(newPosition)
-          
+
           if (map) {
             map.setCenter(newPosition)
-            // Zoom level based on accuracy - higher accuracy = more zoom
-            const zoomLevel = accuracy < 20 ? 20 : accuracy < 50 ? 19 : accuracy < 100 ? 18 : accuracy < 500 ? 17 : 16
+            const zoomLevel =
+              accuracy < 20
+                ? 20
+                : accuracy < 50
+                  ? 19
+                  : accuracy < 100
+                    ? 18
+                    : accuracy < 500
+                      ? 17
+                      : 16
             map.setZoom(zoomLevel)
           }
-          
+
           if (marker) {
             marker.setPosition(newPosition)
           }
-          
-          if (geocoder) {
-            reverseGeocode(lat, lng, geocoder)
-          }
-          
+
+          void reverseGeocode(lat, lng)
           setIsLoading(false)
         },
         (error) => {
@@ -324,9 +329,9 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
           setIsLoading(false)
         },
         {
-          enableHighAccuracy: true, // Use GPS for highest accuracy
-          timeout: 15000, // Wait up to 15 seconds for accurate position
-          maximumAge: 0 // Don't use cached position
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
         }
       )
     } else {
@@ -351,30 +356,87 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
       <div className="absolute left-4 right-4 top-4 z-10">
         <div className="rounded-2xl border border-wine/10 bg-white shadow-lg">
           <div className="flex items-center gap-3 px-4 py-3">
-            <svg className="h-5 w-5 shrink-0 text-wine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />
+            <svg
+              className="h-5 w-5 shrink-0 text-wine"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
+              />
             </svg>
             <input
               ref={searchInputRef}
               type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value)
+                setShowResults(true)
+              }}
+              onFocus={() => {
+                if (searchResults.length > 0) setShowResults(true)
+              }}
+              onBlur={() => {
+                // Delay so result clicks register
+                window.setTimeout(() => setShowResults(false), 180)
+              }}
               placeholder="Search location, area or landmark"
               className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-ink/40"
+              autoComplete="off"
             />
+            {isSearching ? (
+              <div className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-wine/20 border-t-wine" />
+            ) : null}
           </div>
+
+          {showResults && (searchResults.length > 0 || (searchQuery.trim().length >= 2 && !isSearching)) ? (
+            <ul className="max-h-56 overflow-y-auto border-t border-wine/10">
+              {searchResults.length === 0 ? (
+                <li className="px-4 py-3 text-xs text-ink/50">No places found</li>
+              ) : (
+                searchResults.map((place) => (
+                  <li key={`${place.lat}-${place.lng}-${place.address}`}>
+                    <button
+                      type="button"
+                      className="w-full px-4 py-2.5 text-left text-sm text-ink hover:bg-cream-deep"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectSearchResult(place)}
+                    >
+                      <span className="line-clamp-2">{place.address}</span>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          ) : null}
         </div>
       </div>
-      
+
       <button
         onClick={handleUseCurrentLocation}
         className="absolute bottom-20 right-4 bg-white p-3 rounded-full shadow-lg border border-wine/10 hover:bg-cream-deep transition-colors z-10"
         title="Use my current location"
       >
         <svg className="w-6 h-6 text-wine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+          />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+          />
         </svg>
       </button>
-      
+
       <div className="absolute bottom-4 left-1/2 w-[calc(100%-32px)] max-w-sm -translate-x-1/2 rounded-full border border-wine/10 bg-white px-4 py-2 shadow-lg z-10">
         <p className="text-xs text-ink/60 text-center">
           Tap anywhere or drag the pin to set the exact delivery point

@@ -38,8 +38,8 @@ export default function HomepageBannerCarousel({ banners }: { banners: Banner[] 
   const imageUrl = resolveImageUrl(activeBanner.image)
 
   const content = (
-    <div className="group relative overflow-hidden rounded-[30px] border border-wine/10 bg-white p-[3px] shadow-[0_28px_60px_-40px_rgba(124,42,71,0.6)] ring-1 ring-gold/20">
-      <div className="relative min-h-[230px] overflow-hidden rounded-[27px] bg-gradient-to-br from-rose-soft to-cream-deep md:min-h-[300px]">
+    <div className="group relative overflow-hidden rounded-[30px] border border-blush/15 bg-white p-[3px] shadow-[0_28px_60px_-40px_rgba(232,90,140,0.45)] ring-1 ring-blush/20">
+      <div className="relative min-h-[230px] overflow-hidden rounded-[27px] bg-gradient-to-br from-blush-soft to-cream-deep md:min-h-[300px]">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.div
             key={activeBanner.id}
@@ -68,7 +68,7 @@ export default function HomepageBannerCarousel({ banners }: { banners: Banner[] 
         </AnimatePresence>
 
         {/* Soft inner edge so the artwork sits gently inside the cream frame */}
-        <div className="pointer-events-none absolute inset-0 rounded-[27px] shadow-[inset_0_0_0_1px_rgba(124,42,71,0.08)]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[27px] shadow-[inset_0_0_0_1px_rgba(232,90,140,0.08)]" />
       </div>
     </div>
   )
@@ -84,14 +84,14 @@ export default function HomepageBannerCarousel({ banners }: { banners: Banner[] 
               key={banner.id}
               type="button"
               onClick={() => setActiveIndex(index)}
-              className="relative h-1.5 overflow-hidden rounded-full bg-wine/15 transition-all"
+              className="relative h-1.5 overflow-hidden rounded-full bg-blush/20 transition-all"
               style={{ width: activeIndex === index ? 34 : 14 }}
               aria-label={`Show banner ${index + 1}`}
             >
               {activeIndex === index ? (
                 <motion.span
                   key={activeIndex}
-                  className="absolute inset-y-0 left-0 rounded-full bg-wine"
+                  className="absolute inset-y-0 left-0 rounded-full bg-blush"
                   initial={{ width: '0%' }}
                   animate={{ width: paused ? '35%' : '100%' }}
                   transition={{ duration: paused ? 0.3 : BANNER_DURATION / 1000, ease: 'linear' }}

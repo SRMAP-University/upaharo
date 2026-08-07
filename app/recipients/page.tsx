@@ -42,7 +42,7 @@ export default function RecipientsPage() {
     if (!_hasHydrated) return
     
     if (!user) {
-      router.push('/auth')
+      router.push('/login')
       return
     }
     fetchRecipients()

@@ -3,7 +3,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
-import { signToken } from '@/lib/auth'
+import { signToken, verifyToken } from '@/lib/auth'
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -15,16 +15,51 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+        /** JWT from /api/otp/verify or /api/otp/complete-signup */
+        otpAccessToken: { label: 'OTP access token', type: 'text' },
       },
       async authorize(credentials) {
+        const otpAccessToken = String(credentials?.otpAccessToken || '').trim()
+        if (otpAccessToken) {
+          const payload = await verifyToken(otpAccessToken)
+          const userId =
+            typeof payload?.userId === 'string' ? payload.userId : null
+          // Reject signup-only tokens — only full login tokens have userId.
+          if (!payload || !userId || payload.purpose === 'otp_signup') {
+            throw new Error('OTP session expired. Please verify again.')
+          }
+
+          const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              image: true,
+            },
+          })
+          if (!user) {
+            throw new Error('Account not found')
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            image: user.image,
+          }
+        }
+
         if (!credentials?.email || !credentials?.password) {
           throw new Error('Invalid credentials')
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email }
+          where: { email: credentials.email },
         })
 
         if (!user || !user.password) {
@@ -47,8 +82,8 @@ export const authOptions: NextAuthOptions = {
           role: user.role,
           image: user.image,
         }
-      }
-    })
+      },
+    }),
   ],
   callbacks: {
     async jwt({ token, user, account }) {

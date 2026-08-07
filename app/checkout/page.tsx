@@ -259,7 +259,7 @@ export default function CheckoutPage() {
     if (!_hasHydrated) return
     
     if (!user) {
-      router.push('/auth')
+      router.push('/login')
       return
     }
     // Don't redirect to home if order was just placed

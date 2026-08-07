@@ -114,7 +114,7 @@ export default function BottomNav() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
           </svg>
           {mounted && cartCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-wine text-white text-[10px] font-semibold rounded-full h-4 w-4 flex items-center justify-center shadow-md">
+            <span className="absolute -top-1.5 -right-1.5 bg-blush text-white text-[10px] font-semibold rounded-full h-4 w-4 flex items-center justify-center shadow-md">
               {cartCount > 9 ? '9+' : cartCount}
             </span>
           )}
@@ -141,8 +141,8 @@ export default function BottomNav() {
         </svg>
       ),
       label: 'Account',
-      path: user ? '/profile' : '/auth',
-      active: pathname === '/profile' || pathname === '/auth'
+      path: user ? '/profile' : '/login',
+      active: pathname === '/profile' || pathname === '/login' || pathname === '/auth'
     }
   ]
 
@@ -150,7 +150,7 @@ export default function BottomNav() {
     <button
       type="button"
       onClick={() => router.push('/cart')}
-      className="w-full rounded-2xl bg-wine px-3.5 py-2.5 text-left text-white shadow-[0_12px_28px_-16px_rgba(43,29,34,0.55)]"
+      className="w-full rounded-2xl bg-blush px-3.5 py-2.5 text-left text-white shadow-[0_12px_28px_-16px_rgba(232,90,140,0.55)]"
     >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
@@ -226,7 +226,7 @@ export default function BottomNav() {
                 onClick={() => router.push(item.path)}
                 whileTap={{ scale: 0.9 }}
                 className={`flex flex-col items-center justify-center gap-0.5 ${
-                  item.active ? 'text-wine' : 'text-ink/40'
+                  item.active ? 'text-blush' : 'text-ink/40'
                 }`}
               >
                 {item.icon(item.active)}
@@ -254,7 +254,7 @@ export default function BottomNav() {
                   onClick={() => router.push(item.path)}
                   whileTap={{ scale: 0.9 }}
                   className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    item.active ? 'text-wine bg-rose-soft' : 'text-ink/55 hover:text-ink'
+                    item.active ? 'text-blush bg-blush-soft' : 'text-ink/55 hover:text-ink'
                   }`}
                 >
                   {item.icon(item.active)}

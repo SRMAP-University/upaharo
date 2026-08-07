@@ -288,7 +288,7 @@ export default function PartnersPage() {
               <label className="block text-sm">
                 <span className="text-wine/70">Phone (Nepal)</span>
                 <input
-                  required={!editing}
+                  required
                   className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
                   value={form.phone}
                   onChange={(e) =>
@@ -296,6 +296,11 @@ export default function PartnersPage() {
                   }
                   placeholder="98xxxxxxxx"
                 />
+                {editing ? (
+                  <span className="mt-1 block text-xs text-wine/45">
+                    Used for partner-app OTP login.
+                  </span>
+                ) : null}
               </label>
 
               <div className="grid grid-cols-2 gap-2">

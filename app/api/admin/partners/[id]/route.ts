@@ -61,6 +61,44 @@ export async function PATCH(
       )
     }
 
+    // Partner app OTP login + admin list use User.phone — keep it in sync.
+    let nextPhone: string | undefined
+    if (body.phone !== undefined) {
+      const normalized = normalizeNepalPhone(body.phone)
+      if (!normalized) {
+        return NextResponse.json(
+          { error: 'Enter a valid Nepal mobile number (98/97…)' },
+          { status: 400 }
+        )
+      }
+      if (normalized !== user.phone) {
+        const phoneTaken = await prisma.user.findFirst({
+          where: { phone: normalized, NOT: { id: userId } },
+          select: { id: true },
+        })
+        if (phoneTaken) {
+          return NextResponse.json(
+            { error: 'Another user already has this phone number' },
+            { status: 400 }
+          )
+        }
+        const deliveryPhoneTaken = await prisma.deliveryPartner.findFirst({
+          where: {
+            phone: normalized,
+            NOT: { userId },
+          },
+          select: { id: true },
+        })
+        if (deliveryPhoneTaken) {
+          return NextResponse.json(
+            { error: 'Another delivery partner already has this phone number' },
+            { status: 400 }
+          )
+        }
+      }
+      nextPhone = normalized
+    }
+
     await prisma.$transaction(async (tx) => {
       const nextRole = grantAdmin
         ? 'ADMIN'
@@ -74,6 +112,7 @@ export async function PATCH(
           ...(typeof body.name === 'string' && body.name.trim()
             ? { name: body.name.trim() }
             : {}),
+          ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
           role: nextRole,
         },
       })
@@ -128,10 +167,7 @@ export async function PATCH(
             body.ifscCode !== undefined ? body.ifscCode || null : undefined,
           panNumber:
             body.panNumber !== undefined ? body.panNumber || null : undefined,
-          phone:
-            body.phone !== undefined
-              ? normalizeNepalPhone(body.phone) || body.phone
-              : undefined,
+          phone: nextPhone,
           email:
             typeof body.email === 'string' ? body.email.trim() : undefined,
         }
@@ -153,7 +189,7 @@ export async function PATCH(
                 String(body.businessName || user.name).trim() || user.name,
               businessAddress:
                 String(body.businessAddress || '').trim() || '—',
-              phone: user.phone || '',
+              phone: nextPhone || user.phone || '',
               email: user.email,
               commission: Number(body.commission) || (grantAdmin ? 0 : 15),
               isActive: true,
@@ -194,18 +230,18 @@ export async function PATCH(
               vehicleType: body.vehicleType !== undefined ? vehicleType : undefined,
               vehicleNumber:
                 body.vehicleNumber !== undefined ? vehicleNumber : undefined,
-              phone:
-                body.phone !== undefined
-                  ? normalizeNepalPhone(body.phone) || body.phone
-                  : undefined,
+              ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
             },
           })
         } else {
           await tx.deliveryPartner.create({
             data: {
               userId,
-              name: user.name,
-              phone: user.phone || `partner-${userId.slice(-8)}`,
+              name:
+                typeof body.name === 'string' && body.name.trim()
+                  ? body.name.trim()
+                  : user.name,
+              phone: nextPhone || user.phone || `partner-${userId.slice(-8)}`,
               email: user.email,
               vehicleType,
               vehicleNumber,

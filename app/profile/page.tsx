@@ -84,7 +84,7 @@ export default function ProfilePage() {
     if (!_hasHydrated) return
 
     if (!user) {
-      router.push('/auth')
+      router.push('/login')
       return
     }
 
