@@ -24,7 +24,7 @@ export default function PremiumCategoryStrip({ categories, variant = 'round' }: 
   if (categories.length === 0) return null
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide sm:gap-6">
+    <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide sm:gap-6 lg:flex-wrap lg:overflow-visible lg:justify-start">
       {categories.map((category, index) => {
         const imageUrl = category.image ? resolveImageUrl(category.image) : null
         const ring = accentRings[index % accentRings.length]
@@ -37,7 +37,9 @@ export default function PremiumCategoryStrip({ categories, variant = 'round' }: 
           >
             <span
               className={`relative flex items-center justify-center bg-gradient-to-br p-[2px] transition-transform duration-300 group-hover:-translate-y-1 ${ring} ${
-                variant === 'round' ? 'h-[78px] w-[78px] rounded-full sm:h-[92px] sm:w-[92px]' : 'h-24 w-24 rounded-[26px]'
+                variant === 'round'
+                  ? 'h-[78px] w-[78px] rounded-full sm:h-[92px] sm:w-[92px] lg:h-[104px] lg:w-[104px]'
+                  : 'h-24 w-24 rounded-[26px] lg:h-28 lg:w-28'
               }`}
             >
               <span

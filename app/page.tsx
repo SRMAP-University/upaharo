@@ -272,7 +272,7 @@ function ProductGridSection({
         href="/search"
         ctaLabel="See all"
       />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-5 xl:grid-cols-6">
         {products.slice(0, 24).map((product) => (
           <ProductCard key={product.id} product={product as any} />
         ))}
@@ -319,7 +319,7 @@ export default async function Home() {
           <Link
             key={`spin-${section.key || section.id}`}
             href="/promo"
-            className="flex items-center justify-between rounded-[20px] border border-blush/25 bg-gradient-to-r from-blush-soft via-white to-blush-mid px-4 py-3 shadow-[0_12px_28px_-24px_rgba(232,90,140,0.5)]"
+            className="flex items-center justify-between rounded-[20px] border border-blush/25 bg-gradient-to-r from-blush-soft via-white to-blush-mid px-4 py-3 shadow-[0_12px_28px_-24px_rgba(232,90,140,0.5)] lg:rounded-[28px] lg:px-6 lg:py-5"
           >
             <div>
               <p className="text-sm font-extrabold text-ink">
@@ -412,7 +412,7 @@ export default async function Home() {
                       title={category.name}
                       href={`/categories/${category.id}`}
                     />
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-5 xl:grid-cols-6">
                       {sectionProducts.map((product) => (
                         <ProductCard key={product.id} product={product as any} />
                       ))}
@@ -429,7 +429,7 @@ export default async function Home() {
               {latestProducts.length > 0 ? (
                 <>
                   <SectionHeading eyebrow="New" title="Latest arrivals" href="/search" />
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 lg:gap-5 xl:grid-cols-6">
                     {latestProducts.map((product) => (
                       <ProductCard key={product.id} product={product as any} />
                     ))}
@@ -461,7 +461,7 @@ export default async function Home() {
         bannerProductHeight={bannerProductHeight}
       />
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:pb-12">
+      <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
         {visibleSections.map((section) => renderSection(section))}
 
         {products.length === 0 && homepageRecommendationProducts.length === 0 ? (
@@ -477,9 +477,27 @@ export default async function Home() {
 
         <div className="gold-divider" />
         <TrustStrip />
+
+        <footer className="hidden border-t border-wine/10 pt-8 lg:block">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="font-display text-xl font-semibold text-wine">Upaharo</p>
+              <p className="mt-1 max-w-md text-sm text-ink/50">
+                Flowers, cakes and thoughtful gifts — same-day delivery across the city.
+              </p>
+            </div>
+            <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/60">
+              <Link href="/search" className="hover:text-ink">Shop</Link>
+              <Link href="/orders" className="hover:text-ink">Orders</Link>
+              <Link href="/b2b" className="hover:text-ink">Business</Link>
+              <Link href="/terms" className="hover:text-ink">Terms</Link>
+              <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+            </nav>
+          </div>
+        </footer>
       </div>
 
-      <BottomNav />
+      <BottomNav hideDesktop />
     </main>
   )
 }

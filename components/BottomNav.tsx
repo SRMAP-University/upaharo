@@ -10,7 +10,7 @@ function formatRupee(amount: number) {
   return `₹${Math.ceil(amount).toLocaleString('en-IN')}`
 }
 
-export default function BottomNav() {
+export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   const items = useCartStore((s) => s.items)
@@ -237,12 +237,12 @@ export default function BottomNav() {
         </div>
       </motion.div>
 
-      {/* Desktop */}
+      {/* Desktop floating nav — skipped on pages that already have a full header */}
       <motion.div
         initial={{ y: 0, x: '-50%' }}
         animate={{ y: visible ? 0 : 120, x: '-50%' }}
         transition={{ duration: 0.25, ease: 'easeInOut' }}
-        className="fixed bottom-6 left-1/2 z-50 hidden lg:block"
+        className={`fixed bottom-6 left-1/2 z-50 ${hideDesktop ? 'hidden' : 'hidden lg:block'}`}
       >
         <div className="flex w-[min(480px,90vw)] flex-col gap-2">
           {mounted && showProgress && freeDeliveryChip}

@@ -42,14 +42,14 @@ export default function HomeMiniBanners({
         </h2>
       ) : null}
       <div
-        className="grid gap-2.5"
+        className="grid gap-2.5 lg:gap-4"
         style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {banners.map((banner) => {
           const href = hrefFor(banner)
           const image = (
             <div
-              className="relative w-full overflow-hidden rounded-2xl border border-blush/20 bg-blush-soft shadow-[0_12px_28px_-24px_rgba(232,90,140,0.55)]"
+              className="relative w-full overflow-hidden rounded-2xl border border-blush/20 bg-blush-soft shadow-[0_12px_28px_-24px_rgba(232,90,140,0.55)] lg:rounded-[22px] lg:!h-[148px]"
               style={{ height }}
             >
               <Image
@@ -58,7 +58,7 @@ export default function HomeMiniBanners({
                 fill
                 quality={70}
                 className="object-cover"
-                sizes="(max-width: 768px) 33vw, 200px"
+                sizes="(max-width: 768px) 33vw, 280px"
               />
             </div>
           )

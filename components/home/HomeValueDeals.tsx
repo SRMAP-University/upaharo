@@ -26,29 +26,29 @@ export default function HomeValueDeals({
   if (products.length === 0) return null
 
   return (
-    <section className="space-y-3 rounded-[24px] border border-[#D9D2E8] bg-[#F3F0F8] p-4">
+    <section className="space-y-3 rounded-[24px] border border-[#D9D2E8] bg-[#F3F0F8] p-4 lg:rounded-[30px] lg:p-6">
       <div className="flex items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blush">
             {title}
           </p>
-          <h2 className="text-xl font-extrabold tracking-tight text-ink">
+          <h2 className="text-xl font-extrabold tracking-tight text-ink lg:text-3xl">
             {subtitle || 'DEALS'}
           </h2>
           {promoText ? (
-            <p className="mt-1 text-xs font-medium text-ink/55">{promoText}</p>
+            <p className="mt-1 text-xs font-medium text-ink/55 lg:text-sm">{promoText}</p>
           ) : null}
         </div>
         <Link
           href="/search?sort=discount"
-          className="text-xs font-bold text-blush"
+          className="text-xs font-bold text-blush lg:text-sm"
         >
           See all
         </Link>
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible xl:grid-cols-6">
         {products.map((product) => (
-          <div key={product.id} className="w-[148px] flex-shrink-0 sm:w-[168px]">
+          <div key={product.id} className="w-[148px] flex-shrink-0 sm:w-[168px] lg:w-auto">
             <ProductCard product={product as any} />
           </div>
         ))}

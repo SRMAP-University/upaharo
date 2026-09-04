@@ -85,9 +85,9 @@ export default function HomeRecommendationSection({
   return (
     <section id="latest" className="space-y-5">
       <SectionHeading eyebrow="For you" title={title} description={description} />
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible xl:grid-cols-6">
         {products.map((product) => (
-          <div key={product.id} className="w-[172px] flex-shrink-0 sm:w-[210px]">
+          <div key={product.id} className="w-[172px] flex-shrink-0 sm:w-[210px] lg:w-auto">
             <ProductCard product={product} />
           </div>
         ))}
