@@ -162,88 +162,71 @@ function BannerProductTile({ product }: { product: BannerProduct }) {
   )
 }
 
-function AppStyleBanner({
-  banners,
+function BannerSlideCard({
+  banner,
   height,
   productStripHeight,
-  onWashChange,
+  compact,
+  priority,
 }: {
-  banners: Banner[]
+  banner: Banner
   height: number
   productStripHeight: number
-  onWashChange?: (color: string) => void
+  compact?: boolean
+  priority?: boolean
 }) {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [paused, setPaused] = useState(false)
+  const imageUrl = resolveImageUrl(banner.image)
+  const products = (banner.products || []).slice(0, compact ? 2 : 3)
+  const subtitle = banner.subtitle?.trim()
 
-  useEffect(() => {
-    if (banners.length <= 1 || paused) return
-    const t = window.setTimeout(() => {
-      setActiveIndex((i) => (i + 1) % banners.length)
-    }, BANNER_DURATION)
-    return () => window.clearTimeout(t)
-  }, [banners.length, activeIndex, paused])
-
-  useEffect(() => {
-    const bg = banners[activeIndex]?.bgColor?.trim()
-    onWashChange?.(bg && /^#([0-9a-f]{6})$/i.test(bg) ? bg : DEFAULT_WASH)
-  }, [activeIndex, banners, onWashChange])
-
-  if (banners.length === 0) return null
-
-  const active = banners[activeIndex]
-  const imageUrl = resolveImageUrl(active.image)
-  const products = (active.products || []).slice(0, 3)
-  const subtitle = active.subtitle?.trim()
-
-  const card = (
+  return (
     <div
-      className={`relative w-full overflow-hidden rounded-[18px] lg:rounded-[28px] ${
-        active.link ? 'cursor-pointer' : ''
-      }`}
-      style={{ height, backgroundColor: active.bgColor || '#F0F0F0' }}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onTouchStart={() => setPaused(true)}
-      onTouchEnd={() => setPaused(false)}
-      role={active.link ? 'link' : undefined}
-      tabIndex={active.link ? 0 : undefined}
+      className={`relative h-full w-full overflow-hidden ${
+        compact ? 'rounded-[22px]' : 'rounded-[18px] lg:rounded-[28px]'
+      } ${banner.link ? 'cursor-pointer' : ''}`}
+      style={{ height, backgroundColor: banner.bgColor || '#F0F0F0' }}
+      role={banner.link ? 'link' : undefined}
+      tabIndex={banner.link ? 0 : undefined}
       onClick={() => {
-        if (active.link) window.location.assign(active.link)
+        if (banner.link) window.location.assign(banner.link)
       }}
       onKeyDown={(e) => {
-        if (!active.link) return
+        if (!banner.link) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          window.location.assign(active.link)
+          window.location.assign(banner.link)
         }
       }}
     >
       {imageUrl ? (
         <Image
           src={imageUrl}
-          alt={active.title}
+          alt={banner.title}
           fill
-          priority={activeIndex === 0}
+          priority={priority}
           quality={80}
           className="object-cover"
-          sizes="(max-width: 1024px) 100vw, 1200px"
+          sizes={compact ? '(min-width: 1024px) 33vw, 100vw' : '(max-width: 1024px) 100vw, 1200px'}
         />
       ) : null}
 
       <div
-        className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 lg:px-6 lg:pb-5"
+        className={`absolute inset-x-0 bottom-0 ${compact ? 'px-3 pb-3' : 'px-2.5 pb-2.5 lg:px-6 lg:pb-5'}`}
         style={{
           background:
-            'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.6) 100%)',
-          paddingTop: products.length ? 56 : 36,
+            'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.65) 100%)',
+          paddingTop: products.length ? 40 : 28,
         }}
       >
-        <p className="truncate text-[15px] font-semibold text-white drop-shadow lg:text-2xl">
-          {active.title}
+        <p
+          className={`truncate font-semibold text-white drop-shadow ${
+            compact ? 'text-base' : 'text-[15px] lg:text-2xl'
+          }`}
+        >
+          {banner.title}
         </p>
         {subtitle ? (
-          <p className="truncate text-[11px] font-medium text-white/90 lg:text-sm">
+          <p className={`truncate font-medium text-white/90 ${compact ? 'text-[11px]' : 'text-[11px] lg:text-sm'}`}>
             {subtitle}
           </p>
         ) : null}
@@ -260,31 +243,95 @@ function AppStyleBanner({
             ))}
           </div>
         ) : null}
-
-        {banners.length > 1 ? (
-          <div className="mt-2 flex justify-center gap-1.5">
-            {banners.map((b, i) => (
-              <button
-                key={b.id}
-                type="button"
-                aria-label={`Banner ${i + 1}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  setActiveIndex(i)
-                }}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
-                }`}
-              />
-            ))}
-          </div>
-        ) : null}
       </div>
     </div>
   )
+}
 
-  return card
+function AppStyleBanner({
+  banners,
+  height,
+  productStripHeight,
+  onWashChange,
+  layout = 'single',
+}: {
+  banners: Banner[]
+  height: number
+  productStripHeight: number
+  onWashChange?: (color: string) => void
+  layout?: 'single' | 'trio'
+}) {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const trioCount = Math.min(3, banners.length)
+  const canAdvance = layout === 'trio' ? banners.length > 3 : banners.length > 1
+
+  useEffect(() => {
+    if (!canAdvance || paused) return
+    const t = window.setTimeout(() => {
+      setActiveIndex((i) => (i + 1) % banners.length)
+    }, BANNER_DURATION)
+    return () => window.clearTimeout(t)
+  }, [banners.length, activeIndex, paused, canAdvance])
+
+  const visibleBanners =
+    layout === 'trio'
+      ? Array.from({ length: trioCount }, (_, offset) => banners[(activeIndex + offset) % banners.length])
+      : [banners[activeIndex]]
+
+  useEffect(() => {
+    const bg = visibleBanners[0]?.bgColor?.trim()
+    onWashChange?.(bg && /^#([0-9a-f]{6})$/i.test(bg) ? bg : DEFAULT_WASH)
+  }, [activeIndex, banners, layout, onWashChange])
+
+  if (banners.length === 0) return null
+
+  return (
+    <div
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setPaused(false)}
+    >
+      {layout === 'trio' ? (
+        <div className={`grid gap-4 ${trioCount === 1 ? 'grid-cols-1' : trioCount === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          {visibleBanners.map((banner, i) => (
+            <BannerSlideCard
+              key={`${banner.id}-${i}`}
+              banner={banner}
+              height={height}
+              productStripHeight={productStripHeight}
+              compact
+              priority={i === 0}
+            />
+          ))}
+        </div>
+      ) : (
+        <BannerSlideCard
+          banner={visibleBanners[0]}
+          height={height}
+          productStripHeight={productStripHeight}
+          priority={activeIndex === 0}
+        />
+      )}
+
+      {canAdvance ? (
+        <div className="mt-3 flex justify-center gap-1.5">
+          {banners.map((b, i) => (
+            <button
+              key={b.id}
+              type="button"
+              aria-label={`Banner ${i + 1}`}
+              onClick={() => setActiveIndex(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === activeIndex ? 'w-4 bg-ink/70' : 'w-1.5 bg-ink/25'
+              }`}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 /** App-matching sticky home chrome: location, search, category chips, banner. */
@@ -317,12 +364,12 @@ export default function HomepageTopLayout({
   )
 
   const locationLabel = mounted
-    ? deliveryAddress?.address ||
-      currentLocation?.address ||
-      deliveryAddress?.label ||
+    ? deliveryAddress?.label ||
       currentLocation?.label ||
-      'Choose delivery location'
-    : 'Choose delivery location'
+      deliveryAddress?.address?.split(',')[0]?.trim() ||
+      currentLocation?.address?.split(',')[0]?.trim() ||
+      'Set location'
+    : 'Set location'
 
   const initial =
     user?.name?.trim()?.charAt(0)?.toUpperCase() ||
@@ -330,9 +377,9 @@ export default function HomepageTopLayout({
     null
 
   const bannerH = clampBannerHeight(bannerHeight)
-  const desktopBannerH = Math.min(560, Math.max(bannerH, 420))
+  const desktopBannerH = Math.min(440, Math.max(bannerH, 360))
   const productH = clampProductStripHeight(bannerProductHeight)
-  const desktopProductH = Math.min(180, Math.max(productH, 140))
+  const desktopProductH = Math.min(132, Math.max(productH, 108))
 
   const categoryRow = (size: 'compact' | 'desktop') => (
     <>
@@ -501,119 +548,150 @@ export default function HomepageTopLayout({
         </div>
 
         {/* Desktop — website header, search, and a wide hero */}
-        <div className="mx-auto hidden max-w-7xl px-6 pb-8 pt-5 lg:block xl:px-8">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="flex shrink-0 items-center gap-2.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-wine text-white shadow-[0_12px_26px_-16px_rgba(124,42,71,0.95)]">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                </svg>
-              </span>
-              <span className="font-display text-2xl font-semibold tracking-tight text-wine">
-                Upaharo
-              </span>
-            </Link>
+        <div className="hidden lg:block">
+          <div className="sticky top-0 z-40 border-b border-wine/10 bg-white/90 backdrop-blur">
+            <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-6 xl:px-8">
+              <Link href="/" className="flex shrink-0 items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-wine text-white">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                  </svg>
+                </span>
+                <span className="font-display text-xl font-semibold tracking-tight text-wine">
+                  Upaharo
+                </span>
+              </Link>
 
-            <button
-              type="button"
-              onClick={() => setIsLocationModalOpen(true)}
-              className="max-w-[220px] rounded-full border border-wine/10 bg-white/80 px-3.5 py-2 text-left shadow-sm"
-            >
-              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-blush">
-                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(true)}
+                title={
+                  deliveryAddress?.address ||
+                  currentLocation?.address ||
+                  locationLabel
+                }
+                className="flex h-8 max-w-[132px] shrink-0 items-center gap-1 rounded-full bg-cream px-2"
+              >
+                <svg className="h-3.5 w-3.5 shrink-0 text-blush" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"
                     d="M5.05 4.05a7 7 0 1 1 9.9 9.9L10 18.9l-4.95-4.95a7 7 0 0 1 0-9.9ZM10 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"
                     clipRule="evenodd"
                   />
                 </svg>
-                Deliver to
-              </p>
-              <p className="mt-0.5 truncate text-sm font-semibold text-ink">{locationLabel}</p>
-              {deliveryEstimate ? (
-                <p className="truncate text-[11px] font-medium text-ink/50">{deliveryEstimate}</p>
-              ) : null}
-            </button>
+                <span className="min-w-0 truncate text-xs font-medium text-ink">{locationLabel}</span>
+                <svg className="h-3 w-3 shrink-0 text-ink/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m19 9-7 7-7-7" />
+                </svg>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => router.push('/search')}
-              className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full bg-white px-5 text-left shadow-sm ring-1 ring-black/[0.06]"
-            >
-              <svg className="h-5 w-5 shrink-0 text-ink/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
-                />
-              </svg>
-              <span className="truncate text-[15px] text-ink/45">
-                Search gifts, cakes, flowers…
-              </span>
-              <span className="ml-auto rounded-full bg-wine px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-                Search
-              </span>
-            </button>
-
-            <Link
-              href="/b2b"
-              className="shrink-0 rounded-full border border-wine/15 bg-white/80 px-4 py-2 text-sm font-semibold text-wine hover:border-wine/35 hover:bg-white"
-            >
-              Business
-            </Link>
-            <Link
-              href="/cart"
-              className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-ink shadow-sm ring-1 ring-black/[0.06]"
-              aria-label="Cart"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"
-                />
-              </svg>
-              {mounted && cartCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-blush px-1 text-[11px] font-bold text-white">
-                  {cartCount > 9 ? '9+' : cartCount}
+              <button
+                type="button"
+                onClick={() => router.push('/search')}
+                className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full bg-cream px-4 text-left"
+              >
+                <svg className="h-4 w-4 shrink-0 text-ink/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+                  />
+                </svg>
+                <span className="truncate text-sm text-ink/45">
+                  Search gifts, cakes, flowers…
                 </span>
-              ) : null}
-            </Link>
-            <Link
-              href={user ? '/profile' : '/login'}
-              className="flex h-12 items-center gap-2 rounded-full bg-white px-4 text-sm font-semibold text-ink shadow-sm ring-1 ring-black/[0.06]"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blush-soft text-sm font-bold text-blush">
-                {initial || (
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.8}
-                      d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                    />
-                  </svg>
-                )}
-              </span>
-              {user?.name?.split(' ')[0] || 'Sign in'}
-            </Link>
+              </button>
+
+              <Link
+                href="/b2b"
+                className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-wine hover:bg-cream"
+              >
+                Business
+              </Link>
+              <Link
+                href="/cart"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink hover:bg-cream"
+                aria-label="Cart"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z"
+                  />
+                </svg>
+                {mounted && cartCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-blush px-1 text-[10px] font-bold text-white">
+                    {cartCount > 9 ? '9+' : cartCount}
+                  </span>
+                ) : null}
+              </Link>
+              <Link
+                href={user ? '/profile' : '/login'}
+                className="flex h-10 shrink-0 items-center gap-2 rounded-full px-2 text-sm font-semibold text-ink hover:bg-cream"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blush-soft text-xs font-bold text-blush">
+                  {initial || (
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.8}
+                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                      />
+                    </svg>
+                  )}
+                </span>
+                <span className="hidden xl:inline">{user?.name?.split(' ')[0] || 'Sign in'}</span>
+              </Link>
+            </div>
+
+            {headerCategories.length > 0 ? (
+              <div className="border-t border-wine/10">
+                <div className="mx-auto flex max-w-7xl items-center gap-1 overflow-x-auto px-6 py-2 scrollbar-hide xl:px-8">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTab(0)
+                      document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth' })
+                    }}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
+                      selectedTab === 0
+                        ? 'bg-blush-soft font-semibold text-blush'
+                        : 'font-medium text-ink/65 hover:bg-cream hover:text-ink'
+                    }`}
+                  >
+                    All
+                  </button>
+                  {headerCategories.map((category, index) => (
+                    <Link
+                      key={category.id}
+                      href={`/categories/${category.id}`}
+                      onClick={() => setSelectedTab(index + 1)}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
+                        selectedTab === index + 1
+                          ? 'bg-blush-soft font-semibold text-blush'
+                          : 'font-medium text-ink/65 hover:bg-cream hover:text-ink'
+                      }`}
+                    >
+                      {category.shortName || category.name}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          {headerCategories.length > 0 ? (
-            <div className="mt-6 flex flex-wrap justify-center gap-x-3 gap-y-3">
-              {categoryRow('desktop')}
-            </div>
-          ) : null}
-
           {showBanner && banners.length > 0 ? (
-            <div className="mt-6">
+            <div className="mx-auto max-w-7xl px-6 pb-8 pt-6 xl:px-8">
               <AppStyleBanner
                 banners={banners}
                 height={desktopBannerH}
                 productStripHeight={desktopProductH}
                 onWashChange={setWash}
+                layout="trio"
               />
             </div>
           ) : null}
