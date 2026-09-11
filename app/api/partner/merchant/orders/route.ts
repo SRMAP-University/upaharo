@@ -453,13 +453,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error.error }, { status: result.error.status })
     }
 
+    const order = result.order as { orderNumber: string } & Record<string, unknown>
     return NextResponse.json(
       {
-        ...result.order,
+        ...order,
         canFulfill: true,
-        digitalBillUrl: digitalBillUrl(
-          (result.order as { orderNumber: string }).orderNumber
-        ),
+        digitalBillUrl: digitalBillUrl(order.orderNumber),
       },
       { status: 201 }
     )
