@@ -1,9 +1,13 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
-import { getTokenFromRequest, verifyToken } from '@/lib/auth'
+import { getTokenFromRequest, signToken, verifyToken } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { resolveStoreSlug } from '@/lib/store-context'
+import {
+  issueTrustedDevice,
+  normalizeDeviceId,
+} from '@/lib/trusted-device'
 
 export type PartnerCapabilities = {
   sellerEnabled: boolean
@@ -262,6 +266,98 @@ export async function resolvePartnerStoreContext(
   })
   if (!store) return null
   return { slug: store.slug, store }
+}
+
+export type PartnerAppSession = {
+  user: {
+    id: string
+    email: string
+    name: string
+    phone: string | null
+    role: string
+    image: string | null
+  }
+  partner: {
+    sellerEnabled: boolean
+    deliveryEnabled: boolean
+    giftsEnabled: boolean
+    groceryEnabled: boolean
+    fullAccess: boolean
+    sellerId: string | null
+    deliveryPartnerId: string | null
+  }
+  token: string
+  deviceToken?: string
+  deviceExpiresAt?: string
+}
+
+/** JWT + optional trusted-device token after partner OTP / admin skip-OTP. */
+export async function issuePartnerAppSession(params: {
+  userId: string
+  phone: string
+  deviceId?: string | null
+  platform?: string | null
+}): Promise<PartnerAppSession | null> {
+  const user = await prisma.user.findUnique({
+    where: { id: params.userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      phone: true,
+      role: true,
+      image: true,
+    },
+  })
+  if (!user) return null
+
+  const partner = await loadPartnerByUserId(user.id)
+  if (!partner) return null
+
+  const token = await signToken({
+    userId: user.id,
+    email: user.email,
+    partner: true,
+    sellerEnabled: partner.access.sellerEnabled,
+    deliveryEnabled: partner.access.deliveryEnabled,
+  })
+
+  const deviceId = normalizeDeviceId(params.deviceId)
+  let deviceToken: string | undefined
+  let deviceExpiresAt: string | undefined
+  if (deviceId) {
+    const trusted = await issueTrustedDevice({
+      userId: user.id,
+      phone: params.phone,
+      deviceId,
+      platform: params.platform,
+    })
+    deviceToken = trusted.deviceToken
+    deviceExpiresAt = trusted.expiresAt.toISOString()
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      image: user.image,
+    },
+    partner: {
+      sellerEnabled: partner.access.sellerEnabled,
+      deliveryEnabled: partner.access.deliveryEnabled,
+      giftsEnabled: partner.access.giftsEnabled,
+      groceryEnabled: partner.access.groceryEnabled,
+      fullAccess: partner.access.fullAccess,
+      sellerId: partner.sellerId,
+      deliveryPartnerId: partner.deliveryPartnerId,
+    },
+    token,
+    deviceToken,
+    deviceExpiresAt,
+  }
 }
 
 /** Resolve partner by user id (e.g. after OTP). */

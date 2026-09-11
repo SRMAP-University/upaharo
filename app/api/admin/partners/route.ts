@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/request-auth'
-import { normalizeNepalPhone } from '@/lib/phone'
+import { normalizePartnerPhone } from '@/lib/phone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const name = String(body.name || '').trim()
     const email = String(body.email || '').trim().toLowerCase()
-    const phone = normalizeNepalPhone(body.phone)
+    const phone = normalizePartnerPhone(body.phone)
     const sellerEnabled = Boolean(body.sellerEnabled)
     const deliveryEnabled = Boolean(body.deliveryEnabled)
     const giftsEnabled = body.giftsEnabled !== false

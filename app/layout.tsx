@@ -9,7 +9,6 @@ import ChooseLocationPrompt from '@/components/ChooseLocationPrompt'
 import OfflineIndicator from '@/components/OfflineIndicator'
 import { SessionSync } from '@/components/SessionSync'
 import RouteLoader from '@/components/RouteLoader'
-import PersonalizationConsentBanner from '@/components/PersonalizationConsentBanner'
 
 function isLocalOrigin(value?: string | null) {
   if (!value) return false
@@ -168,7 +167,6 @@ export default function RootLayout({
           <PWAInstallPrompt />
           <ChooseLocationPrompt />
           <AppDownloadReminder />
-          <PersonalizationConsentBanner />
           {children}
         </Providers>
       </body>

@@ -5,7 +5,11 @@ import {
   requireMerchant,
   resolveStoreIdsForPartner,
 } from '@/lib/partner-auth'
-import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
+import {
+  deliveryOtpsMatch,
+  generateDeliveryOtp,
+  isDeliveryOtpRequired,
+} from '@/lib/delivery-otp'
 import {
   notifyDeliveryPartnersJobAvailable,
   notifyOrderStatus,
@@ -224,7 +228,8 @@ export async function PATCH(request: NextRequest) {
       if (fullAccess) {
         if (
           nextStatus === 'DELIVERED' &&
-          existing.status !== 'DELIVERED'
+          existing.status !== 'DELIVERED' &&
+          (await isDeliveryOtpRequired(existing.storeId))
         ) {
           if (!existing.deliveryOtp) {
             return NextResponse.json(
@@ -285,7 +290,10 @@ export async function PATCH(request: NextRequest) {
       Object.assign(updateData, statusTimestampFields(nextStatus))
       effectiveStatus = nextStatus
 
-      if (nextStatus !== existing.status) {
+      if (
+        nextStatus !== existing.status &&
+        (await isDeliveryOtpRequired(existing.storeId))
+      ) {
         if (nextStatus === 'OUT_FOR_DELIVERY') {
           issuedOtp = generateDeliveryOtp()
           updateData.deliveryOtp = issuedOtp
@@ -320,7 +328,10 @@ export async function PATCH(request: NextRequest) {
           updateData.status = 'OUT_FOR_DELIVERY'
           Object.assign(updateData, statusTimestampFields('OUT_FOR_DELIVERY'))
           effectiveStatus = 'OUT_FOR_DELIVERY'
-          if (!existing.deliveryOtp) {
+          if (
+            !existing.deliveryOtp &&
+            (await isDeliveryOtpRequired(existing.storeId))
+          ) {
             issuedOtp = generateDeliveryOtp()
             updateData.deliveryOtp = issuedOtp
             updateData.deliveryOtpCreatedAt = new Date()

@@ -301,6 +301,32 @@ export async function GET(request: NextRequest) {
     const deliveryRadiusTiers = await loadDeliveryRadiusTiers(storeContext.store.id)
     const deliveryZones = await loadDeliveryZones(storeContext.store.id)
 
+    let supportInstagram = (settings as { supportInstagram?: unknown } | null)
+      ?.supportInstagram
+    if (supportInstagram === undefined) {
+      try {
+        const rows = await prisma.$queryRaw<
+          Array<{ supportInstagram: string | null }>
+        >`SELECT "supportInstagram" FROM "AppSettings" WHERE "storeId" = ${storeContext.store.id} LIMIT 1`
+        supportInstagram = rows[0]?.supportInstagram
+      } catch {
+        supportInstagram = DEFAULT_APP_SETTINGS.supportInstagram
+      }
+    }
+
+    let featureDeliveryOtp = (settings as { featureDeliveryOtp?: unknown } | null)
+      ?.featureDeliveryOtp
+    if (featureDeliveryOtp === undefined) {
+      try {
+        const rows = await prisma.$queryRaw<
+          Array<{ featureDeliveryOtp: boolean | null }>
+        >`SELECT "featureDeliveryOtp" FROM "AppSettings" WHERE "storeId" = ${storeContext.store.id} LIMIT 1`
+        featureDeliveryOtp = rows[0]?.featureDeliveryOtp
+      } catch {
+        featureDeliveryOtp = DEFAULT_APP_SETTINGS.featureDeliveryOtp
+      }
+    }
+
     let rainExtraMinutes = (settings as { rainExtraMinutes?: unknown } | null)
       ?.rainExtraMinutes
     if (rainExtraMinutes === undefined) {
@@ -319,6 +345,8 @@ export async function GET(request: NextRequest) {
       store: storeContext.store,
       ...DEFAULT_APP_SETTINGS,
       ...(settings || {}),
+      supportInstagram: String(supportInstagram || '').trim(),
+      featureDeliveryOtp: featureDeliveryOtp !== false,
       rainExtraMinutes: clampInt(
         rainExtraMinutes,
         DEFAULT_APP_SETTINGS.rainExtraMinutes,
@@ -370,6 +398,8 @@ export async function PATCH(request: NextRequest) {
     }
     const body = (await request.json()) as Record<string, unknown>
     const payload = settingsPayload(body)
+    const supportInstagram = String(body?.supportInstagram || '').trim() || null
+    const featureDeliveryOtp = body?.featureDeliveryOtp !== false
     const rainExtraMinutes = clampInt(
       payload.rainExtraMinutes,
       DEFAULT_APP_SETTINGS.rainExtraMinutes,
@@ -407,6 +437,17 @@ export async function PATCH(request: NextRequest) {
       `
     }
 
+    await prisma.$executeRaw`
+      UPDATE "AppSettings"
+      SET "supportInstagram" = ${supportInstagram}
+      WHERE "storeId" = ${storeContext.store.id}
+    `
+    await prisma.$executeRaw`
+      UPDATE "AppSettings"
+      SET "featureDeliveryOtp" = ${featureDeliveryOtp}
+      WHERE "storeId" = ${storeContext.store.id}
+    `
+
     const deliveryRadiusTiers = await saveDeliveryRadiusTiers(
       storeContext.store.id,
       body.deliveryRadiusTiers
@@ -423,6 +464,8 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       ...settings,
+      supportInstagram: supportInstagram || '',
+      featureDeliveryOtp,
       rainExtraMinutes,
       deliveryRadiusTiers,
       deliveryZones,

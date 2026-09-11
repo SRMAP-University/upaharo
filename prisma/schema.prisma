@@ -794,6 +794,8 @@ model AppSettings {
   store                        Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   siteName                     String   @default("Chapter Kurus")
   supportPhone                 String?
+  /// Instagram username or profile URL for product “Order on Instagram”.
+  supportInstagram             String?
   supportEmail                 String?
   supportHours                 String?
   supportMessage               String?
@@ -832,6 +834,8 @@ model AppSettings {
   featureAiAssistant           Boolean  @default(true)
   /// Save-for-later controls and account entry.
   featureWishlist              Boolean  @default(true)
+  /// When false, sellers and riders can mark orders delivered without a customer OTP.
+  featureDeliveryOtp           Boolean  @default(true)
   homepageRecommendationMode   String   @default("LATEST")
   homepageRecommendationTitle  String?
   /// Ordered mobile home sections: `[{ id, title, subtitle, visible }]`.

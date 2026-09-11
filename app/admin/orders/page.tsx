@@ -126,6 +126,7 @@ export default function AdminOrders() {
     Array<{ id: string; name: string; phone: string; vehicleType: string }>
   >([])
   const [assigningRider, setAssigningRider] = useState(false)
+  const [deliveryOtpRequired, setDeliveryOtpRequired] = useState(true)
   const hasSelectedOrderCoords =
     !!selectedOrder?.address &&
     Number.isFinite(selectedOrder.address.latitude) &&
@@ -134,6 +135,16 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders()
+    void (async () => {
+      try {
+        const res = await fetch('/api/settings')
+        if (!res.ok) return
+        const data = await res.json()
+        setDeliveryOtpRequired(data.featureDeliveryOtp !== false)
+      } catch {
+        /* keep default: required */
+      }
+    })()
   }, [])
 
   useEffect(() => {
@@ -250,7 +261,7 @@ export default function AdminOrders() {
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
       let deliveryOtp: string | undefined
-      if (status === 'DELIVERED') {
+      if (status === 'DELIVERED' && deliveryOtpRequired) {
         const code = window.prompt(
           'Enter the 4-digit delivery code from the customer to confirm they received the order:'
         )

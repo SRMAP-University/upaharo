@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OrderStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
+import {
+  deliveryOtpsMatch,
+  generateDeliveryOtp,
+  isDeliveryOtpRequired,
+} from '@/lib/delivery-otp'
 import {
   notifyDeliveryPartnersJobAvailable,
   notifyOrderStatus,
@@ -53,8 +57,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let issuedOtp: string | null = null
 
     if (nextStatus) {
-      // Confirm delivery with customer-shared OTP
-      if (nextStatus === 'DELIVERED' && existing.status !== 'DELIVERED') {
+      if (
+        nextStatus === 'DELIVERED' &&
+        existing.status !== 'DELIVERED' &&
+        (await isDeliveryOtpRequired(existing.storeId))
+      ) {
         if (!existing.deliveryOtp) {
           return NextResponse.json(
             {
@@ -75,8 +82,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updateData.status = nextStatus
       Object.assign(updateData, statusTimestampFields(nextStatus))
 
-      // Issue OTP when order is ready / out for delivery
-      if (nextStatus !== existing.status) {
+      if (
+        nextStatus !== existing.status &&
+        (await isDeliveryOtpRequired(existing.storeId))
+      ) {
         if (nextStatus === 'OUT_FOR_DELIVERY') {
           issuedOtp = generateDeliveryOtp()
           updateData.deliveryOtp = issuedOtp

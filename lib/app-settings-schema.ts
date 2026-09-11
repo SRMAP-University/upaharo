@@ -127,6 +127,8 @@ export const DENSITY_SCALE: Record<string, number> = {
 export type PublicAppSettings = {
   siteName: string
   supportPhone: string
+  /** Instagram username, @handle, or profile URL. */
+  supportInstagram: string
   supportEmail: string
   supportHours: string
   supportMessage: string
@@ -156,6 +158,8 @@ export type PublicAppSettings = {
   featureGiftOptions: boolean
   featureAiAssistant: boolean
   featureWishlist: boolean
+  /** When false, mark delivered without asking the customer for an OTP. */
+  featureDeliveryOtp: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   homeSectionLayout: HomeSectionConfig[]
@@ -223,6 +227,7 @@ export type PublicAppSettings = {
 export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   siteName: 'Upaharo',
   supportPhone: '',
+  supportInstagram: '',
   supportEmail: '',
   supportHours: '9:00 AM - 9:00 PM',
   supportMessage: 'Need help with your order? Our team is available during support hours.',
@@ -252,6 +257,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   featureGiftOptions: true,
   featureAiAssistant: true,
   featureWishlist: true,
+  featureDeliveryOtp: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: 'Latest Arrivals',
   homeSectionLayout: DEFAULT_HOME_SECTIONS,

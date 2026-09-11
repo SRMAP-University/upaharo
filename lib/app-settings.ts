@@ -97,6 +97,20 @@ export async function getAppSettings(
             ? DEFAULT_APP_SETTINGS.siteName
             : settings.siteName,
         supportPhone: settings.supportPhone || DEFAULT_APP_SETTINGS.supportPhone,
+        supportInstagram: await (async () => {
+          let raw = (settings as { supportInstagram?: string | null }).supportInstagram
+          if (raw === undefined) {
+            try {
+              const rows = await prisma.$queryRaw<
+                Array<{ supportInstagram: string | null }>
+              >`SELECT "supportInstagram" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+              raw = rows[0]?.supportInstagram
+            } catch {
+              raw = DEFAULT_APP_SETTINGS.supportInstagram
+            }
+          }
+          return String(raw || DEFAULT_APP_SETTINGS.supportInstagram).trim()
+        })(),
         supportEmail: settings.supportEmail || DEFAULT_APP_SETTINGS.supportEmail,
         supportHours: settings.supportHours || DEFAULT_APP_SETTINGS.supportHours,
         supportMessage: settings.supportMessage || DEFAULT_APP_SETTINGS.supportMessage,
@@ -165,6 +179,21 @@ export async function getAppSettings(
           settings.featureAiAssistant ?? DEFAULT_APP_SETTINGS.featureAiAssistant,
         featureWishlist:
           settings.featureWishlist ?? DEFAULT_APP_SETTINGS.featureWishlist,
+        featureDeliveryOtp: await (async () => {
+          let raw = (settings as { featureDeliveryOtp?: boolean | null })
+            .featureDeliveryOtp
+          if (raw === undefined) {
+            try {
+              const rows = await prisma.$queryRaw<
+                Array<{ featureDeliveryOtp: boolean | null }>
+              >`SELECT "featureDeliveryOtp" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+              raw = rows[0]?.featureDeliveryOtp
+            } catch {
+              raw = DEFAULT_APP_SETTINGS.featureDeliveryOtp
+            }
+          }
+          return raw !== false
+        })(),
         homepageRecommendationMode:
           settings.homepageRecommendationMode || DEFAULT_APP_SETTINGS.homepageRecommendationMode,
         homepageRecommendationTitle:

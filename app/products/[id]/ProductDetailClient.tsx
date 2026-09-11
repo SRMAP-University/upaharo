@@ -15,6 +15,7 @@ import { rememberViewedCategory } from '@/lib/personalization-consent'
 import { renderProductDescriptionMarkdown } from '@/lib/markdown-description'
 import { extractSubProductIdsFromTags, stripSubProductTags } from '@/lib/product-subproducts'
 import { formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import ProductSocialOrderButtons from '@/components/ProductSocialOrderButtons'
 
 interface ProductVariant {
   color: string
@@ -302,7 +303,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
   )
 
   const MobileRelatedSkeleton = () => (
-    <div className="px-4 py-6 pb-24">
+    <div className="px-4 py-6 pb-36">
       <div className="mb-4 flex items-center justify-between">
         <div className="h-7 w-40 animate-pulse rounded bg-cream-deep" />
         <div className="h-1 w-12 animate-pulse rounded-full bg-cream-deep" />
@@ -539,6 +540,13 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
 
         {/* Fixed Bottom Bar with Quantity & Add to Cart */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-ink/10 px-4 py-3 shadow-lg z-40">
+          <div className="mb-2">
+            <ProductSocialOrderButtons
+              variant="full"
+              quantity={quantity}
+              product={{ id: product.id, name: product.name, price: finalPrice }}
+            />
+          </div>
           <div className="flex items-center gap-3">
             {/* Quantity Selector */}
             <div className="flex items-center bg-cream-deep rounded-lg p-1 gap-2">
@@ -622,7 +630,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
         {/* Related Products Section */}
         {loadingDeferredSections && relatedProducts.length === 0 ? <MobileRelatedSkeleton /> : null}
         {relatedProducts.length > 0 && (
-          <div className="px-4 py-6 pb-24">
+          <div className="px-4 py-6 pb-36">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display text-xl font-bold text-ink">You May Also Like</h2>
               <div className="w-12 h-1 bg-gradient-to-r from-wine to-rose-brand rounded-full"></div>
@@ -678,7 +686,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
 
         {loadingDeferredSections && buyTogether.length === 0 && subProducts.length === 0 ? <MobileRecommendationSkeleton /> : null}
         {(buyTogether.length > 0 || subProducts.length > 0) && (
-          <div className="space-y-6 px-4 pb-24">
+          <div className="space-y-6 px-4 pb-36">
             {buyTogether.length > 0 ? (
               <RecommendationShelf
                 title="Buy Together"
@@ -897,6 +905,12 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                 </button>
               </div>
             </div>
+
+            <ProductSocialOrderButtons
+              variant="full"
+              quantity={quantity}
+              product={{ id: product.id, name: product.name, price: finalPrice }}
+            />
 
             {/* Add to Cart Button */}
             <motion.button

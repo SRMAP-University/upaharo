@@ -11,6 +11,7 @@ import {
 export type SettingsForm = {
   siteName: string
   supportPhone: string
+  supportInstagram: string
   supportEmail: string
   supportHours: string
   supportMessage: string
@@ -39,6 +40,7 @@ export type SettingsForm = {
   featureGiftOptions: boolean
   featureAiAssistant: boolean
   featureWishlist: boolean
+  featureDeliveryOtp: boolean
   homepageRecommendationMode: string
   homepageRecommendationTitle: string
   homeSectionLayout: HomeSectionConfig[]
@@ -87,6 +89,7 @@ export type SettingsForm = {
 export const EMPTY_FORM: SettingsForm = {
   siteName: '',
   supportPhone: '',
+  supportInstagram: '',
   supportEmail: '',
   supportHours: '',
   supportMessage: '',
@@ -114,6 +117,7 @@ export const EMPTY_FORM: SettingsForm = {
   featureGiftOptions: true,
   featureAiAssistant: true,
   featureWishlist: true,
+  featureDeliveryOtp: true,
   homepageRecommendationMode: 'LATEST',
   homepageRecommendationTitle: '',
   homeSectionLayout: DEFAULT_HOME_SECTIONS,

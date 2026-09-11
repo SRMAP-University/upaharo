@@ -1,4 +1,5 @@
 import { randomInt } from 'crypto'
+import { getAppSettings } from '@/lib/app-settings'
 
 /** 4-digit OTP — easy to read aloud when the customer confirms delivery. */
 export function generateDeliveryOtp(): string {
@@ -16,4 +17,14 @@ export function deliveryOtpsMatch(expected: string | null | undefined, provided:
   const a = normalizeDeliveryOtp(expected)
   const b = normalizeDeliveryOtp(provided)
   return a.length >= 4 && a === b
+}
+
+/** Store setting — default on. When off, delivered status skips the customer code. */
+export async function isDeliveryOtpRequired(storeId: string): Promise<boolean> {
+  try {
+    const settings = await getAppSettings(storeId)
+    return settings.featureDeliveryOtp !== false
+  } catch {
+    return true
+  }
 }

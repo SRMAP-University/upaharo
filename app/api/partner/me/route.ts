@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma'
 import {
   requirePartner,
   allowedStoreSlugs,
+  resolvePartnerStoreContext,
 } from '@/lib/partner-auth'
+import { getAppSettings } from '@/lib/app-settings'
 import { normalizeNepalPhone } from '@/lib/phone'
 
 export async function GET(request: NextRequest) {
@@ -49,6 +51,11 @@ export async function GET(request: NextRequest) {
         : null,
     ])
 
+    const storeCtx = await resolvePartnerStoreContext(partner, request)
+    const featureDeliveryOtp = storeCtx
+      ? (await getAppSettings(storeCtx.store.id)).featureDeliveryOtp !== false
+      : true
+
     return NextResponse.json({
       user: {
         id: partner.userId,
@@ -59,6 +66,7 @@ export async function GET(request: NextRequest) {
       },
       access: partner.access,
       storeSlugs: allowedStoreSlugs(partner.access),
+      featureDeliveryOtp,
       seller,
       deliveryPartner,
     })

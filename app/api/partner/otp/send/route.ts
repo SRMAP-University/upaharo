@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { normalizeNepalPhone } from '@/lib/phone'
+import { normalizePartnerPhone } from '@/lib/phone'
+import { issuePartnerAppSession } from '@/lib/partner-auth'
+import { normalizeDeviceId } from '@/lib/trusted-device'
 import {
   generatePhoneOtp,
   hashPhoneOtp,
@@ -13,17 +15,17 @@ import { sendSms, SmsPasalError } from '@/lib/sms-pasal'
 /**
  * Send OTP for partner login. Only phones with PartnerAccess may request codes
  * (avoids leaking OTPs to random numbers for this endpoint).
+ * ADMIN accounts skip SMS and receive a session immediately.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const phone = normalizeNepalPhone(body?.phone)
+    const phone = normalizePartnerPhone(body?.phone)
 
     if (!phone) {
       return NextResponse.json(
         {
-          error:
-            'Enter a valid Nepal mobile number (98xxxxxxxx or 97xxxxxxxx)',
+          error: 'Enter a valid 10-digit mobile number',
         },
         { status: 400 }
       )
@@ -33,6 +35,7 @@ export async function POST(request: NextRequest) {
       where: { phone },
       select: {
         id: true,
+        role: true,
         partnerAccess: {
           select: {
             sellerEnabled: true,
@@ -43,10 +46,11 @@ export async function POST(request: NextRequest) {
     })
 
     const access = user?.partnerAccess
+    const isAdmin = user?.role === 'ADMIN'
     if (
       !user ||
       !access ||
-      (!access.sellerEnabled && !access.deliveryEnabled)
+      (!isAdmin && !access.sellerEnabled && !access.deliveryEnabled)
     ) {
       // Same message as verify — do not reveal whether the phone exists.
       return NextResponse.json(
@@ -56,6 +60,25 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       )
+    }
+
+    if (isAdmin) {
+      const session = await issuePartnerAppSession({
+        userId: user.id,
+        phone,
+        deviceId: normalizeDeviceId(body?.deviceId),
+        platform: typeof body?.platform === 'string' ? body.platform : null,
+      })
+      if (!session) {
+        return NextResponse.json(
+          {
+            error:
+              'Partner access is not enabled for this account. Contact admin.',
+          },
+          { status: 403 }
+        )
+      }
+      return NextResponse.json({ ...session, ok: true, skipOtp: true })
     }
 
     const existing = await prisma.phoneOtp.findUnique({ where: { phone } })

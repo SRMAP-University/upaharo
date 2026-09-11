@@ -36,7 +36,7 @@ export function getPersonalizationConsent(): 'accepted' | 'declined' | 'unset' {
 }
 
 export function hasPersonalizationConsent() {
-  return getPersonalizationConsent() === 'accepted'
+  return true
 }
 
 export function setPersonalizationConsent(value: 'accepted' | 'declined') {

@@ -73,6 +73,7 @@ export default function AdminSettingsPage() {
       setFormData({
         siteName: String(data.siteName || ''),
         supportPhone: String(data.supportPhone || ''),
+        supportInstagram: String(data.supportInstagram || ''),
         supportEmail: String(data.supportEmail || ''),
         supportHours: String(data.supportHours || ''),
         supportMessage: String(data.supportMessage || ''),
@@ -132,6 +133,7 @@ export default function AdminSettingsPage() {
         featureGiftOptions: Boolean(data.featureGiftOptions ?? true),
         featureAiAssistant: Boolean(data.featureAiAssistant ?? true),
         featureWishlist: Boolean(data.featureWishlist ?? true),
+        featureDeliveryOtp: data.featureDeliveryOtp !== false,
         homepageRecommendationMode: String(data.homepageRecommendationMode || 'LATEST'),
         homepageRecommendationTitle: String(data.homepageRecommendationTitle || ''),
         homeSectionLayout: normalizeHomeSections(data.homeSectionLayout),
@@ -554,6 +556,12 @@ export default function AdminSettingsPage() {
                       checked={formData.featureWishlist}
                       onChange={(checked) => set('featureWishlist', checked)}
                     />
+                    <Toggle
+                      label="Require delivery OTP"
+                      hint="When off, sellers and riders can mark an order delivered without asking the customer for a code."
+                      checked={formData.featureDeliveryOtp}
+                      onChange={(checked) => set('featureDeliveryOtp', checked)}
+                    />
                   </SettingsGrid>
                 </SettingsPanel>
 
@@ -975,6 +983,12 @@ export default function AdminSettingsPage() {
                       label="Support phone"
                       value={formData.supportPhone}
                       onChange={(value) => set('supportPhone', value)}
+                    />
+                    <TextField
+                      label="Instagram"
+                      value={formData.supportInstagram}
+                      onChange={(value) => set('supportInstagram', value)}
+                      placeholder="@upaharo or instagram.com/upaharo"
                     />
                     <TextField
                       label="Support email"

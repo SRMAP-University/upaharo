@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signToken } from '@/lib/auth'
-import { normalizeNepalPhone } from '@/lib/phone'
+import { normalizePartnerPhone } from '@/lib/phone'
 import {
   authenticateTrustedDevice,
   normalizeDeviceId,
@@ -15,7 +15,7 @@ import { loadPartnerByUserId } from '@/lib/partner-auth'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const phone = normalizeNepalPhone(body?.phone)
+    const phone = normalizePartnerPhone(body?.phone)
     const deviceId = normalizeDeviceId(body?.deviceId)
     const deviceToken = String(body?.deviceToken || '').trim()
 

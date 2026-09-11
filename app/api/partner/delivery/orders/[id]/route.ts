@@ -4,7 +4,11 @@ import {
   requireDelivery,
   resolveStoreIdsForPartner,
 } from '@/lib/partner-auth'
-import { deliveryOtpsMatch, generateDeliveryOtp } from '@/lib/delivery-otp'
+import {
+  deliveryOtpsMatch,
+  generateDeliveryOtp,
+  isDeliveryOtpRequired,
+} from '@/lib/delivery-otp'
 import {
   notifyOrderStatus,
   statusTimestampFields,
@@ -80,7 +84,20 @@ export async function POST(
         )
       }
 
-      const issuedOtp = generateDeliveryOtp()
+      const readyOrder = await prisma.order.findFirst({
+        where: {
+          id,
+          storeId: { in: storeIds },
+          status: 'READY',
+          fulfillmentType: 'DELIVERY',
+          deliveryPartnerId: null,
+        },
+        select: { storeId: true },
+      })
+      const requireOtp = readyOrder
+        ? await isDeliveryOtpRequired(readyOrder.storeId)
+        : true
+      const issuedOtp = requireOtp ? generateDeliveryOtp() : null
 
       // Atomic claim: only updates if still unassigned + READY
       const claimed = await prisma.order.updateMany({
@@ -95,8 +112,12 @@ export async function POST(
           deliveryPartnerId: partner.deliveryPartnerId,
           status: 'OUT_FOR_DELIVERY',
           ...statusTimestampFields('OUT_FOR_DELIVERY'),
-          deliveryOtp: issuedOtp,
-          deliveryOtpCreatedAt: new Date(),
+          ...(issuedOtp
+            ? {
+                deliveryOtp: issuedOtp,
+                deliveryOtpCreatedAt: new Date(),
+              }
+            : {}),
         },
       })
 
@@ -119,7 +140,7 @@ export async function POST(
           orderNumber: order.orderNumber,
           status: 'OUT_FOR_DELIVERY',
           storeId: order.storeId,
-          deliveryOtp: issuedOtp,
+          deliveryOtp: issuedOtp ?? undefined,
         }).catch((err) => console.error('notifyOrderStatus', err))
       }
 
@@ -147,18 +168,20 @@ export async function POST(
         return NextResponse.json({ error: 'Active delivery not found' }, { status: 404 })
       }
 
-      if (!existing.deliveryOtp) {
-        return NextResponse.json(
-          { error: 'No delivery OTP on this order' },
-          { status: 400 }
-        )
-      }
+      if (await isDeliveryOtpRequired(existing.storeId)) {
+        if (!existing.deliveryOtp) {
+          return NextResponse.json(
+            { error: 'No delivery OTP on this order' },
+            { status: 400 }
+          )
+        }
 
-      if (!deliveryOtpsMatch(existing.deliveryOtp, body.deliveryOtp)) {
-        return NextResponse.json(
-          { error: 'Invalid delivery OTP' },
-          { status: 400 }
-        )
+        if (!deliveryOtpsMatch(existing.deliveryOtp, body.deliveryOtp)) {
+          return NextResponse.json(
+            { error: 'Invalid delivery OTP' },
+            { status: 400 }
+          )
+        }
       }
 
       const order = await prisma.order.update({

@@ -27,12 +27,14 @@ else
   echo "==> Skipping npm ci (lockfile unchanged)"
 fi
 
-echo "==> Ensuring offline order columns"
+echo "==> Ensuring schema columns"
 set -a
 # shellcheck disable=SC1091
 [ -f .env.local ] && . ./.env.local
 set +a
 node scripts/_ensure-offline-order-cols.mjs || true
+node scripts/_ensure-support-instagram.mjs || true
+node scripts/_ensure-feature-delivery-otp.mjs || true
 
 echo "==> Building (live app stays up)"
 npm run build

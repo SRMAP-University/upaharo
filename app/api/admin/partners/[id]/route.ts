@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdmin } from '@/lib/request-auth'
-import { normalizeNepalPhone } from '@/lib/phone'
+import { normalizePartnerPhone } from '@/lib/phone'
 
 export async function PATCH(
   request: NextRequest,
@@ -64,10 +64,10 @@ export async function PATCH(
     // Partner app OTP login + admin list use User.phone — keep it in sync.
     let nextPhone: string | undefined
     if (body.phone !== undefined) {
-      const normalized = normalizeNepalPhone(body.phone)
+      const normalized = normalizePartnerPhone(body.phone)
       if (!normalized) {
         return NextResponse.json(
-          { error: 'Enter a valid Nepal mobile number (98/97…)' },
+          { error: 'Enter a valid 10-digit mobile number' },
           { status: 400 }
         )
       }
