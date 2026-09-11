@@ -10,6 +10,7 @@ import { useLocationStore } from '@/lib/store/location'
 import { useUserStore } from '@/lib/store/user'
 import { useCartStore } from '@/lib/store/cart'
 import { formatPriceNoDecimals } from '@/lib/utils'
+import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 
 type Category = {
   id: string
@@ -54,7 +55,7 @@ const BANNER_DURATION = 4500
 const DEFAULT_WASH = '#F7F0E8'
 
 function clampBannerHeight(value: number) {
-  return Math.min(520, Math.max(200, value || 320))
+  return Math.min(640, Math.max(200, value || 380))
 }
 
 function clampProductStripHeight(value: number) {
@@ -341,7 +342,7 @@ export default function HomepageTopLayout({
   deliveryEstimate = '',
   banners = [],
   showBanner = true,
-  bannerHeight = 320,
+  bannerHeight = 380,
   bannerProductHeight = 112,
 }: HomepageTopLayoutProps) {
   const router = useRouter()
@@ -353,10 +354,32 @@ export default function HomepageTopLayout({
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [wash, setWash] = useState(DEFAULT_WASH)
   const [selectedTab, setSelectedTab] = useState(0)
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
 
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setWalletBalance(null)
+      return
+    }
+
+    let cancelled = false
+    void fetch('/api/wallet?limit=1', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        setWalletBalance(Number(data.balance) || 0)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const headerCategories = useMemo(
     () => (showTopCategories ? categories.slice(0, 12) : []),
@@ -377,7 +400,8 @@ export default function HomepageTopLayout({
     null
 
   const bannerH = clampBannerHeight(bannerHeight)
-  const desktopBannerH = Math.min(440, Math.max(bannerH, 360))
+  const mobileBannerH = Math.max(bannerH, 380)
+  const desktopBannerH = Math.min(560, Math.max(bannerH, 480))
   const productH = clampProductStripHeight(bannerProductHeight)
   const desktopProductH = Math.min(132, Math.max(productH, 108))
 
@@ -539,7 +563,7 @@ export default function HomepageTopLayout({
             <div className="mt-3">
               <AppStyleBanner
                 banners={banners}
-                height={bannerH}
+                height={mobileBannerH}
                 productStripHeight={productH}
                 onWashChange={setWash}
               />
@@ -603,11 +627,27 @@ export default function HomepageTopLayout({
                 </span>
               </button>
 
-              <Link
-                href="/b2b"
-                className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-wine hover:bg-cream"
+              <a
+                href={PLAY_STORE_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-full px-3 py-2 text-sm font-semibold text-blush hover:bg-blush-soft"
               >
-                Business
+                Get app
+              </a>
+              <Link
+                href={user ? '/profile' : '/login'}
+                title="Wallet"
+                className="flex h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-wine hover:bg-cream"
+              >
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5m0 0h-5a2 2 0 010-4h5m0 4a2 2 0 100-4" />
+                </svg>
+                <span className="whitespace-nowrap">
+                  {mounted && user && walletBalance != null
+                    ? formatPriceNoDecimals(walletBalance)
+                    : 'Wallet'}
+                </span>
               </Link>
               <Link
                 href="/cart"

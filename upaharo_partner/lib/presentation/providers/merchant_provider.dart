@@ -52,10 +52,37 @@ class MerchantProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateOrderStatus(String orderId, String status) async {
+  Future<void> updateOrderStatus(
+    String orderId,
+    String status, {
+    String? deliveryOtp,
+    String? deliveryPartnerId,
+  }) async {
+    final data = <String, dynamic>{
+      'orderId': orderId,
+      'status': status,
+    };
+    if (deliveryOtp != null) data['deliveryOtp'] = deliveryOtp;
+    if (deliveryPartnerId != null) {
+      data['deliveryPartnerId'] = deliveryPartnerId;
+    }
     await DioClient.instance.patch(
       '/api/partner/merchant/orders',
-      data: {'orderId': orderId, 'status': status},
+      data: data,
+    );
+    await loadOrders();
+  }
+
+  Future<void> assignDeliveryPartner(
+    String orderId,
+    String? deliveryPartnerId,
+  ) async {
+    await DioClient.instance.patch(
+      '/api/partner/merchant/orders',
+      data: {
+        'orderId': orderId,
+        'deliveryPartnerId': deliveryPartnerId,
+      },
     );
     await loadOrders();
   }
@@ -87,5 +114,17 @@ class MerchantProvider extends ChangeNotifier {
       data: body,
     );
     await loadProducts();
+  }
+
+  Future<Map<String, dynamic>> createOfflineOrder(Map<String, dynamic> body) async {
+    final res = await DioClient.instance.post(
+      '/api/partner/merchant/orders',
+      data: body,
+    );
+    await loadOrders();
+    await loadStats();
+    return res.data is Map
+        ? Map<String, dynamic>.from(res.data as Map)
+        : <String, dynamic>{};
   }
 }

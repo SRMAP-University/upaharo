@@ -27,6 +27,9 @@ interface Order {
   isGift?: boolean
   isWholesale?: boolean
   businessName?: string | null
+  source?: 'UPAHARO' | 'OFFLINE'
+  offlineChannel?: string | null
+  offlineNote?: string | null
   greetingMessage?: string | null
   senderName?: string | null
   showSenderName?: boolean
@@ -115,6 +118,7 @@ export default function AdminOrders() {
   const [selectedStoreName, setSelectedStoreName] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [sourceFilter, setSourceFilter] = useState<'ALL' | 'UPAHARO' | 'OFFLINE'>('ALL')
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
   const [estimatedTimeUnit, setEstimatedTimeUnit] = useState<EstimatedTimeUnit>('minutes')
   const [savingEstimatedTime, setSavingEstimatedTime] = useState(false)
@@ -345,25 +349,40 @@ export default function AdminOrders() {
     return colors[status] || 'bg-gray-100 text-gray-700'
   }
 
-  const filteredOrders = orders.filter(order =>
-    order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredOrders = orders.filter((order) => {
+    if (sourceFilter !== 'ALL' && (order.source || 'UPAHARO') !== sourceFilter) {
+      return false
+    }
+    const q = searchTerm.toLowerCase()
+    return (
+      order.orderNumber.toLowerCase().includes(q) ||
+      order.user.name.toLowerCase().includes(q) ||
+      order.user.email.toLowerCase().includes(q) ||
+      (order.user.phone || '').includes(q)
+    )
+  })
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Orders</h1>
-        <p className="text-ink/55 mt-1">
-          Manage customer orders and deliveries
-          {selectedStoreName ? (
-            <>
-              {' '}
-              for <span className="font-semibold text-ink">{selectedStoreName}</span>
-            </>
-          ) : null}
-        </p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Orders</h1>
+          <p className="text-ink/55 mt-1">
+            Manage customer orders and deliveries
+            {selectedStoreName ? (
+              <>
+                {' '}
+                for <span className="font-semibold text-ink">{selectedStoreName}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <a
+          href="/admin/orders/offline"
+          className="rounded-full bg-wine px-4 py-2 text-sm font-bold text-white hover:bg-wine-deep"
+        >
+          New offline order
+        </a>
       </div>
 
       {loadError && (
@@ -372,8 +391,21 @@ export default function AdminOrders() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="mb-6">
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {(['ALL', 'UPAHARO', 'OFFLINE'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setSourceFilter(value)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                sourceFilter === value ? 'bg-wine text-white' : 'bg-white text-ink/65 ring-1 ring-wine/15'
+              }`}
+            >
+              {value === 'ALL' ? 'All' : value === 'OFFLINE' ? 'Offline' : 'Upaharo'}
+            </button>
+          ))}
+        </div>
         <input
           type="text"
           placeholder="Search by order number, customer name or email..."
@@ -417,6 +449,11 @@ export default function AdminOrders() {
                     <td className="px-4 py-4">
                       <div className="font-medium text-ink">
                         {order.orderNumber}
+                        {order.source === 'OFFLINE' && (
+                          <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-blush bg-blush-soft px-1.5 py-0.5 rounded">
+                            Offline{order.offlineChannel ? ` · ${order.offlineChannel.replace('_', ' ')}` : ''}
+                          </span>
+                        )}
                         {order.isWholesale && (
                           <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-wine bg-wine/10 px-1.5 py-0.5 rounded">
                             B2B
@@ -494,7 +531,12 @@ export default function AdminOrders() {
                   className="w-full text-left p-4 hover:bg-cream/60"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-ink">{order.orderNumber}</div>
+                    <div className="text-sm font-semibold text-ink">
+                      {order.orderNumber}
+                      {order.source === 'OFFLINE' ? (
+                        <span className="ml-2 text-[10px] font-bold uppercase text-blush">Offline</span>
+                      ) : null}
+                    </div>
                     <span className={`text-[10px] px-2 py-1 rounded-full font-semibold ${getStatusColor(order.status)}`}>
                       {order.status}
                     </span>
@@ -520,7 +562,14 @@ export default function AdminOrders() {
             <div className="sticky top-0 bg-white border-b border-wine/10 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-2xl font-semibold text-ink">Order Details</h2>
-                <p className="text-ink/55">{selectedOrder.orderNumber}</p>
+                <p className="text-ink/55">
+                  {selectedOrder.orderNumber}
+                  {selectedOrder.source === 'OFFLINE' ? (
+                    <span className="ml-2 text-[10px] font-bold uppercase text-blush">
+                      Offline{selectedOrder.offlineChannel ? ` · ${selectedOrder.offlineChannel.replace('_', ' ')}` : ''}
+                    </span>
+                  ) : null}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
@@ -539,6 +588,9 @@ export default function AdminOrders() {
                   {selectedOrder.user.phone && (
                     <p className="text-ink"><span className="font-medium">Phone:</span> {selectedOrder.user.phone}</p>
                   )}
+                  {selectedOrder.source === 'OFFLINE' && selectedOrder.offlineNote ? (
+                    <p className="text-ink"><span className="font-medium">Note:</span> {selectedOrder.offlineNote}</p>
+                  ) : null}
                 </div>
               </div>
 

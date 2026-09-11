@@ -14,6 +14,7 @@ import {
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { digitalBillUrl } from '@/lib/digital-bill'
+import { createOfflineOrder } from '@/lib/offline-order'
 
 const MERCHANT_ALLOWED: OrderStatus[] = [
   'ACCEPTED',
@@ -388,5 +389,82 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error('Partner merchant orders PATCH:', error)
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const partner = await requireMerchant(request)
+    if (!partner?.sellerId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const storeIds = await resolveStoreIdsForPartner(partner.access, request)
+    if (storeIds.length === 0) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
+    const storeId = storeIds[0]
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true, slug: true },
+    })
+    if (!store) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const items = Array.isArray(body?.items) ? body.items : []
+    const productIds = items
+      .map((item: { productId?: string }) => String(item?.productId || '').trim())
+      .filter(Boolean)
+
+    if (!partner.access.fullAccess && productIds.length > 0) {
+      const owned = await prisma.product.count({
+        where: { id: { in: productIds }, sellerId: partner.sellerId },
+      })
+      if (owned !== new Set(productIds).size) {
+        return NextResponse.json(
+          { error: 'You can only add your own products' },
+          { status: 403 }
+        )
+      }
+    }
+
+    const result = await createOfflineOrder({
+      storeId: store.id,
+      storeSlug: store.slug,
+      items,
+      customerName: body?.customerName,
+      customerPhone: body?.customerPhone,
+      channel: body?.channel,
+      fulfillmentType: body?.fulfillmentType,
+      paymentMethod: body?.paymentMethod,
+      paymentStatus: body?.paymentStatus,
+      status: body?.status,
+      discount: body?.discount,
+      deliveryFee: body?.deliveryFee,
+      estimatedTime: body?.estimatedTime,
+      note: body?.note,
+      address: body?.address ?? null,
+    })
+
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error.error }, { status: result.error.status })
+    }
+
+    return NextResponse.json(
+      {
+        ...result.order,
+        canFulfill: true,
+        digitalBillUrl: digitalBillUrl(
+          (result.order as { orderNumber: string }).orderNumber
+        ),
+      },
+      { status: 201 }
+    )
+  } catch (error) {
+    console.error('Partner merchant offline order POST:', error)
+    return NextResponse.json({ error: 'Failed to create offline order' }, { status: 500 })
   }
 }

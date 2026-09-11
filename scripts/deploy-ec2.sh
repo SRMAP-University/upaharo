@@ -27,6 +27,9 @@ else
   echo "==> Skipping npm ci (lockfile unchanged)"
 fi
 
+echo "==> Ensuring offline order columns"
+node scripts/_ensure-offline-order-cols.mjs || true
+
 echo "==> Building (live app stays up)"
 npm run build
 

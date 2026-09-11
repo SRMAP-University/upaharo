@@ -23,7 +23,7 @@ export default function HomeMiniBanners({
   banners,
   title,
   columns = 3,
-  height = 96,
+  height = 140,
 }: {
   banners: HomeMiniBanner[]
   title?: string
@@ -49,7 +49,7 @@ export default function HomeMiniBanners({
           const href = hrefFor(banner)
           const image = (
             <div
-              className="relative w-full overflow-hidden rounded-2xl border border-blush/20 bg-blush-soft shadow-[0_12px_28px_-24px_rgba(232,90,140,0.55)] lg:rounded-[22px] lg:!h-[148px]"
+              className="relative w-full overflow-hidden rounded-2xl border border-blush/20 bg-blush-soft shadow-[0_12px_28px_-24px_rgba(232,90,140,0.55)] lg:rounded-[22px] lg:!h-[220px]"
               style={{ height }}
             >
               <Image

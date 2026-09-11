@@ -17,6 +17,8 @@ interface Order {
   id: string
   orderNumber: string
   status: string
+  source?: 'UPAHARO' | 'OFFLINE'
+  offlineChannel?: string | null
   total: number
   placedAt: string
   deliveredAt: string | null
@@ -149,6 +151,11 @@ export default function SellerOrdersPage() {
                   <div>
                     <h3 className="font-display text-base md:text-lg font-semibold text-ink">
                       #{order.orderNumber}
+                      {order.source === 'OFFLINE' ? (
+                        <span className="ml-2 text-[10px] font-bold uppercase text-blush">
+                          Offline
+                        </span>
+                      ) : null}
                     </h3>
                     <p className="text-xs md:text-sm text-ink/55">
                       {formatDate(order.placedAt)}

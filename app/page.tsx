@@ -8,12 +8,16 @@ import PremiumCategoryStrip from '@/components/home/PremiumCategoryStrip'
 import SectionHeading from '@/components/home/SectionHeading'
 import TrustStrip from '@/components/home/TrustStrip'
 import HomeMiniBanners from '@/components/home/HomeMiniBanners'
+import HomeFeedBannerSection, { type HomeFeedBanner } from '@/components/home/HomeFeedBannerSection'
+import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
+import AppDownloadCta from '@/components/AppDownloadCta'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { getAppSettings, type HomeSectionConfig } from '@/lib/app-settings'
 import { findManyProductsCompat } from '@/lib/product-db'
 import { resolveStoreContext } from '@/lib/store-context'
+import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -56,6 +60,7 @@ async function getHomeData() {
       occasionCategories,
       products,
       banners,
+      bannerSections,
       miniBanners,
     ] = await Promise.all([
       prisma.category.findMany({
@@ -92,6 +97,34 @@ async function getHomeData() {
           category: true,
         },
       }),
+      storeId
+        ? prisma.bannerSection.findMany({
+            where: { storeId, isActive: true },
+            orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+            take: 12,
+            select: {
+              id: true,
+              title: true,
+              subtitle: true,
+              height: true,
+              banners: {
+                where: { isActive: true },
+                orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
+                take: 12,
+                select: {
+                  id: true,
+                  title: true,
+                  subtitle: true,
+                  image: true,
+                  link: true,
+                  bgColor: true,
+                  productIds: true,
+                  category: true,
+                },
+              },
+            },
+          })
+        : Promise.resolve([]),
       storeId
         ? prisma.miniBanner.findMany({
             where: { storeId, isActive: true },
@@ -146,73 +179,83 @@ async function getHomeData() {
       String(Math.round(unlock))
     )
 
-    // Resolve up to 3 products per banner — same rules as /api/banners (and the app).
-    const homepageBanners = await Promise.all(
-      banners.map(async (banner) => {
-        const hasIds = banner.productIds.length > 0
-        const hasCategory = Boolean(banner.category?.trim())
-        let bannerProducts: Array<{
-          id: string
-          name: string
-          price: number
-          image: string
-          discount: number | null
-        }> = []
+    const withBannerProducts = async (
+      banner: (typeof banners)[number]
+    ): Promise<HomeFeedBanner> => {
+      const hasIds = banner.productIds.length > 0
+      const hasCategory = Boolean(banner.category?.trim())
+      let bannerProducts: Array<{
+        id: string
+        name: string
+        price: number
+        image: string
+        discount: number | null
+      }> = []
 
-        if (storeId && (hasIds || hasCategory)) {
-          const found = await prisma.product.findMany({
-            where: {
-              storeId,
-              isAvailable: true,
-              NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
-              ...(hasIds
-                ? { id: { in: banner.productIds } }
-                : {
-                    category: {
-                      equals: banner.category!,
-                      mode: 'insensitive' as const,
-                    },
-                  }),
-            },
-            select: {
-              id: true,
-              name: true,
-              price: true,
-              image: true,
-              discount: true,
-            },
-            orderBy: hasIds ? undefined : { createdAt: 'desc' as const },
-            take: 3,
-          })
-          const byId = new Map(found.map((p) => [p.id, p]))
-          bannerProducts = hasIds
-            ? banner.productIds
-                .map((id) => byId.get(id))
-                .filter(Boolean)
-                .slice(0, 3) as typeof bannerProducts
-            : found
-        }
+      if (storeId && (hasIds || hasCategory)) {
+        const found = await prisma.product.findMany({
+          where: {
+            storeId,
+            isAvailable: true,
+            NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
+            ...(hasIds
+              ? { id: { in: banner.productIds } }
+              : {
+                  category: {
+                    equals: banner.category!,
+                    mode: 'insensitive' as const,
+                  },
+                }),
+          },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            image: true,
+            discount: true,
+          },
+          orderBy: hasIds ? undefined : { createdAt: 'desc' as const },
+          take: 3,
+        })
+        const byId = new Map(found.map((p) => [p.id, p]))
+        bannerProducts = hasIds
+          ? banner.productIds
+              .map((id) => byId.get(id))
+              .filter(Boolean)
+              .slice(0, 3) as typeof bannerProducts
+          : found
+      }
 
-        return {
-          id: banner.id,
-          title: banner.title,
-          subtitle: banner.subtitle,
-          image: banner.image,
-          link: banner.link,
-          bgColor: banner.bgColor,
-          products: bannerProducts.map((p) => ({
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            image: p.image,
-            discount: p.discount,
-            finalPrice:
-              p.discount && p.discount > 0
-                ? p.price * (1 - p.discount / 100)
-                : p.price,
-          })),
-        }
-      })
+      return {
+        id: banner.id,
+        title: banner.title,
+        subtitle: banner.subtitle,
+        image: banner.image,
+        link: banner.link,
+        bgColor: banner.bgColor,
+        products: bannerProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          image: p.image,
+          discount: p.discount,
+          finalPrice:
+            p.discount && p.discount > 0
+              ? p.price * (1 - p.discount / 100)
+              : p.price,
+        })),
+      }
+    }
+
+    const homepageBanners = await Promise.all(banners.map(withBannerProducts))
+    const feedBannerSections = await Promise.all(
+      bannerSections.map(async (section) => ({
+        id: section.id,
+        title: section.title,
+        subtitle: section.subtitle,
+        height: section.height,
+        banners: await Promise.all(section.banners.map(withBannerProducts)),
+      }))
     )
 
     return {
@@ -224,6 +267,7 @@ async function getHomeData() {
       latestProducts,
       homepageRecommendationProducts,
       homepageBanners,
+      feedBannerSections,
       miniBanners,
       valueDealProducts,
       valueDealsPromoText,
@@ -244,6 +288,7 @@ async function getHomeData() {
       latestProducts: [],
       homepageRecommendationProducts: [],
       homepageBanners: [],
+      feedBannerSections: [],
       miniBanners: [],
       valueDealProducts: [],
       valueDealsPromoText: '',
@@ -291,6 +336,7 @@ export default async function Home() {
     latestProducts,
     homepageRecommendationProducts,
     homepageBanners,
+    feedBannerSections,
     miniBanners,
     valueDealProducts,
     valueDealsPromoText,
@@ -310,6 +356,16 @@ export default async function Home() {
           { id: 'productGrid' as const, title: 'All gifts', subtitle: '', visible: true },
         ]
 
+  const extraFeedSections = feedBannerSections.filter(
+    (item) =>
+      item.banners.length > 0 &&
+      !visibleSections.some((section) => section.id === 'bannerCarousel' && section.key === item.id)
+  )
+  const extraHeaderBanners = homepageBanners.slice(3)
+  const hasSecondMiniRow = miniBanners.length > (settings.miniBannerColumns || 3)
+  const showFeaturedCollections =
+    extraFeedSections.length === 0 && extraHeaderBanners.length === 0 && !hasSecondMiniRow
+
   const renderSection = (section: HomeSectionConfig) => {
     switch (section.id) {
       case 'spinBanner':
@@ -326,7 +382,7 @@ export default async function Home() {
                 {section.title || 'Spin & Win'}
               </p>
               <p className="text-xs font-medium text-ink/55">
-                {section.subtitle || 'Daily roulette · extra savings'}
+                {section.subtitle || 'Daily roulette in the app · extra savings'}
               </p>
             </div>
             <span className="rounded-full bg-blush px-3 py-1.5 text-xs font-bold text-white">
@@ -345,16 +401,29 @@ export default async function Home() {
             promoText={valueDealsPromoText}
           />
         )
-      case 'miniBanners':
+      case 'miniBanners': {
+        const cols = settings.miniBannerColumns || 3
+        const firstRow = miniBanners.slice(0, cols)
+        const secondRow = miniBanners.slice(cols)
         return (
-          <HomeMiniBanners
-            key={`mb-${section.key || section.id}`}
-            banners={miniBanners}
-            title={section.title || undefined}
-            columns={settings.miniBannerColumns || 3}
-            height={settings.miniBannerHeight || 96}
-          />
+          <div key={`mb-${section.key || section.id}`} className="space-y-8 lg:space-y-12">
+            <HomeMiniBanners
+              banners={firstRow}
+              title={section.title || 'Featured'}
+              columns={cols}
+              height={settings.miniBannerHeight || 140}
+            />
+            {secondRow.length > 0 ? (
+              <HomeMiniBanners
+                banners={secondRow}
+                title="Featured"
+                columns={cols}
+                height={settings.miniBannerHeight || 140}
+              />
+            ) : null}
+          </div>
         )
+      }
       case 'quickPicks':
         if (settings.homepageShowOccasionTabs && occasionCategories.length > 0) {
           return (
@@ -439,9 +508,19 @@ export default async function Home() {
             </div>
           </div>
         )
-      case 'bannerCarousel':
-        // Header already shows the sticky main banners — skip duplicate feed carousel.
-        return null
+      case 'bannerCarousel': {
+        const match = feedBannerSections.find((item) => item.id === section.key)
+        if (!match || match.banners.length === 0) return null
+        return (
+          <HomeFeedBannerSection
+            key={`bc-${section.key || section.id}`}
+            title={section.title || match.title || 'Featured'}
+            subtitle={section.subtitle || match.subtitle || undefined}
+            banners={match.banners}
+            height={Math.max(Number(match.height) || 0, 420)}
+          />
+        )
+      }
       default:
         return null
     }
@@ -464,6 +543,31 @@ export default async function Home() {
       <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
         {visibleSections.map((section) => renderSection(section))}
 
+        {extraFeedSections.map((section) => (
+          <HomeFeedBannerSection
+            key={`feed-${section.id}`}
+            title={section.title || 'Featured'}
+            subtitle={section.subtitle || undefined}
+            banners={section.banners}
+            height={Math.max(Number(section.height) || 0, 420)}
+          />
+        ))}
+
+        {extraHeaderBanners.length > 0 ? (
+          <HomeFeedBannerSection
+            title="Featured"
+            banners={extraHeaderBanners}
+            height={420}
+          />
+        ) : null}
+
+        {showFeaturedCollections ? (
+          <HomeFeaturedCollections
+            title="Featured"
+            items={[...categories, ...occasionCategories]}
+          />
+        ) : null}
+
         {products.length === 0 && homepageRecommendationProducts.length === 0 ? (
           <div className="rounded-[30px] border border-blush/15 bg-white py-16 text-center">
             <h2 className="font-display text-xl font-semibold text-ink">
@@ -474,6 +578,8 @@ export default async function Home() {
             </p>
           </div>
         ) : null}
+
+        <AppDownloadCta />
 
         <div className="gold-divider" />
         <TrustStrip />
@@ -488,8 +594,17 @@ export default async function Home() {
             </div>
             <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/60">
               <Link href="/search" className="hover:text-ink">Shop</Link>
+              <Link href="/promo" className="hover:text-ink">Spin &amp; Win</Link>
               <Link href="/orders" className="hover:text-ink">Orders</Link>
               <Link href="/b2b" className="hover:text-ink">Business</Link>
+              <a
+                href={PLAY_STORE_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-ink"
+              >
+                Get the app
+              </a>
               <Link href="/terms" className="hover:text-ink">Terms</Link>
               <Link href="/privacy" className="hover:text-ink">Privacy</Link>
             </nav>

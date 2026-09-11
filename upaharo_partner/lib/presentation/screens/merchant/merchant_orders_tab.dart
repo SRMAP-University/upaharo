@@ -5,13 +5,25 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../../core/printing/bill_print_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/order_geo.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/merchant_provider.dart';
 import '../../widgets/order_route_map.dart';
+import 'offline_order_screen.dart';
 
-String? _merchantNextStatus(String current) {
+String _billStoreName(AuthProvider auth, Map order) {
+  final sellerName = auth.seller?.businessName.trim() ?? '';
+  if (sellerName.isNotEmpty) return sellerName;
+  final store = order['store'] as Map?;
+  final storeName = (store?['name'] as String?)?.trim() ?? '';
+  if (storeName.isNotEmpty) return storeName;
+  return AppTheme.isGrocery(auth.storeSlug) ? 'Grooll' : 'Upaharo';
+}
+
+String? _merchantNextStatus(String current, {bool fullAccess = false}) {
   switch (current) {
     case 'PENDING':
       return 'ACCEPTED';
@@ -19,6 +31,10 @@ String? _merchantNextStatus(String current) {
       return 'PREPARING';
     case 'PREPARING':
       return 'READY';
+    case 'READY':
+      return fullAccess ? 'OUT_FOR_DELIVERY' : null;
+    case 'OUT_FOR_DELIVERY':
+      return fullAccess ? 'DELIVERED' : null;
     default:
       return null;
   }
@@ -32,6 +48,12 @@ String _merchantStatusActionLabel(String status, {bool short = false}) {
       return short ? 'Prepare' : 'Start preparing';
     case 'READY':
       return short ? 'Mark ready' : 'Mark ready for delivery';
+    case 'OUT_FOR_DELIVERY':
+      return short ? 'Out' : 'Mark out for delivery';
+    case 'DELIVERED':
+      return short ? 'Deliver' : 'Mark delivered';
+    case 'CANCELLED':
+      return short ? 'Cancel' : 'Cancel order';
     default:
       return status;
   }
@@ -46,6 +68,8 @@ Color _merchantStatusColor(String status, Color primary) {
       return primary;
     case 'READY':
       return AppTheme.groollGreenBright;
+    case 'OUT_FOR_DELIVERY':
+      return primary;
     case 'DELIVERED':
     case 'COMPLETED':
       return AppTheme.muted;
@@ -75,11 +99,11 @@ class MerchantOrdersTab extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final primary = AppTheme.primary(auth.storeSlug);
 
+    Widget body;
     if (m.loading && m.orders.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (m.orders.isEmpty) {
-      return RefreshIndicator(
+      body = const Center(child: CircularProgressIndicator());
+    } else if (m.orders.isEmpty) {
+      body = RefreshIndicator(
         onRefresh: m.loadOrders,
         child: ListView(
           children: const [
@@ -91,9 +115,8 @@ class MerchantOrdersTab extends StatelessWidget {
           ],
         ),
       );
-    }
-
-    return RefreshIndicator(
+    } else {
+      body = RefreshIndicator(
       onRefresh: m.loadOrders,
       child: ListView.separated(
         padding: const EdgeInsets.only(bottom: 12),
@@ -103,7 +126,10 @@ class MerchantOrdersTab extends StatelessWidget {
           final o = m.orders[i];
           final status = o['status'] as String? ?? '';
           final canFulfill = o['canFulfill'] == true;
-          final next = canFulfill ? _merchantNextStatus(status) : null;
+          final fullAccess = auth.access?.fullAccess == true;
+          final next = canFulfill
+              ? _merchantNextStatus(status, fullAccess: fullAccess)
+              : null;
           final items = (o['items'] as List?) ?? const [];
           final store = o['store'] as Map?;
           final addr = o['address'] as Map?;
@@ -130,8 +156,9 @@ class MerchantOrdersTab extends StatelessWidget {
                           child: Text(
                             '#${o['orderNumber']}',
                             style: const TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               fontSize: 13,
+                              letterSpacing: -0.2,
                               color: AppTheme.ink,
                             ),
                           ),
@@ -140,7 +167,8 @@ class MerchantOrdersTab extends StatelessWidget {
                           'Rs ${total.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
                             color: primary,
                           ),
                         ),
@@ -155,9 +183,38 @@ class MerchantOrdersTab extends StatelessWidget {
                           ),
                         ],
                         const SizedBox(width: 6),
+                        if (o['source'] == 'OFFLINE') ...[
+                          const SizedBox(width: 6),
+                          StatusChip(
+                            label: 'OFFLINE',
+                            color: AppTheme.wine,
+                          ),
+                        ],
                         StatusChip(
                           label: status,
                           color: _merchantStatusColor(status, primary),
+                        ),
+                        IconButton(
+                          tooltip: 'Print bill',
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 32,
+                            minHeight: 32,
+                          ),
+                          onPressed: () {
+                            BillPrintService.printFromUi(
+                              context,
+                              order: Map<String, dynamic>.from(o),
+                              storeName: _billStoreName(auth, o),
+                              storeSlug: auth.storeSlug,
+                            );
+                          },
+                          icon: Icon(
+                            Icons.print_outlined,
+                            size: 18,
+                            color: primary,
+                          ),
                         ),
                       ],
                     ),
@@ -245,6 +302,19 @@ class MerchantOrdersTab extends StatelessWidget {
         },
       ),
     );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const OfflineOrderScreen()),
+        ),
+        icon: const Icon(Icons.add),
+        label: const Text('Offline order'),
+      ),
+      body: body,
+    );
   }
 
   void _openDetail(BuildContext context, Map<String, dynamic> order) {
@@ -284,16 +354,93 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     return widget.initialOrder;
   }
 
-  Future<void> _advance(String next) async {
+  Future<void> _advance(String next, {String? deliveryOtp}) async {
     setState(() => _updating = true);
     try {
       await context.read<MerchantProvider>().updateOrderStatus(
             widget.orderId,
             next,
+            deliveryOtp: deliveryOtp,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Updated to $next')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(DioClient.errorMessage(e))),
+      );
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
+  }
+
+  Future<void> _markDelivered() async {
+    final otp = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delivery OTP'),
+        content: TextField(
+          controller: otp,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Ask customer for OTP',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await _advance('DELIVERED', deliveryOtp: otp.text.trim());
+    }
+  }
+
+  Future<void> _assignRider() async {
+    final admin = context.read<AdminProvider>();
+    await admin.loadRiders();
+    if (!mounted) return;
+    final riderId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        final riders = admin.riders;
+        return SafeArea(
+          child: ListView(
+            children: [
+              const ListTile(title: Text('Assign delivery partner')),
+              ...riders.map(
+                (r) => ListTile(
+                  title: Text(r['name'] as String? ?? ''),
+                  subtitle: Text(
+                    '${r['phone'] ?? ''} · ${r['isAvailable'] == true ? 'Available' : 'Busy'}',
+                  ),
+                  onTap: () => Navigator.pop(ctx, r['id'] as String),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (riderId == null) return;
+    setState(() => _updating = true);
+    try {
+      await context
+          .read<MerchantProvider>()
+          .assignDeliveryPartner(widget.orderId, riderId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rider assigned')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -321,14 +468,47 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     final total = (order['total'] as num?)?.toDouble() ?? 0;
     final status = order['status'] as String? ?? '';
     final canFulfill = order['canFulfill'] == true;
-    final next = canFulfill ? _merchantNextStatus(status) : null;
+    final fullAccess = auth.access?.fullAccess == true;
+    final next = canFulfill
+        ? _merchantNextStatus(status, fullAccess: fullAccess)
+        : null;
     final statusColor = _merchantStatusColor(status, primary);
+    final rider = order['deliveryPartner'] as Map?;
+    final canCancel = fullAccess &&
+        canFulfill &&
+        !const {'DELIVERED', 'CANCELLED', 'COMPLETED'}.contains(status);
 
     return Scaffold(
       backgroundColor: AppTheme.pageBg,
       appBar: AppBar(
         title: Text('#${order['orderNumber']}'),
         actions: [
+          if (canCancel)
+            IconButton(
+              tooltip: 'Cancel order',
+              onPressed: _updating
+                  ? null
+                  : () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Cancel order?'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('No'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Cancel order'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok == true) await _advance('CANCELLED');
+                    },
+              icon: const Icon(Icons.cancel_outlined),
+            ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Center(
@@ -337,30 +517,79 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: next == null
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: FilledButton(
-                    onPressed: _updating ? null : () => _advance(next),
-                    child: _updating
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(_merchantStatusActionLabel(next)),
-                  ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    BillPrintService.printFromUi(
+                      context,
+                      order: Map<String, dynamic>.from(order),
+                      storeName: _billStoreName(auth, order),
+                      storeSlug: auth.storeSlug,
+                    );
+                  },
+                  icon: const Icon(Icons.print_outlined, size: 18),
+                  label: const Text('Print bill'),
                 ),
               ),
-            ),
+              if (fullAccess &&
+                  (status == 'READY' || status == 'OUT_FOR_DELIVERY'))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: _updating ? null : _assignRider,
+                      icon: const Icon(Icons.delivery_dining, size: 18),
+                      label: Text(
+                        rider == null
+                            ? 'Assign rider'
+                            : 'Rider: ${rider['name']}',
+                      ),
+                    ),
+                  ),
+                ),
+              if (next != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: FilledButton(
+                      onPressed: _updating
+                          ? null
+                          : () {
+                              if (next == 'DELIVERED') {
+                                _markDelivered();
+                              } else {
+                                _advance(next);
+                              }
+                            },
+                      child: _updating
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(_merchantStatusActionLabel(next)),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [

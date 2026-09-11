@@ -4,6 +4,8 @@ import { Suspense } from 'react'
 import './globals.css'
 import { Providers } from './providers'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
+import AppDownloadReminder from '@/components/AppDownloadReminder'
+import ChooseLocationPrompt from '@/components/ChooseLocationPrompt'
 import OfflineIndicator from '@/components/OfflineIndicator'
 import { SessionSync } from '@/components/SessionSync'
 import RouteLoader from '@/components/RouteLoader'
@@ -164,6 +166,8 @@ export default function RootLayout({
           <SessionSync />
           <OfflineIndicator />
           <PWAInstallPrompt />
+          <ChooseLocationPrompt />
+          <AppDownloadReminder />
           <PersonalizationConsentBanner />
           {children}
         </Providers>

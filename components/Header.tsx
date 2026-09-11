@@ -129,33 +129,25 @@ export default function Header() {
               </div>
             )}
 
-            <a
-              href="/b2b"
-              className="hidden md:inline-flex items-center rounded-full border border-wine/15 bg-white/70 px-3 py-1.5 text-xs font-semibold text-wine hover:border-wine/35 hover:bg-white transition-colors shrink-0"
+            <Link
+              href={user ? '/profile' : '/login'}
+              className="shrink-0"
+              title="Wallet"
             >
-              Business
-            </a>
-
-            {/* Wallet balance — shown when the programme is on and the user is logged in */}
-            {mounted && user && walletEnabled && walletBalance != null && (
-              <Link
-                href="/profile"
-                className="shrink-0"
-                title="Wallet balance"
+              <motion.div
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-1.5 rounded-full border border-wine/15 bg-white/80 px-2.5 py-1.5 hover:border-wine/35 hover:bg-white transition-colors"
               >
-                <motion.div
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-1.5 rounded-full border border-wine/15 bg-white/80 px-2.5 py-1.5 hover:border-wine/35 hover:bg-white transition-colors"
-                >
-                  <svg className="w-4 h-4 text-wine shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5m0 0h-5a2 2 0 010-4h5m0 4a2 2 0 100-4" />
-                  </svg>
-                  <span className="text-xs font-semibold text-wine whitespace-nowrap">
-                    {formatPriceNoDecimals(walletBalance)}
-                  </span>
-                </motion.div>
-              </Link>
-            )}
+                <svg className="w-4 h-4 text-wine shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5m0 0h-5a2 2 0 010-4h5m0 4a2 2 0 100-4" />
+                </svg>
+                <span className="text-xs font-semibold text-wine whitespace-nowrap">
+                  {mounted && user && walletEnabled && walletBalance != null
+                    ? formatPriceNoDecimals(walletBalance)
+                    : 'Wallet'}
+                </span>
+              </motion.div>
+            </Link>
 
             {/* Cart */}
             <Link href="/cart" className="hidden lg:block">

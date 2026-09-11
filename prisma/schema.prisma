@@ -414,6 +414,11 @@ model Order {
   /// Wholesale / B2B order (separate from retail storefront cart).
   isWholesale          Boolean          @default(false)
   businessName         String?
+  /// UPAHARO = placed in the app/website. OFFLINE = taken outside (walk-in, phone, WhatsApp).
+  source               OrderSource      @default(UPAHARO)
+  /// WALK_IN | PHONE | WHATSAPP | INSTAGRAM | OTHER
+  offlineChannel       String?
+  offlineNote          String?
   recipientId          String?
   recipient            GiftRecipient?   @relation(fields: [recipientId], references: [id])
   occasionId           String?
@@ -435,11 +440,17 @@ model Order {
   @@index([isGift])
   @@index([isWholesale])
   @@index([scheduledFor])
+  @@index([storeId, source])
 }
 
 enum FulfillmentType {
   DELIVERY
   PICKUP
+}
+
+enum OrderSource {
+  UPAHARO
+  OFFLINE
 }
 
 enum CashbackStatus {
