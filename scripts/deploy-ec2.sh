@@ -28,6 +28,10 @@ else
 fi
 
 echo "==> Ensuring offline order columns"
+set -a
+# shellcheck disable=SC1091
+[ -f .env.local ] && . ./.env.local
+set +a
 node scripts/_ensure-offline-order-cols.mjs || true
 
 echo "==> Building (live app stays up)"

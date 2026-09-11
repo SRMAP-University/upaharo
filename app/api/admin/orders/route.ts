@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { OrderSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createOfflineOrder } from '@/lib/offline-order'
 import { requireAdmin } from '@/lib/request-auth'
@@ -15,9 +16,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 })
     }
 
-    const source = request.nextUrl.searchParams.get('source')
+    const sourceParam = request.nextUrl.searchParams.get('source')
     const sourceFilter =
-      source === 'OFFLINE' || source === 'UPAHARO' ? { source } : {}
+      sourceParam === 'OFFLINE' || sourceParam === 'UPAHARO'
+        ? { source: sourceParam as OrderSource }
+        : {}
 
     // Hide ONLINE checkouts that are still unpaid — they are not real orders yet.
     const orders = await prisma.order.findMany({
