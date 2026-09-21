@@ -207,6 +207,12 @@ function settingsPayload(body: Record<string, unknown>) {
       200,
       520
     ),
+    homepageBannerWidth: clampInt(
+      body?.homepageBannerWidth,
+      DEFAULT_APP_SETTINGS.homepageBannerWidth,
+      70,
+      100
+    ),
     homepageBannerProductHeight: clampInt(
       body?.homepageBannerProductHeight,
       DEFAULT_APP_SETTINGS.homepageBannerProductHeight,

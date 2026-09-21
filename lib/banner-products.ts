@@ -49,7 +49,17 @@ function mapProduct(p: {
   }
 }
 
-/** Normalize admin payload: max 3 unique product ids. */
+export const BANNER_LAYOUTS = ['cover', 'grid', 'deals'] as const
+export type BannerLayout = (typeof BANNER_LAYOUTS)[number]
+
+export function normalizeBannerLayout(raw: unknown): BannerLayout {
+  const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+  return (BANNER_LAYOUTS as readonly string[]).includes(value)
+    ? (value as BannerLayout)
+    : 'cover'
+}
+
+/** Normalize admin payload: max 4 unique product ids. */
 export function normalizeBannerProductIds(raw: unknown): string[] {
   if (!Array.isArray(raw)) return []
   const ids: string[] = []
@@ -58,7 +68,7 @@ export function normalizeBannerProductIds(raw: unknown): string[] {
     const id = item.trim()
     if (!id || ids.includes(id)) continue
     ids.push(id)
-    if (ids.length >= 3) break
+    if (ids.length >= 4) break
   }
   return ids
 }
@@ -70,7 +80,7 @@ export function normalizeBannerCategory(raw: unknown): string | null {
 }
 
 /**
- * Resolve up to 3 products for a banner:
+ * Resolve up to 4 products for a banner:
  * 1) explicit productIds (order preserved)
  * 2) else products from category name
  */
@@ -103,7 +113,7 @@ export async function resolveBannerProducts(input: {
       },
       select: productSelect,
       orderBy: { createdAt: 'desc' },
-      take: 3,
+      take: 4,
     })
     return rows.map(mapProduct)
   }

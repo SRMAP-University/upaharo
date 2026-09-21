@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
+  normalizeBannerLayout,
   normalizeBannerProductIds,
 } from '@/lib/banner-products'
 import {
@@ -47,7 +48,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const title = String(body.title ?? '').trim()
     const image = String(body.image ?? '').trim()
-    if (!title || !image) {
+    const layout = normalizeBannerLayout(body.layout)
+    if (!title || (layout === 'cover' && !image)) {
       return NextResponse.json(
         { error: 'Title and image are required' },
         { status: 400 }
@@ -81,6 +83,7 @@ export async function POST(request: NextRequest) {
         image,
         link: body.link || null,
         bgColor: body.bgColor?.trim() || null,
+        layout,
         productIds,
         category,
         order: Number(body.order) || 0,

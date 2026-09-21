@@ -133,6 +133,12 @@ export async function getAppSettings(
           200,
           520
         ),
+        homepageBannerWidth: clampInt(
+          settings.homepageBannerWidth,
+          DEFAULT_APP_SETTINGS.homepageBannerWidth,
+          70,
+          100
+        ),
         homepageBannerProductHeight: clampInt(
           settings.homepageBannerProductHeight,
           DEFAULT_APP_SETTINGS.homepageBannerProductHeight,

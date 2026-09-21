@@ -19,6 +19,7 @@ interface Banner {
   image: string
   link: string | null
   bgColor: string | null
+  layout?: string | null
   productIds: string[]
   category: string | null
   products?: BannerProduct[]
@@ -61,6 +62,7 @@ const emptyForm = {
   image: '',
   link: '',
   bgColor: '#FFE0E8',
+  layout: 'cover',
   order: 0,
   isActive: true,
   spotlightMode: 'products' as SpotlightMode,
@@ -187,7 +189,7 @@ export default function AdminBanners() {
       if (prev.productIds.includes(id)) {
         return { ...prev, productIds: prev.productIds.filter((x) => x !== id) }
       }
-      if (prev.productIds.length >= 3) return prev
+      if (prev.productIds.length >= 4) return prev
       return { ...prev, productIds: [...prev.productIds, id] }
     })
   }
@@ -306,11 +308,12 @@ export default function AdminBanners() {
         image: formData.image,
         link: formData.link,
         bgColor: formData.bgColor,
+        layout: formData.layout,
         order: formData.order,
         isActive: formData.isActive,
         sectionId: formData.sectionId || null,
         productIds:
-          formData.spotlightMode === 'products' ? formData.productIds.slice(0, 3) : [],
+          formData.spotlightMode === 'products' ? formData.productIds.slice(0, 4) : [],
         category:
           formData.spotlightMode === 'category' ? formData.category.trim() : '',
       }
@@ -349,10 +352,11 @@ export default function AdminBanners() {
       image: banner.image,
       link: banner.link || '',
       bgColor: banner.bgColor || '#FFE0E8',
+      layout: banner.layout === 'grid' || banner.layout === 'deals' ? banner.layout : 'cover',
       order: banner.order,
       isActive: banner.isActive,
       spotlightMode: hasProducts ? 'products' : 'category',
-      productIds: banner.productIds?.slice(0, 3) ?? [],
+      productIds: banner.productIds?.slice(0, 4) ?? [],
       category: banner.category || '',
       sectionId: banner.sectionId || '',
     })
@@ -547,6 +551,21 @@ export default function AdminBanners() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm font-medium text-ink/70 mb-1">Banner style</label>
+                <select
+                  value={formData.layout}
+                  onChange={(e) => setFormData({ ...formData, layout: e.target.value })}
+                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                >
+                  <option value="cover">Photo cover</option>
+                  <option value="grid">Offer grid (2×2)</option>
+                  <option value="deals">Deals list</option>
+                </select>
+                <p className="mt-1 text-xs text-ink/45">
+                  Each slide keeps its own title, color, products, and style.
+                </p>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-ink/70 mb-1">
                   Title{' '}
                   <span className="font-normal text-ink/40">(optional — blank hides overlay text)</span>
@@ -568,10 +587,12 @@ export default function AdminBanners() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-ink/70 mb-1">Image URL*</label>
+                <label className="block text-sm font-medium text-ink/70 mb-1">
+                  Image URL{formData.layout === 'cover' ? '*' : ''}
+                </label>
                 <input
                   type="text"
-                  required
+                  required={formData.layout === 'cover'}
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                   className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
@@ -641,8 +662,8 @@ export default function AdminBanners() {
               <div>
                 <p className="text-sm font-semibold text-ink">Banner products (app)</p>
                 <p className="text-xs text-ink/50 mt-0.5">
-                  Show up to 3 products at the bottom of this banner slide. They scroll with the
-                  banner.
+                  Pick up to 4 products for this slide. A photo cover shows them along the
+                  bottom. An offer grid uses four tiles. A deals list shows name, size, and price.
                 </p>
               </div>
 
@@ -687,7 +708,7 @@ export default function AdminBanners() {
                 <div className="space-y-3">
                   <div className="flex flex-wrap gap-2 min-h-[28px]">
                     {selectedProducts.length === 0 ? (
-                      <span className="text-xs text-ink/45">No products selected (0/3)</span>
+                      <span className="text-xs text-ink/45">No products selected (0/4)</span>
                     ) : (
                       selectedProducts.map((p) => (
                         <button
@@ -717,7 +738,7 @@ export default function AdminBanners() {
                   <div className="max-h-48 overflow-y-auto rounded-xl border border-wine/10 bg-white divide-y divide-wine/5">
                     {filteredProducts.map((p) => {
                       const selected = formData.productIds.includes(p.id)
-                      const full = !selected && formData.productIds.length >= 3
+                      const full = !selected && formData.productIds.length >= 4
                       return (
                         <button
                           key={p.id}
@@ -807,14 +828,16 @@ export default function AdminBanners() {
               key={banner.id}
               className="bg-white rounded-[22px] border border-wine/10 overflow-hidden"
             >
-              <div className="relative h-36">
-                <Image
-                  unoptimized
-                  src={banner.image}
-                  alt={banner.title}
-                  fill
-                  className="object-cover"
-                />
+              <div className="relative h-36 bg-cream">
+                {banner.image ? (
+                  <Image
+                    unoptimized
+                    src={banner.image}
+                    alt={banner.title}
+                    fill
+                    className="object-cover"
+                  />
+                ) : null}
                 {banner.isActive && (
                   <span className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-lg text-xs font-medium">
                     Active
@@ -822,7 +845,14 @@ export default function AdminBanners() {
                 )}
               </div>
               <div className="p-4">
-                <h3 className="font-display font-semibold text-lg text-ink">{banner.title}</h3>
+                <h3 className="font-display font-semibold text-lg text-ink">{banner.title || 'Untitled banner'}</h3>
+                <p className="text-xs font-semibold uppercase tracking-wide text-wine/70">
+                  {banner.layout === 'grid'
+                    ? 'Offer grid'
+                    : banner.layout === 'deals'
+                      ? 'Deals list'
+                      : 'Photo cover'}
+                </p>
                 {banner.subtitle && <p className="text-ink/55 text-sm">{banner.subtitle}</p>}
                 <p className="mt-2 text-xs text-ink/50">
                   {(banner.productIds?.length ?? 0) > 0
@@ -836,7 +866,7 @@ export default function AdminBanners() {
                 </p>
                 {(banner.products?.length ?? 0) > 0 && (
                   <div className="mt-2 flex gap-2">
-                    {banner.products!.slice(0, 3).map((p) => (
+                    {banner.products!.slice(0, 4).map((p) => (
                       <span
                         key={p.id}
                         className="relative h-10 w-10 overflow-hidden rounded-lg bg-cream border border-wine/10"

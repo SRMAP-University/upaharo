@@ -6,6 +6,7 @@ import { resolveAdminStoreContext } from '@/lib/store-context'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
+  normalizeBannerLayout,
   normalizeBannerProductIds,
 } from '@/lib/banner-products'
 
@@ -60,6 +61,7 @@ export async function PATCH(
         image: body.image,
         link: body.link || null,
         bgColor: body.bgColor?.trim() || null,
+        layout: normalizeBannerLayout(body.layout),
         productIds,
         category,
         order: body.order,

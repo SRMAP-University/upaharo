@@ -96,6 +96,12 @@ export default function AdminSettingsPage() {
           200,
           520
         ),
+        homepageBannerWidth: clampInt(
+          data.homepageBannerWidth,
+          EMPTY_FORM.homepageBannerWidth,
+          70,
+          100
+        ),
         homepageBannerProductHeight: clampInt(
           data.homepageBannerProductHeight,
           EMPTY_FORM.homepageBannerProductHeight,
@@ -527,6 +533,15 @@ export default function AdminSettingsPage() {
                       onChange={(value) => set('homepageBannerHeight', value)}
                     />
                     <RangeField
+                      label="Hero banner width"
+                      value={formData.homepageBannerWidth}
+                      min={70}
+                      max={100}
+                      step={1}
+                      display={`${formData.homepageBannerWidth}%`}
+                      onChange={(value) => set('homepageBannerWidth', value)}
+                    />
+                    <RangeField
                       label="Banner product tile height"
                       value={formData.homepageBannerProductHeight}
                       min={72}
@@ -665,7 +680,7 @@ export default function AdminSettingsPage() {
             {activeTab === 'navigation' && (
               <SettingsPanel
                 title="Bottom navigation"
-                description="Labels for the mobile bottom tab bar and floating promo orb."
+                description="Labels for the docked mobile bottom tab bar."
               >
                 <SettingsGrid>
                   <TextField
@@ -696,8 +711,8 @@ export default function AdminSettingsPage() {
                 </SettingsGrid>
                 <div className="mt-5">
                   <Toggle
-                    label="Show the floating promo orb"
-                    hint="Hiding it removes the only nav entry to the Promo / Spin tab."
+                    label="Show the Promo tab"
+                    hint="Hiding it removes the Promo tab from the bottom bar."
                     checked={formData.showPromoTab}
                     onChange={(checked) => set('showPromoTab', checked)}
                   />

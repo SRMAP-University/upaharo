@@ -278,9 +278,11 @@ model Banner {
   link       String?
   /// Soft background tint for the app/home when this banner is active (hex, e.g. #FFE0E8).
   bgColor    String?
-  /// Up to 3 product IDs shown in the banner strip (takes priority over category).
+  /// cover = photo card, grid = 2×2 offer tiles, deals = priced product list.
+  layout     String         @default("cover")
+  /// Up to 4 product IDs shown on this slide (takes priority over category).
   productIds String[]       @default([])
-  /// When set (and productIds empty), show up to 3 products from this category name.
+  /// When set (and productIds empty), show up to 4 products from this category name.
   category   String?
   order      Int            @default(0)
   isActive   Boolean        @default(true)
@@ -810,6 +812,8 @@ model AppSettings {
   homepageShowBanner           Boolean  @default(true)
   /// Mobile homepage banner carousel height in logical pixels.
   homepageBannerHeight         Int      @default(320)
+  /// Hero card width as a percent of the screen (70–100).
+  homepageBannerWidth          Int      @default(88)
   /// Height of product tiles inside each homepage banner.
   homepageBannerProductHeight  Int      @default(112)
   /// Mini banner tiles visible per row (1-4); sets each tile's width.

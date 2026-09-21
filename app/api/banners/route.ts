@@ -13,6 +13,7 @@ async function withProductsForStore(
     image: string
     link: string | null
     bgColor: string | null
+    layout?: string | null
     order: number
     productIds: string[]
     category: string | null
@@ -44,7 +45,7 @@ async function withProductsForStore(
           variants: true,
         },
         orderBy: banner.productIds.length > 0 ? undefined : { createdAt: 'desc' },
-        take: 3,
+        take: 4,
       })
       const byId = new Map(products.map((product) => [product.id, product]))
       const { productIds: _ids, ...rest } = banner
@@ -78,6 +79,7 @@ export async function GET(request: NextRequest) {
           image: true,
           link: true,
           bgColor: true,
+          layout: true,
           order: true,
           productIds: true,
           category: true,
@@ -105,6 +107,7 @@ export async function GET(request: NextRequest) {
               image: true,
               link: true,
               bgColor: true,
+              layout: true,
               order: true,
               productIds: true,
               category: true,

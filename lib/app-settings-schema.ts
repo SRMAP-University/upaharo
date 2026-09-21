@@ -145,6 +145,8 @@ export type PublicAppSettings = {
   mapLongitude: number
   homepageShowBanner: boolean
   homepageBannerHeight: number
+  /** Hero carousel card width as a percent of the screen (70–100). */
+  homepageBannerWidth: number
   homepageBannerProductHeight: number
   homepageShowTopCategories: boolean
   homepageShowCategorySections: boolean
@@ -244,6 +246,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   mapLongitude: 85.324,
   homepageShowBanner: true,
   homepageBannerHeight: 320,
+  homepageBannerWidth: 88,
   homepageBannerProductHeight: 112,
   homepageShowTopCategories: true,
   homepageShowCategorySections: true,

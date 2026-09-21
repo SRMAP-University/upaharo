@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
+  normalizeBannerLayout,
   normalizeBannerProductIds,
 } from '@/lib/banner-products'
 import {
@@ -55,6 +56,9 @@ export async function PATCH(
         ...(body.link !== undefined ? { link: body.link || null } : {}),
         ...(body.bgColor !== undefined
           ? { bgColor: body.bgColor?.trim() || null }
+          : {}),
+        ...(body.layout !== undefined
+          ? { layout: normalizeBannerLayout(body.layout) }
           : {}),
         ...(productIds !== undefined ? { productIds } : {}),
         ...(category !== undefined ? { category } : {}),

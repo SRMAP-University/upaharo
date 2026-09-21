@@ -25,6 +25,7 @@ export type SettingsForm = {
   mapLongitude: string
   homepageShowBanner: boolean
   homepageBannerHeight: number
+  homepageBannerWidth: number
   homepageBannerProductHeight: number
   miniBannerColumns: number
   miniBannerHeight: number
@@ -102,6 +103,7 @@ export const EMPTY_FORM: SettingsForm = {
   mapLongitude: '',
   homepageShowBanner: true,
   homepageBannerHeight: 320,
+  homepageBannerWidth: 88,
   homepageBannerProductHeight: 112,
   miniBannerColumns: 3,
   miniBannerHeight: 96,
