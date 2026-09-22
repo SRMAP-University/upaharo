@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import ImageColorPicker from '@/components/admin/ImageColorPicker'
+import { isVideoMediaUrl } from '@/lib/image-url'
+import { uploadBannerMedia } from '@/lib/upload-image'
 
 interface BannerProduct {
   id: string
@@ -80,6 +82,7 @@ export default function AdminBanners() {
   const [productQuery, setProductQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [uploadingMedia, setUploadingMedia] = useState(false)
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null)
   const [formData, setFormData] = useState(emptyForm)
   const [newSectionTitle, setNewSectionTitle] = useState('')
@@ -189,7 +192,7 @@ export default function AdminBanners() {
       if (prev.productIds.includes(id)) {
         return { ...prev, productIds: prev.productIds.filter((x) => x !== id) }
       }
-      if (prev.productIds.length >= 4) return prev
+      if (prev.productIds.length >= 6) return prev
       return { ...prev, productIds: [...prev.productIds, id] }
     })
   }
@@ -313,7 +316,7 @@ export default function AdminBanners() {
         isActive: formData.isActive,
         sectionId: formData.sectionId || null,
         productIds:
-          formData.spotlightMode === 'products' ? formData.productIds.slice(0, 4) : [],
+          formData.spotlightMode === 'products' ? formData.productIds.slice(0, 6) : [],
         category:
           formData.spotlightMode === 'category' ? formData.category.trim() : '',
       }
@@ -356,7 +359,7 @@ export default function AdminBanners() {
       order: banner.order,
       isActive: banner.isActive,
       spotlightMode: hasProducts ? 'products' : 'category',
-      productIds: banner.productIds?.slice(0, 4) ?? [],
+      productIds: banner.productIds?.slice(0, 6) ?? [],
       category: banner.category || '',
       sectionId: banner.sectionId || '',
     })
@@ -371,6 +374,18 @@ export default function AdminBanners() {
     })
     setEditingBanner(null)
     setShowForm(true)
+  }
+
+  const uploadMedia = async (file: File) => {
+    setUploadingMedia(true)
+    try {
+      const url = await uploadBannerMedia(file)
+      setFormData((prev) => ({ ...prev, image: url }))
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not upload that file')
+    } finally {
+      setUploadingMedia(false)
+    }
   }
 
   const resetForm = () => {
@@ -588,15 +603,47 @@ export default function AdminBanners() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink/70 mb-1">
-                  Image URL{formData.layout === 'cover' ? '*' : ''}
+                  Image or video{formData.layout === 'cover' ? '*' : ''}
                 </label>
-                <input
-                  type="text"
-                  required={formData.layout === 'cover'}
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    required={formData.layout === 'cover'}
+                    value={formData.image}
+                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                    placeholder="Paste a URL or upload an MP4"
+                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  />
+                  <label className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-wine/20 bg-white px-4 py-2 text-sm font-semibold text-wine hover:bg-cream">
+                    {uploadingMedia ? 'Uploading…' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
+                      className="hidden"
+                      disabled={uploadingMedia}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        e.target.value = ''
+                        if (file) void uploadMedia(file)
+                      }}
+                    />
+                  </label>
+                </div>
+                <p className="mt-1 text-xs text-ink/45">
+                  MP4 plays in the app carousel. Videos must be 20MB or smaller.
+                </p>
+                {isVideoMediaUrl(formData.image) ? (
+                  <video
+                    key={formData.image}
+                    src={formData.image}
+                    className="mt-3 h-36 w-full rounded-xl bg-black object-cover"
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    controls
+                  />
+                ) : null}
               </div>
               <div>
                 <label className="block text-sm font-medium text-ink/70 mb-1">Link</label>
@@ -652,11 +699,13 @@ export default function AdminBanners() {
               </div>
             </div>
 
-            <ImageColorPicker
-              imageUrl={formData.image}
-              value={formData.bgColor || '#FFE0E8'}
-              onChange={(hex) => setFormData((prev) => ({ ...prev, bgColor: hex }))}
-            />
+            {isVideoMediaUrl(formData.image) ? null : (
+              <ImageColorPicker
+                imageUrl={formData.image}
+                value={formData.bgColor || '#FFE0E8'}
+                onChange={(hex) => setFormData((prev) => ({ ...prev, bgColor: hex }))}
+              />
+            )}
 
             <div className="rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-3">
               <div>
@@ -738,7 +787,7 @@ export default function AdminBanners() {
                   <div className="max-h-48 overflow-y-auto rounded-xl border border-wine/10 bg-white divide-y divide-wine/5">
                     {filteredProducts.map((p) => {
                       const selected = formData.productIds.includes(p.id)
-                      const full = !selected && formData.productIds.length >= 4
+                      const full = !selected && formData.productIds.length >= 6
                       return (
                         <button
                           key={p.id}
@@ -829,7 +878,14 @@ export default function AdminBanners() {
               className="bg-white rounded-[22px] border border-wine/10 overflow-hidden"
             >
               <div className="relative h-36 bg-cream">
-                {banner.image ? (
+                {banner.image && isVideoMediaUrl(banner.image) ? (
+                  <video
+                    src={banner.image}
+                    className="h-full w-full object-cover"
+                    muted
+                    playsInline
+                  />
+                ) : banner.image ? (
                   <Image
                     unoptimized
                     src={banner.image}
@@ -866,7 +922,7 @@ export default function AdminBanners() {
                 </p>
                 {(banner.products?.length ?? 0) > 0 && (
                   <div className="mt-2 flex gap-2">
-                    {banner.products!.slice(0, 4).map((p) => (
+                    {banner.products!.slice(0, 6).map((p) => (
                       <span
                         key={p.id}
                         className="relative h-10 w-10 overflow-hidden rounded-lg bg-cream border border-wine/10"

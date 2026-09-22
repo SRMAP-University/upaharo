@@ -13,6 +13,10 @@ export async function uploadCategoryImage(file: File): Promise<string> {
   return uploadImageToFolder(file, 'categories')
 }
 
+export async function uploadBannerMedia(file: File): Promise<string> {
+  return uploadImageToFolder(file, 'banners')
+}
+
 async function uploadImageToFolder(file: File, folder: string): Promise<string> {
   const formData = new FormData()
   formData.append('file', file)
@@ -33,7 +37,7 @@ async function uploadImageToFolder(file: File, folder: string): Promise<string> 
 
   if (!response.ok) {
     if (response.status === 413) {
-      throw new Error('Image is too large for the server (max ~5MB). Try a smaller file.')
+      throw new Error('File is too large. Images must be 5MB or smaller, videos 20MB or smaller.')
     }
     if (response.status === 401) {
       throw new Error('Session expired — refresh and sign in again as admin.')

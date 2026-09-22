@@ -126,3 +126,75 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const userId = await resolveUserId(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { id, label, street, apartment, landmark, city, state, pincode, latitude, longitude, isDefault } = body
+
+    if (!id || !label || !street || !city || !state || !pincode) {
+      return NextResponse.json(
+        { error: 'Missing required fields: id, label, street, city, state, pincode' },
+        { status: 400 }
+      )
+    }
+
+    const existing = await prisma.address.findFirst({
+      where: { id: String(id), userId },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Address not found' }, { status: 404 })
+    }
+
+    const lat = typeof latitude === 'number' ? latitude : parseFloat(latitude) || 0
+    const lng = typeof longitude === 'number' ? longitude : parseFloat(longitude) || 0
+
+    if (
+      !isKathmanduValleyLocation({
+        city,
+        state,
+        address: [street, landmark, apartment].filter(Boolean).join(', '),
+        latitude: lat,
+        longitude: lng,
+      })
+    ) {
+      return NextResponse.json({ error: SERVICE_AREA_UNAVAILABLE_MESSAGE }, { status: 400 })
+    }
+
+    if (isDefault) {
+      await prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      })
+    }
+
+    const address = await prisma.address.update({
+      where: { id: existing.id },
+      data: {
+        label,
+        street,
+        apartment: apartment || '',
+        landmark: landmark || '',
+        city,
+        state,
+        pincode,
+        latitude: lat,
+        longitude: lng,
+        isDefault: typeof isDefault === 'boolean' ? isDefault : existing.isDefault,
+      },
+    })
+
+    return NextResponse.json({ address })
+  } catch (error: any) {
+    console.error('Error updating address:', error)
+    return NextResponse.json(
+      { error: 'Failed to update address', details: error?.message || 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}

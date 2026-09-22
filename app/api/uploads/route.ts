@@ -7,12 +7,18 @@ import { requirePartner } from '@/lib/partner-auth'
 import { prisma } from '@/lib/prisma'
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+const MAX_VIDEO_SIZE_BYTES = 20 * 1024 * 1024
 const ALLOWED_IMAGE_TYPES = new Set([
   'image/jpeg',
   'image/jpg',
   'image/png',
   'image/webp',
   'image/gif',
+])
+const ALLOWED_VIDEO_TYPES = new Set([
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
 ])
 
 const DEFAULT_R2_BUCKET_URL =
@@ -28,6 +34,9 @@ function extensionForMime(mime: string): string {
   if (mime === 'image/png') return '.png'
   if (mime === 'image/webp') return '.webp'
   if (mime === 'image/gif') return '.gif'
+  if (mime === 'video/mp4') return '.mp4'
+  if (mime === 'video/webm') return '.webm'
+  if (mime === 'video/quicktime') return '.mov'
   return '.jpg'
 }
 
@@ -37,12 +46,16 @@ function mimeFromFilename(name: string): string {
   if (lower.endsWith('.webp')) return 'image/webp'
   if (lower.endsWith('.gif')) return 'image/gif'
   if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg'
+  if (lower.endsWith('.mp4')) return 'video/mp4'
+  if (lower.endsWith('.webm')) return 'video/webm'
+  if (lower.endsWith('.mov')) return 'video/quicktime'
   return ''
 }
 
-function resolveImageMime(file: File): string {
+function resolveMediaMime(file: File): string {
   const typed = (file.type || '').toLowerCase().trim()
   if (ALLOWED_IMAGE_TYPES.has(typed)) return typed === 'image/jpg' ? 'image/jpeg' : typed
+  if (ALLOWED_VIDEO_TYPES.has(typed)) return typed
   return mimeFromFilename(file.name)
 }
 
@@ -159,11 +172,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Valid key query parameter is required' }, { status: 400 })
     }
 
+    const range = request.headers.get('range')
     const client = getR2Client(config)
     const object = await client.send(
       new GetObjectCommand({
         Bucket: config.bucket,
         Key: key,
+        ...(range ? { Range: range } : {}),
       })
     )
 
@@ -181,12 +196,17 @@ export async function GET(request: Request) {
     }
 
     return new Response(stream as ReadableStream, {
-      status: 200,
+      status: object.ContentRange ? 206 : 200,
       headers: {
         'Content-Type': object.ContentType || 'application/octet-stream',
+        'Accept-Ranges': 'bytes',
         // Browser can cache per full URL (includes ?key=).
         'Cache-Control': object.CacheControl || 'public, max-age=31536000, immutable',
         Vary: 'Accept',
+        ...(object.ContentLength != null
+          ? { 'Content-Length': String(object.ContentLength) }
+          : {}),
+        ...(object.ContentRange ? { 'Content-Range': object.ContentRange } : {}),
         ...(object.ETag ? { ETag: object.ETag } : {}),
       },
     })
@@ -230,15 +250,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
     }
 
-    const contentType = resolveImageMime(file)
-    if (!contentType || !ALLOWED_IMAGE_TYPES.has(contentType)) {
+    const contentType = resolveMediaMime(file)
+    const isVideo = ALLOWED_VIDEO_TYPES.has(contentType)
+    const isImage = ALLOWED_IMAGE_TYPES.has(contentType)
+    if (!contentType || (!isVideo && !isImage)) {
       return NextResponse.json(
-        { error: 'Only JPG, PNG, WEBP and GIF images are allowed' },
+        { error: 'Only JPG, PNG, WEBP, GIF, MP4, WEBM and MOV files are allowed' },
         { status: 400 }
       )
     }
 
-    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+    if (isVideo && file.size > MAX_VIDEO_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: 'Video size must be 20MB or smaller' },
+        { status: 400 }
+      )
+    }
+
+    if (isImage && file.size > MAX_IMAGE_SIZE_BYTES) {
       return NextResponse.json(
         { error: 'Image size must be 5MB or smaller' },
         { status: 400 }

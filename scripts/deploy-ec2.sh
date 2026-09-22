@@ -27,6 +27,15 @@ else
   echo "==> Skipping npm ci (lockfile unchanged)"
 fi
 
+echo "==> Allow banner video uploads through nginx"
+if command -v nginx >/dev/null 2>&1 && sudo nginx -t >/dev/null 2>&1; then
+  if ! sudo grep -Rqs 'client_max_body_size' /etc/nginx/nginx.conf /etc/nginx/sites-enabled /etc/nginx/conf.d 2>/dev/null; then
+    sudo sed -i 's/http {/http {\n    client_max_body_size 25m;/' /etc/nginx/nginx.conf
+    sudo nginx -t
+    sudo systemctl reload nginx
+  fi
+fi
+
 echo "==> Ensuring schema columns"
 set -a
 # shellcheck disable=SC1091

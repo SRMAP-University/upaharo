@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import LocationModal from '@/components/LocationModal'
-import { resolveImageUrl } from '@/lib/image-url'
+import { isVideoMediaUrl, resolveImageUrl } from '@/lib/image-url'
 import { useLocationStore } from '@/lib/store/location'
 import { useUserStore } from '@/lib/store/user'
 import { useCartStore } from '@/lib/store/cart'
@@ -199,7 +199,16 @@ function BannerSlideCard({
         }
       }}
     >
-      {imageUrl ? (
+      {imageUrl && isVideoMediaUrl(imageUrl) ? (
+        <video
+          src={imageUrl}
+          className="absolute inset-0 h-full w-full object-cover"
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      ) : imageUrl ? (
         <Image
           src={imageUrl}
           alt={banner.title}

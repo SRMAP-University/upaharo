@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { resolveImageUrl } from '@/lib/image-url'
+import { isVideoMediaUrl, resolveImageUrl } from '@/lib/image-url'
 import { formatPriceNoDecimals } from '@/lib/utils'
 
 export type HomeFeedBanner = {
@@ -87,7 +87,16 @@ export default function HomeFeedBannerSection({
               className="relative overflow-hidden rounded-[22px] lg:rounded-[26px]"
               style={{ height: cardHeight, backgroundColor: banner.bgColor || '#F0F0F0' }}
             >
-              {imageUrl ? (
+              {imageUrl && isVideoMediaUrl(imageUrl) ? (
+                <video
+                  src={imageUrl}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : imageUrl ? (
                 <Image
                   src={imageUrl}
                   alt={banner.title}

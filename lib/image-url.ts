@@ -1,3 +1,14 @@
+export function isVideoMediaUrl(rawUrl: string): boolean {
+  let value = String(rawUrl || '').trim().toLowerCase()
+  try {
+    value = decodeURIComponent(value)
+  } catch {
+    // Keep the raw URL when it is not valid encoding.
+  }
+  const path = value.split('#')[0]
+  return /\.(mp4|webm|mov)(?:$|[?#])/.test(path)
+}
+
 export function resolveImageUrl(rawUrl: string): string {
   const url = String(rawUrl || '').trim()
   if (!url) return ''
