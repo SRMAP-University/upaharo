@@ -13,6 +13,7 @@ async function withProductsForStore(
     image: string
     link: string | null
     bgColor: string | null
+    bgGradient?: unknown
     layout?: string | null
     order: number
     productIds: string[]
@@ -79,6 +80,7 @@ export async function GET(request: NextRequest) {
           image: true,
           link: true,
           bgColor: true,
+          bgGradient: true,
           layout: true,
           order: true,
           productIds: true,
@@ -107,6 +109,7 @@ export async function GET(request: NextRequest) {
               image: true,
               link: true,
               bgColor: true,
+              bgGradient: true,
               layout: true,
               order: true,
               productIds: true,

@@ -51,12 +51,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   int _selectedTab = 0;
-  Color? _bannerWash;
+  BannerWash? _bannerWash;
 
   /// Painted header wash — drives ONLY the wash DecoratedBox / chip tint via
   /// [ValueListenableBuilder], so HomeHeaderPromo / PageView are not rebuilt.
   late final ValueNotifier<Color> _washColor;
-  Color? _washTarget;
+  late final ValueNotifier<BannerWash?> _washStyle;
+  BannerWash? _washTarget;
   late final AnimationController _washCtrl;
   late final CurvedAnimation _washCurve;
   ColorTween? _washTween;
@@ -70,14 +71,23 @@ class _HomeScreenState extends State<HomeScreen>
     return a.toARGB32() == b.toARGB32();
   }
 
+  bool _sameWash(BannerWash? a, BannerWash? b) {
+    if (identical(a, b)) return true;
+    if (a == null || b == null) return false;
+    if (!_sameColor(a.color, b.color)) return false;
+    return (a.gradient?.signature ?? '') == (b.gradient?.signature ?? '');
+  }
+
   Color _washOrDefault(Color? color) => color ?? AppTheme.headerWash;
 
-  void _animateWashTo(Color? next) {
-    if (_sameColor(_washTarget, next) && _washCtrl.isCompleted) return;
+  void _animateWashTo(BannerWash? next) {
+    final nextPrimary = next?.primary;
+    if (_sameWash(_washTarget, next) && _washCtrl.isCompleted) return;
     final begin = _washColor.value;
-    final end = _washOrDefault(next);
+    final end = _washOrDefault(nextPrimary);
     _washTarget = next;
-    if (_sameColor(begin, end)) {
+    _washStyle.value = next;
+    if (next?.hasGradient == true || _sameColor(begin, end)) {
       _washColor.value = end;
       return;
     }
@@ -85,18 +95,18 @@ class _HomeScreenState extends State<HomeScreen>
     _washCtrl.forward(from: 0);
   }
 
-  void _onBannerWashChanged(Color? color) {
+  void _onBannerWashChanged(BannerWash? wash) {
     // Banner only lives on the All tab — ignore wash updates elsewhere.
     if (_selectedTab != 0) return;
-    if (_sameColor(_bannerWash, color)) return;
+    if (_sameWash(_bannerWash, wash)) return;
     // Never mutate wash synchronously from a child's build/didUpdateWidget.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _selectedTab != 0 || _sameColor(_bannerWash, color)) {
+      if (!mounted || _selectedTab != 0 || _sameWash(_bannerWash, wash)) {
         return;
       }
       // No setState — wash lerp notifies only the painted wash/chips.
-      _bannerWash = color;
-      _animateWashTo(color);
+      _bannerWash = wash;
+      _animateWashTo(wash);
     });
   }
 
@@ -110,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (index == 0) {
       final bannerWash = context.read<BannerProvider>().banners.isEmpty
           ? null
-          : context.read<BannerProvider>().banners.first.backgroundColor;
+          : context.read<BannerProvider>().banners.first.wash;
       _bannerWash = bannerWash;
       _animateWashTo(bannerWash);
       // All uses the mixed home feed — reload if a stale cakes-only cache stuck.
@@ -124,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     if (index <= categories.length) {
-      _animateWashTo(categoryWashFor(categories[index - 1]));
+      _animateWashTo(BannerWash(color: categoryWashFor(categories[index - 1])));
     }
 
     if (index <= 0 || index > categories.length) return;
@@ -142,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _washColor = ValueNotifier<Color>(AppTheme.headerWash);
+    _washStyle = ValueNotifier<BannerWash?>(null);
     _washCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 520),
@@ -190,6 +201,7 @@ class _HomeScreenState extends State<HomeScreen>
     _washCurve.dispose();
     _washCtrl.dispose();
     _washColor.dispose();
+    _washStyle.dispose();
     super.dispose();
   }
 
@@ -436,6 +448,7 @@ class _HomeScreenState extends State<HomeScreen>
                   // fades down into cream (same as before). Painted via
                   // ValueNotifier so PageView is not rebuilt each lerp tick.
                   washColor: _washColor,
+                  washStyle: _washStyle,
                   // Banner only on All — category tabs are product-only.
                   // Sticky header carousel only — feed bannerCarousel sections
                   // use their own layout Visible flags and ignore this toggle.
@@ -977,6 +990,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.categories,
     required this.selectedTab,
     required this.washColor,
+    required this.washStyle,
     required this.showPromo,
     required this.coupons,
     required this.banners,
@@ -1010,6 +1024,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
 
   /// Animated header wash — listened locally so promo PageView is not rebuilt.
   final ValueListenable<Color> washColor;
+  final ValueListenable<BannerWash?> washStyle;
   final bool showPromo;
   final List<Coupon> coupons;
   final List<BannerModel> banners;
@@ -1026,7 +1041,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final ValueChanged<String?> onBannerTap;
   final ValueChanged<Product> onProductTap;
   final VoidCallback onShopAll;
-  final ValueChanged<Color?> onBannerWashChanged;
+  final ValueChanged<BannerWash?> onBannerWashChanged;
   final double? bannerHeight;
   final double? bannerProductHeight;
 
@@ -1115,9 +1130,37 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
           children: [
             // Header-only wash: strong at top, fades into cream (not full page).
             // Isolated so wash lerp does not rebuild HomeHeaderPromo / PageView.
-            ValueListenableBuilder<Color>(
-              valueListenable: washColor,
-              builder: (context, washTarget, _) {
+            AnimatedBuilder(
+              animation: Listenable.merge([washColor, washStyle]),
+              builder: (context, _) {
+                final style = washStyle.value;
+                final washTarget = washColor.value;
+                if (style?.hasGradient == true) {
+                  final g = style!.gradient!;
+                  final pairs = g.resolvedPairs;
+                  final colors = <Color>[
+                    for (final pair in pairs) pair.$2,
+                    pageBg,
+                  ];
+                  final stops = <double>[
+                    for (final pair in pairs)
+                      (pair.$1 * 0.72).clamp(0.0, 0.85),
+                    1.0,
+                  ];
+                  final rad = g.angle * math.pi / 180;
+                  final dx = math.sin(rad);
+                  final dy = -math.cos(rad);
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(-dx, -dy),
+                        end: Alignment(dx, dy),
+                        colors: colors,
+                        stops: stops,
+                      ),
+                    ),
+                  );
+                }
                 return DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -1519,6 +1562,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         walletBalance != oldDelegate.walletBalance ||
         selectedTab != oldDelegate.selectedTab ||
         washColor != oldDelegate.washColor ||
+        washStyle != oldDelegate.washStyle ||
         showPromo != oldDelegate.showPromo ||
         coupons != oldDelegate.coupons ||
         banners != oldDelegate.banners ||

@@ -5,6 +5,13 @@ import Image from 'next/image'
 import ImageColorPicker from '@/components/admin/ImageColorPicker'
 import { isVideoMediaUrl } from '@/lib/image-url'
 import { uploadBannerMedia } from '@/lib/upload-image'
+import {
+  bannerGradientPreviewCss,
+  normalizeBannerBgGradient,
+  normalizeHexColor,
+  type BannerBgGradient,
+  type BannerBgStop,
+} from '@/lib/banner-bg-gradient'
 
 interface BannerProduct {
   id: string
@@ -21,6 +28,7 @@ interface Banner {
   image: string
   link: string | null
   bgColor: string | null
+  bgGradient?: BannerBgGradient | null
   layout?: string | null
   productIds: string[]
   category: string | null
@@ -64,6 +72,9 @@ const emptyForm = {
   image: '',
   link: '',
   bgColor: '#FFE0E8',
+  bgMode: 'solid' as 'solid' | 'gradient',
+  bgAngle: 180,
+  bgStops: [{ color: '#FFE0E8' }, { color: '#FFB0C0' }] as BannerBgStop[],
   layout: 'cover',
   order: 0,
   isActive: true,
@@ -310,7 +321,18 @@ export default function AdminBanners() {
         subtitle: formData.subtitle,
         image: formData.image,
         link: formData.link,
-        bgColor: formData.bgColor,
+        bgColor:
+          formData.bgMode === 'gradient'
+            ? formData.bgStops[0]?.color || formData.bgColor
+            : formData.bgColor,
+        bgGradient:
+          formData.bgMode === 'gradient'
+            ? {
+                mode: 'gradient' as const,
+                angle: formData.bgAngle,
+                stops: formData.bgStops,
+              }
+            : null,
         layout: formData.layout,
         order: formData.order,
         isActive: formData.isActive,
@@ -355,6 +377,17 @@ export default function AdminBanners() {
       image: banner.image,
       link: banner.link || '',
       bgColor: banner.bgColor || '#FFE0E8',
+      bgMode: (() => {
+        const g = normalizeBannerBgGradient(banner.bgGradient)
+        return g ? 'gradient' : 'solid'
+      })() as 'solid' | 'gradient',
+      bgAngle: normalizeBannerBgGradient(banner.bgGradient)?.angle ?? 180,
+      bgStops: (() => {
+        const g = normalizeBannerBgGradient(banner.bgGradient)
+        if (g && g.stops.length >= 2) return g.stops
+        const c = banner.bgColor || '#FFE0E8'
+        return [{ color: c }, { color: '#FFB0C0' }]
+      })(),
       layout: banner.layout === 'grid' || banner.layout === 'deals' ? banner.layout : 'cover',
       order: banner.order,
       isActive: banner.isActive,
@@ -666,25 +699,210 @@ export default function AdminBanners() {
                   className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-ink/70 mb-1">
-                  Scroll background color
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={formData.bgColor || '#FFE0E8'}
-                    onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
-                    className="h-10 w-14 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
-                  />
-                  <input
-                    type="text"
-                    value={formData.bgColor}
-                    onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
-                    placeholder="#FFE0E8"
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                  />
+              <div className="md:col-span-2 space-y-3 rounded-2xl border border-wine/10 bg-cream/30 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-ink/70">
+                      Scroll background
+                    </label>
+                    <p className="text-xs text-ink/45 mt-0.5">
+                      Solid tint, or a multi-stop gradient to match the slide more vividly.
+                    </p>
+                  </div>
+                  <div className="flex gap-1 rounded-full border border-wine/15 bg-white p-0.5">
+                    {(['solid', 'gradient'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            bgMode: mode,
+                            ...(mode === 'gradient' && prev.bgStops.length < 2
+                              ? {
+                                  bgStops: [
+                                    { color: normalizeHexColor(prev.bgColor) },
+                                    { color: '#FFB0C0' },
+                                  ],
+                                }
+                              : {}),
+                          }))
+                        }
+                        className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
+                          formData.bgMode === mode
+                            ? 'bg-wine text-white'
+                            : 'text-wine/70 hover:bg-cream'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <div
+                  className="h-10 w-full rounded-xl border border-wine/10 shadow-inner"
+                  style={{
+                    background: bannerGradientPreviewCss(
+                      formData.bgColor,
+                      formData.bgMode === 'gradient'
+                        ? {
+                            mode: 'gradient',
+                            angle: formData.bgAngle,
+                            stops: formData.bgStops,
+                          }
+                        : null
+                    ),
+                  }}
+                  title="Preview"
+                />
+
+                {formData.bgMode === 'solid' ? (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="color"
+                      value={formData.bgColor || '#FFE0E8'}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bgColor: e.target.value })
+                      }
+                      className="h-10 w-14 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                    />
+                    <input
+                      type="text"
+                      value={formData.bgColor}
+                      onChange={(e) =>
+                        setFormData({ ...formData, bgColor: e.target.value })
+                      }
+                      placeholder="#FFE0E8"
+                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-ink/60">
+                        Direction
+                      </label>
+                      <select
+                        value={formData.bgAngle}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            bgAngle: Number(e.target.value) || 180,
+                          })
+                        }
+                        className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                      >
+                        <option value={180}>Top → bottom</option>
+                        <option value={90}>Left → right</option>
+                        <option value={135}>Top-left → bottom-right</option>
+                        <option value={225}>Top-right → bottom-left</option>
+                        <option value={0}>Bottom → top</option>
+                        <option value={270}>Right → left</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      {formData.bgStops.map((stop, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={stop.color || '#FFE0E8'}
+                            onChange={(e) => {
+                              const color = e.target.value
+                              setFormData((prev) => {
+                                const bgStops = prev.bgStops.map((s, i) =>
+                                  i === index ? { ...s, color } : s
+                                )
+                                return {
+                                  ...prev,
+                                  bgStops,
+                                  bgColor: index === 0 ? color : prev.bgColor,
+                                }
+                              })
+                            }}
+                            className="h-9 w-12 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                          />
+                          <input
+                            type="text"
+                            value={stop.color}
+                            onChange={(e) => {
+                              const color = e.target.value
+                              setFormData((prev) => {
+                                const bgStops = prev.bgStops.map((s, i) =>
+                                  i === index ? { ...s, color } : s
+                                )
+                                return {
+                                  ...prev,
+                                  bgStops,
+                                  bgColor: index === 0 ? color : prev.bgColor,
+                                }
+                              })
+                            }}
+                            className="min-w-0 flex-1 rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                          />
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() =>
+                              setFormData((prev) => {
+                                if (index === 0) return prev
+                                const bgStops = [...prev.bgStops]
+                                ;[bgStops[index - 1], bgStops[index]] = [
+                                  bgStops[index],
+                                  bgStops[index - 1],
+                                ]
+                                return {
+                                  ...prev,
+                                  bgStops,
+                                  bgColor: bgStops[0]?.color || prev.bgColor,
+                                }
+                              })
+                            }
+                            className="rounded-lg border border-wine/15 px-2 py-1 text-xs font-semibold text-wine disabled:opacity-30"
+                            title="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            disabled={formData.bgStops.length <= 2}
+                            onClick={() =>
+                              setFormData((prev) => {
+                                if (prev.bgStops.length <= 2) return prev
+                                const bgStops = prev.bgStops.filter((_, i) => i !== index)
+                                return {
+                                  ...prev,
+                                  bgStops,
+                                  bgColor: bgStops[0]?.color || prev.bgColor,
+                                }
+                              })
+                            }
+                            className="rounded-lg border border-red-200 px-2 py-1 text-xs font-semibold text-red-600 disabled:opacity-30"
+                            title="Remove stop"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={formData.bgStops.length >= 6}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          bgStops: [
+                            ...prev.bgStops,
+                            { color: prev.bgStops[prev.bgStops.length - 1]?.color || '#FFE0E8' },
+                          ],
+                        }))
+                      }
+                      className="rounded-full border border-wine/20 bg-white px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-40"
+                    >
+                      + Add color
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -703,7 +921,16 @@ export default function AdminBanners() {
               <ImageColorPicker
                 imageUrl={formData.image}
                 value={formData.bgColor || '#FFE0E8'}
-                onChange={(hex) => setFormData((prev) => ({ ...prev, bgColor: hex }))}
+                onChange={(hex) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    bgColor: hex,
+                    bgStops:
+                      prev.bgMode === 'gradient' && prev.bgStops.length > 0
+                        ? prev.bgStops.map((s, i) => (i === 0 ? { ...s, color: hex } : s))
+                        : prev.bgStops,
+                  }))
+                }
               />
             )}
 
@@ -938,16 +1165,25 @@ export default function AdminBanners() {
                 <div className="flex items-center justify-between mt-4">
                   <span className="text-sm text-ink/55 inline-flex items-center gap-2">
                     Order: {banner.order}
-                    {banner.bgColor ? (
+                    {banner.bgColor || normalizeBannerBgGradient(banner.bgGradient) ? (
                       <span
                         className="inline-flex items-center gap-1.5 rounded-full border border-wine/10 px-2 py-0.5 text-xs"
-                        title={banner.bgColor}
+                        title={
+                          normalizeBannerBgGradient(banner.bgGradient)
+                            ? 'Gradient wash'
+                            : banner.bgColor || undefined
+                        }
                       >
                         <span
-                          className="h-3 w-3 rounded-full border border-black/10"
-                          style={{ backgroundColor: banner.bgColor }}
+                          className="h-3 w-6 rounded-full border border-black/10"
+                          style={{
+                            background: bannerGradientPreviewCss(
+                              banner.bgColor,
+                              normalizeBannerBgGradient(banner.bgGradient)
+                            ),
+                          }}
                         />
-                        Tint
+                        {normalizeBannerBgGradient(banner.bgGradient) ? 'Gradient' : 'Tint'}
                       </span>
                     ) : null}
                   </span>

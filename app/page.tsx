@@ -93,6 +93,7 @@ async function getHomeData() {
           image: true,
           link: true,
           bgColor: true,
+          bgGradient: true,
           productIds: true,
           category: true,
         },
@@ -118,6 +119,7 @@ async function getHomeData() {
                   image: true,
                   link: true,
                   bgColor: true,
+                  bgGradient: true,
                   productIds: true,
                   category: true,
                 },
@@ -176,7 +178,7 @@ async function getHomeData() {
       settings.valueDealsPromoText || 'Shop for {amount} to unlock deals'
     const valueDealsPromoText = promoTemplate.replace(
       '{amount}',
-      String(Math.round(unlock))
+      `Rs. ${Math.round(unlock)}`
     )
 
     const withBannerProducts = async (
@@ -233,6 +235,7 @@ async function getHomeData() {
         image: banner.image,
         link: banner.link,
         bgColor: banner.bgColor,
+        bgGradient: banner.bgGradient ?? null,
         products: bannerProducts.map((p) => ({
           id: p.id,
           name: p.name,
@@ -271,6 +274,7 @@ async function getHomeData() {
       miniBanners,
       valueDealProducts,
       valueDealsPromoText,
+      valueDealsUnlockAmount: unlock,
       homeSections: (settings.homeSectionLayout || []) as HomeSectionConfig[],
       deliveryEstimate:
         settings.announcementText || settings.deliveryEstimate || '',
@@ -292,6 +296,7 @@ async function getHomeData() {
       miniBanners: [],
       valueDealProducts: [],
       valueDealsPromoText: '',
+      valueDealsUnlockAmount: 199,
       homeSections: [],
       deliveryEstimate: '',
       bannerHeight: 320,
@@ -340,6 +345,7 @@ export default async function Home() {
     miniBanners,
     valueDealProducts,
     valueDealsPromoText,
+    valueDealsUnlockAmount,
     homeSections,
     deliveryEstimate,
     bannerHeight,
@@ -399,6 +405,7 @@ export default async function Home() {
             title={section.title || 'Value'}
             subtitle={section.subtitle || 'DEALS'}
             promoText={valueDealsPromoText}
+            unlockAmount={valueDealsUnlockAmount}
           />
         )
       case 'miniBanners': {

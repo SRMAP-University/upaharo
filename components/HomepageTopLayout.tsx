@@ -11,6 +11,11 @@ import { useUserStore } from '@/lib/store/user'
 import { useCartStore } from '@/lib/store/cart'
 import { formatPriceNoDecimals } from '@/lib/utils'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
+import {
+  bannerWashCss,
+  normalizeBannerBgGradient,
+  type BannerBgGradient,
+} from '@/lib/banner-bg-gradient'
 
 type Category = {
   id: string
@@ -36,6 +41,7 @@ type Banner = {
   image: string
   link?: string | null
   bgColor?: string | null
+  bgGradient?: BannerBgGradient | null
   products?: BannerProduct[]
 }
 
@@ -268,7 +274,7 @@ function AppStyleBanner({
   banners: Banner[]
   height: number
   productStripHeight: number
-  onWashChange?: (color: string) => void
+  onWashChange?: (payload: { color: string; background: string }) => void
   layout?: 'single' | 'trio'
 }) {
   const [activeIndex, setActiveIndex] = useState(0)
@@ -290,8 +296,11 @@ function AppStyleBanner({
       : [banners[activeIndex]]
 
   useEffect(() => {
-    const bg = visibleBanners[0]?.bgColor?.trim()
-    onWashChange?.(bg && /^#([0-9a-f]{6})$/i.test(bg) ? bg : DEFAULT_WASH)
+    const banner = visibleBanners[0]
+    const bg = banner?.bgColor?.trim()
+    const color = bg && /^#([0-9a-f]{6})$/i.test(bg) ? bg : DEFAULT_WASH
+    const gradient = normalizeBannerBgGradient(banner?.bgGradient)
+    onWashChange?.({ color, background: bannerWashCss(color, gradient, DEFAULT_WASH) })
   }, [activeIndex, banners, layout, onWashChange])
 
   if (banners.length === 0) return null
@@ -362,6 +371,9 @@ export default function HomepageTopLayout({
   const [mounted, setMounted] = useState(false)
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
   const [wash, setWash] = useState(DEFAULT_WASH)
+  const [washBackground, setWashBackground] = useState(() =>
+    bannerWashCss(DEFAULT_WASH, null, DEFAULT_WASH)
+  )
   const [selectedTab, setSelectedTab] = useState(0)
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
 
@@ -455,7 +467,7 @@ export default function HomepageTopLayout({
       <section
         className="overflow-hidden"
         style={{
-          background: `linear-gradient(180deg, ${wash} 0%, ${wash}ee 42%, #faf5f0 78%, #faf5f0 100%)`,
+          background: washBackground,
         }}
       >
         {/* Phone / tablet — keep the compact app chrome */}
@@ -574,7 +586,10 @@ export default function HomepageTopLayout({
                 banners={banners}
                 height={mobileBannerH}
                 productStripHeight={productH}
-                onWashChange={setWash}
+                onWashChange={({ color, background }) => {
+                  setWash(color)
+                  setWashBackground(background)
+                }}
               />
             </div>
           ) : null}
@@ -739,7 +754,10 @@ export default function HomepageTopLayout({
                 banners={banners}
                 height={desktopBannerH}
                 productStripHeight={desktopProductH}
-                onWashChange={setWash}
+                onWashChange={({ color, background }) => {
+                  setWash(color)
+                  setWashBackground(background)
+                }}
                 layout="trio"
               />
             </div>

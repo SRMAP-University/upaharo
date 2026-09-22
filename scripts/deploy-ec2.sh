@@ -46,6 +46,7 @@ node scripts/_ensure-support-instagram.mjs || true
 node scripts/_ensure-feature-delivery-otp.mjs || true
 node scripts/_ensure-festival-mode.mjs || true
 node scripts/_ensure-banner-layout.mjs || true
+node scripts/_ensure-banner-bg-gradient.mjs || true
 
 echo "==> Building (live app stays up)"
 npm run build

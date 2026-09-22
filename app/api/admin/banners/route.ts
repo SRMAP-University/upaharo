@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
         image: body.image,
         link: body.link || null,
         bgColor: body.bgColor?.trim() || null,
+        bgGradient: normalizeBannerBgGradient(body.bgGradient),
         layout: normalizeBannerLayout(body.layout),
         productIds,
         category,

@@ -37,7 +37,7 @@ class HomeHeaderPromo extends StatefulWidget {
   final ValueChanged<String?> onBannerTap;
   final ValueChanged<Product> onProductTap;
   final VoidCallback onShopAll;
-  final ValueChanged<Color?> onBannerWashChanged;
+  final ValueChanged<BannerWash?> onBannerWashChanged;
   /// Admin-controlled admin-banner height; falls back to [adminBannerHeight].
   final double? bannerHeight;
   /// Admin-controlled product tile strip height inside banners.
@@ -73,7 +73,7 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
   int _realPage = 0;
 
   /// Avoid re-emitting the same wash mid-scroll / duplicate settles.
-  Color? _lastEmittedWash;
+  BannerWash? _lastEmittedWash;
 
   /// True while the user is finger-dragging the PageView.
   bool _userDragging = false;
@@ -132,24 +132,34 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
     return mid - (mid % _realCount);
   }
 
-  Color? get _currentWash {
+  BannerWash? get _currentWash {
     if (!_useAdminBanners || widget.banners.isEmpty) return null;
-    return widget.banners[_realPage.clamp(0, widget.banners.length - 1)].backgroundColor;
+    return widget
+        .banners[_realPage.clamp(0, widget.banners.length - 1)]
+        .wash;
   }
 
-  bool _sameColor(Color? a, Color? b) {
+  bool _sameWash(BannerWash? a, BannerWash? b) {
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
-    return a.toARGB32() == b.toARGB32();
+    final ac = a.color;
+    final bc = b.color;
+    if ((ac == null) != (bc == null)) return false;
+    if (ac != null && bc != null && ac.toARGB32() != bc.toARGB32()) {
+      return false;
+    }
+    final ag = a.gradient?.signature ?? '';
+    final bg = b.gradient?.signature ?? '';
+    return ag == bg;
   }
 
   void _emitWash() {
-    final color = _currentWash;
-    if (_sameColor(_lastEmittedWash, color)) return;
-    _lastEmittedWash = color;
+    final wash = _currentWash;
+    if (_sameWash(_lastEmittedWash, wash)) return;
+    _lastEmittedWash = wash;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      widget.onBannerWashChanged(color);
+      widget.onBannerWashChanged(wash);
     });
   }
 
@@ -200,7 +210,12 @@ class _HomeHeaderPromoState extends State<HomeHeaderPromo> {
     if (identical(a, b)) return true;
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id || a[i].bgColor != b[i].bgColor) return false;
+      if (a[i].id != b[i].id ||
+          a[i].bgColor != b[i].bgColor ||
+          (a[i].bgGradient?.signature ?? '') !=
+              (b[i].bgGradient?.signature ?? '')) {
+        return false;
+      }
     }
     return true;
   }

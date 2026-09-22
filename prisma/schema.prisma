@@ -278,6 +278,8 @@ model Banner {
   link       String?
   /// Soft background tint for the app/home when this banner is active (hex, e.g. #FFE0E8).
   bgColor    String?
+  /// Optional multi-stop wash: { mode, angle, stops: [{ color, at }] }. Null = solid bgColor.
+  bgGradient Json?
   /// cover = photo card, grid = 2×2 offer tiles, deals = priced product list.
   layout     String         @default("cover")
   /// Up to 4 product IDs shown on this slide (takes priority over category).

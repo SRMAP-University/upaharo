@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
         image,
         link: body.link || null,
         bgColor: body.bgColor?.trim() || null,
+        bgGradient: normalizeBannerBgGradient(body.bgGradient),
         layout,
         productIds,
         category,
