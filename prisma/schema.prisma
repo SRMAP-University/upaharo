@@ -832,6 +832,8 @@ model AppSettings {
   /// Cart total needed to unlock Value Deals claims.
   valueDealsUnlockAmount       Float    @default(199)
   homepageShowSpinBanner       Boolean  @default(true)
+  /// Navratri marigolds and falling petals on the gifts home screen.
+  festivalMode                 Boolean  @default(true)
   /// Gift wrapping, recipients and occasion selection at checkout.
   featureGiftOptions           Boolean  @default(true)
   /// AI shopping assistant entry points.

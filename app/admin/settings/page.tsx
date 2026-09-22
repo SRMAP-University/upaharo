@@ -136,6 +136,7 @@ export default function AdminSettingsPage() {
           1_000_000
         ),
         homepageShowSpinBanner: Boolean(data.homepageShowSpinBanner ?? true),
+        festivalMode: data.festivalMode !== false,
         featureGiftOptions: Boolean(data.featureGiftOptions ?? true),
         featureAiAssistant: Boolean(data.featureAiAssistant ?? true),
         featureWishlist: Boolean(data.featureWishlist ?? true),
@@ -511,6 +512,12 @@ export default function AdminSettingsPage() {
                       label="Show Value Deals section"
                       checked={formData.homepageShowValueDeals}
                       onChange={(checked) => set('homepageShowValueDeals', checked)}
+                    />
+                    <Toggle
+                      label="Festival mode"
+                      hint="Navratri marigolds around the search bar and falling petals on the gifts home screen."
+                      checked={formData.festivalMode}
+                      onChange={(checked) => set('festivalMode', checked)}
                     />
                     <Toggle
                       label="Show Spin & Win banner"

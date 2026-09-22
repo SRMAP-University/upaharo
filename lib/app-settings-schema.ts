@@ -157,6 +157,8 @@ export type PublicAppSettings = {
   valueDealsPromoText: string
   valueDealsUnlockAmount: number
   homepageShowSpinBanner: boolean
+  /** Navratri marigolds and falling petals on the gifts home screen. */
+  festivalMode: boolean
   featureGiftOptions: boolean
   featureAiAssistant: boolean
   featureWishlist: boolean
@@ -257,6 +259,7 @@ export const DEFAULT_APP_SETTINGS: PublicAppSettings = {
   valueDealsPromoText: 'Shop for {amount} to unlock deals',
   valueDealsUnlockAmount: 199,
   homepageShowSpinBanner: true,
+  festivalMode: true,
   featureGiftOptions: true,
   featureAiAssistant: true,
   featureWishlist: true,

@@ -266,6 +266,7 @@ function settingsPayload(body: Record<string, unknown>) {
       body?.homepageShowSpinBanner,
       DEFAULT_APP_SETTINGS.homepageShowSpinBanner
     ),
+    festivalMode: toBool(body?.festivalMode, DEFAULT_APP_SETTINGS.festivalMode),
     featureGiftOptions: toBool(
       body?.featureGiftOptions,
       DEFAULT_APP_SETTINGS.featureGiftOptions
@@ -346,6 +347,19 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let festivalMode = (settings as { festivalMode?: boolean | null } | null)
+      ?.festivalMode
+    if (festivalMode === undefined) {
+      try {
+        const rows = await prisma.$queryRaw<
+          Array<{ festivalMode: boolean | null }>
+        >`SELECT "festivalMode" FROM "AppSettings" WHERE "storeId" = ${storeContext.store.id} LIMIT 1`
+        festivalMode = rows[0]?.festivalMode
+      } catch {
+        festivalMode = DEFAULT_APP_SETTINGS.festivalMode
+      }
+    }
+
     return NextResponse.json({
       id: settings?.id,
       store: storeContext.store,
@@ -359,6 +373,7 @@ export async function GET(request: NextRequest) {
         0,
         180
       ),
+      festivalMode: festivalMode !== false,
       homeSectionLayout: normalizeHomeSections(settings?.homeSectionLayout),
       headerCategoryIds: normalizeHeaderCategoryIds(settings?.headerCategoryIds),
       deliverySlots: normalizeDeliverySlots(settings?.deliverySlots),
@@ -412,19 +427,22 @@ export async function PATCH(request: NextRequest) {
       0,
       180
     )
-    // Persist rainExtraMinutes even when the generated Prisma client is stale.
-    const { rainExtraMinutes: _rain, ...payloadWithoutRain } = payload as typeof payload & {
-      rainExtraMinutes?: number
-    }
+    const festivalMode = payload.festivalMode !== false
+    const {
+      festivalMode: _festival,
+      ...payloadWithRain
+    } = payload as typeof payload & { festivalMode?: boolean }
+    const { rainExtraMinutes: _rain, ...payloadWithoutRain } =
+      payloadWithRain as typeof payloadWithRain & { rainExtraMinutes?: number }
 
     let settings
     try {
       settings = await prisma.appSettings.upsert({
         where: { storeId: storeContext.store.id },
-        update: payload,
+        update: payloadWithRain,
         create: {
           storeId: storeContext.store.id,
-          ...payload,
+          ...payloadWithRain,
         },
       })
     } catch {
@@ -453,6 +471,15 @@ export async function PATCH(request: NextRequest) {
       SET "featureDeliveryOtp" = ${featureDeliveryOtp}
       WHERE "storeId" = ${storeContext.store.id}
     `
+    try {
+      await prisma.$executeRaw`
+        UPDATE "AppSettings"
+        SET "festivalMode" = ${festivalMode}
+        WHERE "storeId" = ${storeContext.store.id}
+      `
+    } catch {
+      // Column arrives with the next prisma db push.
+    }
 
     const deliveryRadiusTiers = await saveDeliveryRadiusTiers(
       storeContext.store.id,
@@ -472,6 +499,7 @@ export async function PATCH(request: NextRequest) {
       ...settings,
       supportInstagram: supportInstagram || '',
       featureDeliveryOtp,
+      festivalMode,
       rainExtraMinutes,
       deliveryRadiusTiers,
       deliveryZones,

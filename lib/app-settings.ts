@@ -179,6 +179,20 @@ export async function getAppSettings(
         ),
         homepageShowSpinBanner:
           settings.homepageShowSpinBanner ?? DEFAULT_APP_SETTINGS.homepageShowSpinBanner,
+        festivalMode: await (async () => {
+          let raw = (settings as { festivalMode?: boolean | null }).festivalMode
+          if (raw === undefined) {
+            try {
+              const rows = await prisma.$queryRaw<
+                Array<{ festivalMode: boolean | null }>
+              >`SELECT "festivalMode" FROM "AppSettings" WHERE "storeId" = ${storeId} LIMIT 1`
+              raw = rows[0]?.festivalMode
+            } catch {
+              raw = DEFAULT_APP_SETTINGS.festivalMode
+            }
+          }
+          return raw !== false
+        })(),
         featureGiftOptions:
           settings.featureGiftOptions ?? DEFAULT_APP_SETTINGS.featureGiftOptions,
         featureAiAssistant:

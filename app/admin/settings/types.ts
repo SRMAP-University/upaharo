@@ -38,6 +38,7 @@ export type SettingsForm = {
   valueDealsPromoText: string
   valueDealsUnlockAmount: number
   homepageShowSpinBanner: boolean
+  festivalMode: boolean
   featureGiftOptions: boolean
   featureAiAssistant: boolean
   featureWishlist: boolean
@@ -116,6 +117,7 @@ export const EMPTY_FORM: SettingsForm = {
   valueDealsPromoText: 'Shop for {amount} to unlock deals',
   valueDealsUnlockAmount: 199,
   homepageShowSpinBanner: true,
+  festivalMode: true,
   featureGiftOptions: true,
   featureAiAssistant: true,
   featureWishlist: true,

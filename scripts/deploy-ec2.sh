@@ -44,6 +44,7 @@ set +a
 node scripts/_ensure-offline-order-cols.mjs || true
 node scripts/_ensure-support-instagram.mjs || true
 node scripts/_ensure-feature-delivery-otp.mjs || true
+node scripts/_ensure-festival-mode.mjs || true
 node scripts/_ensure-banner-layout.mjs || true
 
 echo "==> Building (live app stays up)"
