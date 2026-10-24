@@ -144,7 +144,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
       ),
       label: 'Account',
       path: user ? '/profile' : '/login',
-      active: pathname === '/profile' || pathname === '/login' || pathname === '/auth'
+      active: pathname === '/profile' || pathname === '/account' || pathname === '/login' || pathname === '/auth'
     }
   ]
 
