@@ -12,6 +12,15 @@ export function formatPrice(
   return `Rs. ${formatted}`
 }
 
+/** Whole rupees drop the ".00"; paisa only show when the price has them. */
+export function formatPriceCompact(price: number): string {
+  const whole = Math.abs(price - Math.round(price)) < 0.005
+  return formatPrice(price, {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })
+}
+
 export function formatPriceNoDecimals(price: number): string {
   const formatted = new Intl.NumberFormat(DEFAULT_LOCALE, {
     minimumFractionDigits: 0,

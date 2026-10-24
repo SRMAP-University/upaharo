@@ -4,18 +4,9 @@ import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store/cart'
-import { formatPrice } from '@/lib/utils'
+import { formatPriceCompact as formatCardPrice } from '@/lib/utils'
 import { resolveImageUrl } from '@/lib/image-url'
 import FoodTypeBadge from '@/components/FoodTypeBadge'
-
-/** Whole rupees drop the ".00" so prices fit on narrow cards. */
-function formatCardPrice(price: number): string {
-  const whole = Math.abs(price - Math.round(price)) < 0.005
-  return formatPrice(price, {
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: whole ? 0 : 2,
-  })
-}
 
 interface ProductCardProps {
   product: {
