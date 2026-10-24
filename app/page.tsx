@@ -18,6 +18,7 @@ import { getAppSettings, type HomeSectionConfig } from '@/lib/app-settings'
 import { findManyProductsCompat } from '@/lib/product-db'
 import { resolveStoreContext } from '@/lib/store-context'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
+import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -235,7 +236,7 @@ async function getHomeData() {
         image: banner.image,
         link: banner.link,
         bgColor: banner.bgColor,
-        bgGradient: banner.bgGradient ?? null,
+        bgGradient: normalizeBannerBgGradient(banner.bgGradient),
         products: bannerProducts.map((p) => ({
           id: p.id,
           name: p.name,

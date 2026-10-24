@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { isVideoMediaUrl, resolveImageUrl } from '@/lib/image-url'
 import { formatPriceNoDecimals } from '@/lib/utils'
+import type { BannerBgGradient } from '@/lib/banner-bg-gradient'
 
 export type HomeFeedBanner = {
   id: string
@@ -13,6 +14,7 @@ export type HomeFeedBanner = {
   image: string
   link?: string | null
   bgColor?: string | null
+  bgGradient?: BannerBgGradient | null
   products?: Array<{
     id: string
     name: string

@@ -22,6 +22,7 @@ export default function HomeValueDeals({
   title?: string
   subtitle?: string
   promoText?: string
+  unlockAmount?: number
 }) {
   if (products.length === 0) return null
 
