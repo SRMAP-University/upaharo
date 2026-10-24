@@ -8,6 +8,15 @@ import { formatPrice } from '@/lib/utils'
 import { resolveImageUrl } from '@/lib/image-url'
 import FoodTypeBadge from '@/components/FoodTypeBadge'
 
+/** Whole rupees drop the ".00" so prices fit on narrow cards. */
+function formatCardPrice(price: number): string {
+  const whole = Math.abs(price - Math.round(price)) < 0.005
+  return formatPrice(price, {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })
+}
+
 interface ProductCardProps {
   product: {
     id: string
@@ -35,7 +44,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: discountedPrice,
       image: imageUrl,
       isVeg: product.isVeg,
     })
@@ -61,7 +70,8 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/products/${product.id}`}>
-      <div className="group bg-white rounded-[22px] overflow-hidden border border-wine/10 cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:border-wine/20 hover:shadow-[0_26px_55px_-38px_rgba(124,42,71,0.85)] active:scale-[0.985]">
+      {/* Hover lift only on mouse devices — on phones it sticks after a tap. */}
+      <div className="group bg-white rounded-[22px] overflow-hidden border border-wine/10 cursor-pointer transition-all duration-300 [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:border-wine/20 [@media(hover:hover)]:hover:shadow-[0_26px_55px_-38px_rgba(124,42,71,0.85)] active:scale-[0.985]">
       <div className="relative aspect-square w-full overflow-hidden">
         {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-cream-deep" /> : null}
         <Image
@@ -85,12 +95,12 @@ export default function ProductCard({ product }: ProductCardProps) {
         {/* Discount badge */}
         {product.discount && product.discount > 0 && (
           <div className="absolute top-2.5 right-2.5 bg-wine text-white px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide shadow-[0_10px_22px_-14px_rgba(124,42,71,0.9)]">
-            {product.discount}% OFF
+            {Math.round(product.discount)}% OFF
           </div>
         )}
       </div>
 
-      <div className="p-3.5">
+      <div className="p-3">
         <h3 className="font-display text-[15px] font-semibold text-ink mb-0.5 line-clamp-1">
           {product.name}
         </h3>
@@ -98,33 +108,34 @@ export default function ProductCard({ product }: ProductCardProps) {
           {cardDescription}
         </p>
 
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
+        {/* Prices never break mid-amount; the button drops below if both cannot fit. */}
+        <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-2">
+          <div className="min-w-0 leading-tight">
             {product.discount && product.discount > 0 ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[15px] font-semibold text-wine">
-                  {formatPrice(discountedPrice)}
-                </span>
-                <span className="text-xs text-ink/35 line-through">
-                  {formatPrice(product.price)}
-                </span>
-              </div>
+              <>
+                <p className="whitespace-nowrap text-[15px] font-semibold text-wine">
+                  {formatCardPrice(discountedPrice)}
+                </p>
+                <p className="whitespace-nowrap text-[11px] text-ink/35 line-through">
+                  {formatCardPrice(product.price)}
+                </p>
+              </>
             ) : (
-              <span className="text-[15px] font-semibold text-ink">
-                {formatPrice(product.price)}
-              </span>
+              <p className="whitespace-nowrap text-[15px] font-semibold text-ink">
+                {formatCardPrice(product.price)}
+              </p>
             )}
           </div>
 
           {quantity === 0 ? (
             <button
               onClick={handleAdd}
-              className="bg-wine text-white px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] whitespace-nowrap transition hover:bg-wine-deep active:scale-95"
+              className="ml-auto flex-shrink-0 bg-wine text-white px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] whitespace-nowrap transition hover:bg-wine-deep active:scale-95"
             >
               Add
             </button>
           ) : (
-            <div className="flex items-center bg-wine text-white rounded-full shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] overflow-hidden">
+            <div className="ml-auto flex flex-shrink-0 items-center bg-wine text-white rounded-full shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] overflow-hidden">
               <button
                 onClick={handleDecrement}
                 className="w-7 h-7 flex items-center justify-center text-sm font-bold leading-none transition hover:bg-wine-deep active:scale-90"

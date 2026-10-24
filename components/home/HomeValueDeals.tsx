@@ -49,7 +49,7 @@ export default function HomeValueDeals({
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide lg:grid lg:grid-cols-5 lg:gap-5 lg:overflow-visible xl:grid-cols-6">
         {products.map((product) => (
-          <div key={product.id} className="w-[148px] flex-shrink-0 sm:w-[168px] lg:w-auto">
+          <div key={product.id} className="w-[168px] flex-shrink-0 lg:w-auto">
             <ProductCard product={product as any} />
           </div>
         ))}

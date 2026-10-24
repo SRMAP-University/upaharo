@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Playfair_Display } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Suspense } from 'react'
 import './globals.css'
 import { Providers } from './providers'
@@ -37,14 +37,6 @@ const inter = Inter({
   display: 'swap',
   preload: true,
   variable: '--font-sans',
-})
-
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  display: 'swap',
-  weight: ['500', '600', '700'],
-  style: ['normal', 'italic'],
-  variable: '--font-display',
 })
 
 export function generateViewport(): Viewport {
@@ -157,7 +149,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={`${inter.variable} ${playfair.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans`} suppressHydrationWarning>
         <Providers>
           <Suspense fallback={null}>
             <RouteLoader />
