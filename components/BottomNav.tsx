@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 
 function formatRupee(amount: number) {
-  return `₹${Math.ceil(amount).toLocaleString('en-IN')}`
+  return `Rs. ${Math.ceil(amount).toLocaleString('en-IN')}`
 }
 
 export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boolean }) {
@@ -80,7 +80,9 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
 
   const remaining = Math.max(0, freeDeliveryMin - cartTotal)
   const unlocked = remaining <= 0
-  const showProgress = deliveryFee > 0 && cartCount > 0
+  // The cart and checkout pages show their own totals; the chip would cover them.
+  const onCartFlow = pathname === '/cart' || Boolean(pathname?.startsWith('/checkout'))
+  const showProgress = deliveryFee > 0 && cartCount > 0 && !onCartFlow
   const progress =
     freeDeliveryMin <= 0 ? 1 : Math.min(1, Math.max(0, cartTotal / freeDeliveryMin))
 
