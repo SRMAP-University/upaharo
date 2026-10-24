@@ -5,6 +5,7 @@ import 'config/routes.dart';
 import 'config/flavor.dart';
 import 'config/theme.dart';
 import 'core/navigation/app_navigator.dart';
+import 'core/navigation/deep_links.dart';
 import 'presentation/providers/settings_provider.dart';
 import 'presentation/screens/account/about_screen.dart';
 import 'presentation/screens/account/account_screen.dart';
@@ -29,6 +30,8 @@ import 'presentation/screens/wallet/wallet_screen.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
 import 'presentation/screens/wishlist/wishlist_screen.dart';
 
+final List<NavigatorObserver> _navigatorObservers = <NavigatorObserver>[DeepLinks.instance];
+
 class UpaharoApp extends StatelessWidget {
   const UpaharoApp({super.key});
 
@@ -36,13 +39,26 @@ class UpaharoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>().settings;
     AppTheme.applyTokens(settings);
+    // Registered before MaterialApp so shared links reach DeepLinks first.
+    DeepLinks.instance.listen();
 
     return MaterialApp(
       navigatorKey: appNavigatorKey,
+      navigatorObservers: _navigatorObservers,
       title: FlavorConfig.appName,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: AppRoutes.launch,
+      // A launch link such as /products/<id> must not skip the launch screen.
+      onGenerateInitialRoutes: (initialRoute) {
+        DeepLinks.instance.captureLaunchLink(initialRoute);
+        return <Route<dynamic>>[
+          MaterialPageRoute<void>(
+            settings: const RouteSettings(name: AppRoutes.launch),
+            builder: (_) => const LaunchLoadingScreen(),
+          ),
+        ];
+      },
       routes: <String, WidgetBuilder>{
         AppRoutes.launch: (_) => const LaunchLoadingScreen(),
         AppRoutes.welcome: (_) => const WelcomeScreen(),
