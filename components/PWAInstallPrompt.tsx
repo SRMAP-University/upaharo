@@ -11,8 +11,9 @@ type BeforeInstallPromptEvent = Event & {
 
 export default function PWAInstallPrompt() {
   const pathname = usePathname() || ''
+  // Bills, and web features that run inside the app, never offer an install.
   const hideOnBill =
-    pathname.startsWith('/bill/') || pathname.startsWith('/b/')
+    pathname.startsWith('/bill/') || pathname.startsWith('/b/') || pathname.startsWith('/app-features/')
   const [showInstall, setShowInstall] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 

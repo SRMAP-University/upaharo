@@ -792,6 +792,30 @@ model Occasion {
   @@index([storeId, isActive])
 }
 
+/// A server-driven feature the app runtime loads from /api/features
+/// (see lib/app-features.ts). Created by scripts/_ensure-app-features.mjs.
+model AppFeature {
+  id            String    @id @default(cuid())
+  storeId       String
+  key           String
+  name          String
+  type          String
+  enabled       Boolean   @default(true)
+  platforms     String[]  @default([])
+  minRuntime    Int       @default(1)
+  minAppVersion String?
+  maxAppVersion String?
+  startsAt      DateTime?
+  endsAt        DateTime?
+  priority      Int       @default(0)
+  config        Json      @default("{}")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  @@unique([storeId, key])
+  @@index([storeId])
+}
+
 model AppSettings {
   id                           String   @id @default(cuid())
   storeId                      String   @unique

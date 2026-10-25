@@ -10,6 +10,7 @@ import {
 } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
 import { useCartStore } from '@/lib/store/cart'
+import { useAppFeatureEnabled } from '@/lib/use-app-feature'
 import {
   DEFAULT_ADDED_LINES,
   productMascotScript,
@@ -273,6 +274,13 @@ export function useProductMascot(product: (MascotProduct & { id: string }) | nul
   return script
 }
 
+type NavMascotProps = {
+  className?: string
+  hidden?: boolean
+  script?: MascotScript
+  scriptKey?: string
+}
+
 /**
  * Gift-box buddy that peeks over the bottom nav and reacts when tapped.
  * Position it with `className`; it sits behind its container (z -1) so the
@@ -281,18 +289,15 @@ export function useProductMascot(product: (MascotProduct & { id: string }) | nul
  * Besides taps it celebrates cart additions, follows the pointer with its
  * eyes, glances around, naps when the page is left alone, and says the
  * page's `script` lines (an `intro` plays once per `scriptKey`).
+ *
+ * Switching the `gift-buddy` feature off in Admin → App Features hides it.
  */
-export default function NavMascot({
-  className = '',
-  hidden = false,
-  script,
-  scriptKey,
-}: {
-  className?: string
-  hidden?: boolean
-  script?: MascotScript
-  scriptKey?: string
-}) {
+export default function NavMascot(props: NavMascotProps) {
+  const live = useAppFeatureEnabled('gift-buddy')
+  return live ? <GiftBuddy {...props} /> : null
+}
+
+function GiftBuddy({ className = '', hidden = false, script, scriptKey }: NavMascotProps) {
   const reduceMotion = useReducedMotion()
   const body = useAnimationControls()
   const spin = useAnimationControls()
