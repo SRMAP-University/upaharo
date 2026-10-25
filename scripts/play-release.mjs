@@ -167,7 +167,7 @@ async function upload(getToken, pkg, flags) {
     usage('--aab <path to .aab> is required and must exist')
   }
   const track = String(flags.track || 'internal')
-  if (!TRACKS.includes(track)) usage(`--track must be one of ${TRACKS.join(', ')}`)
+  if (!track || track === 'true') usage(`--track needs a name (${TRACKS.join(', ')} or a custom testing track)`)
   guardProduction(track, flags)
   const dryRun = Boolean(flags['dry-run'])
   const fraction = rollout(flags)
@@ -204,7 +204,7 @@ async function promote(getToken, pkg, flags) {
   const to = String(flags.to || '')
   const from = String(flags.from || 'internal')
   if (!versionCode) usage('--version-code <n> is required')
-  if (!TRACKS.includes(to)) usage(`--to must be one of ${TRACKS.join(', ')}`)
+  if (!to || to === 'true') usage(`--to needs a track (${TRACKS.join(', ')} or a custom testing track)`)
   guardProduction(to, flags)
   const dryRun = Boolean(flags['dry-run'])
   const fraction = rollout(flags)
