@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, use, useEffect, useState } from 'react'
+import { Suspense, use, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ProductCategoryFields from '@/components/ProductCategoryFields'
@@ -10,6 +10,7 @@ import ProductGalleryFields from '@/components/admin/ProductGalleryFields'
 import ProductInventoryFields from '@/components/admin/ProductInventoryFields'
 import SubProductSelector from '@/components/admin/SubProductSelector'
 import ProductPickupFields from '@/components/admin/ProductPickupFields'
+import ProductSellerField from '@/components/admin/ProductSellerField'
 import { uploadProductImage } from '@/lib/upload-image'
 import { adminProductsListFromSearchParams } from '@/lib/admin-products-list'
 import {
@@ -52,6 +53,8 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [storeSlug, setStoreSlug] = useState('')
+  // Seller as loaded; the save only sends a seller when the admin changes it.
+  const loadedSellerIdRef = useRef('')
   const [formData, setFormData] = useState({
     name: '',
     miniDescription: '',
@@ -79,6 +82,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
     pickupLatitude: null as number | null,
     pickupLongitude: null as number | null,
     pickupAddress: '',
+    sellerId: '',
   })
 
   const minutesPerDay = 24 * 60
@@ -298,7 +302,9 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
             ? Number(product.pickupLongitude)
             : null,
           pickupAddress: String(product.pickupAddress || ''),
+          sellerId: String(product.sellerId || ''),
         })
+        loadedSellerIdRef.current = String(product.sellerId || '')
         setStoreSlug(String(product.store?.slug || product.storeSlug || ''))
         void fetch('/api/admin/store', { cache: 'no-store' })
           .then((r) => (r.ok ? r.json() : null))
@@ -340,6 +346,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          sellerId: formData.sellerId === loadedSellerIdRef.current ? undefined : formData.sellerId,
           wholesalePrice:
             formData.wholesalePrice === '' || formData.wholesalePrice == null
               ? null
@@ -549,6 +556,13 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                   <p className="mt-1 text-xs text-ink/55">Shown on product page as: {formatTime(formData.prepTime)}</p>
                 </div>
               </div>
+            </section>
+
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <ProductSellerField
+                value={formData.sellerId}
+                onChange={(sellerId) => setFormData((prev) => ({ ...prev, sellerId }))}
+              />
             </section>
 
             <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">

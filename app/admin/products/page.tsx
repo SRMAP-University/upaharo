@@ -22,6 +22,7 @@ interface Product {
   sku?: string | null
   trackStock?: boolean
   stockQty?: number | null
+  sellerId?: string | null
 }
 
 function stockLabel(product: Product) {
@@ -42,6 +43,7 @@ function AdminProductsContent() {
   const urlArchived = urlParams.get('archived') === '1'
 
   const [products, setProducts] = useState<Product[]>([])
+  const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState(urlSearch)
@@ -76,6 +78,19 @@ function AdminProductsContent() {
     }),
     [availability, category, currentPage, debouncedSearch, showArchived, sort]
   )
+
+  // Seller names for the "Seller" line on each product.
+  useEffect(() => {
+    fetch('/api/admin/sellers', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!Array.isArray(data)) return
+        setSellerNames(
+          Object.fromEntries(data.map((s: { id: string; businessName: string }) => [s.id, s.businessName]))
+        )
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(searchQuery.trim()), 300)
@@ -528,6 +543,11 @@ function AdminProductsContent() {
                               {product.sku ? (
                                 <div className="text-xs text-ink/45 mt-0.5">SKU {product.sku}</div>
                               ) : null}
+                              {product.sellerId ? (
+                                <div className="text-xs text-ink/55 mt-0.5">
+                                  Seller · {sellerNames[product.sellerId] || 'Unknown seller'}
+                                </div>
+                              ) : null}
                               {stock ? (
                                 <span
                                   className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${stock.className}`}
@@ -634,6 +654,11 @@ function AdminProductsContent() {
                         <div className="text-xs text-ink/55">{product.category}</div>
                         {product.sku ? (
                           <div className="text-[11px] text-ink/45">SKU {product.sku}</div>
+                        ) : null}
+                        {product.sellerId ? (
+                          <div className="text-[11px] text-ink/55">
+                            Seller · {sellerNames[product.sellerId] || 'Unknown seller'}
+                          </div>
                         ) : null}
                         <div className="mt-1 text-xs font-semibold text-ink">
                           Rs. {product.price}

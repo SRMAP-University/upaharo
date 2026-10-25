@@ -13,6 +13,7 @@ import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { resolveProductSellerId } from '@/lib/product-seller'
 
 function toNumber(value: unknown, fallback: number) {
   const n = Number(value)
@@ -201,7 +202,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const seller = await resolveProductSellerId(body?.sellerId)
+    if (!seller.ok) {
+      return NextResponse.json({ error: seller.error }, { status: 400 })
+    }
+
     const data = {
+      ...(seller.sellerId ? { sellerId: seller.sellerId } : {}),
       storeId: storeContext.store.id,
       name,
       miniDescription: String(body?.miniDescription || '').trim() || null,

@@ -11,6 +11,7 @@ import { normalizePickupInput } from '@/lib/pickup'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { resolveProductSellerId } from '@/lib/product-seller'
 
 type ProductVariantInput = {
   color?: unknown
@@ -105,6 +106,14 @@ export async function PATCH(
         return NextResponse.json({ error: 'Invalid product category' }, { status: 400 })
       }
       data.category = category
+    }
+
+    if (body?.sellerId !== undefined) {
+      const seller = await resolveProductSellerId(body.sellerId)
+      if (!seller.ok) {
+        return NextResponse.json({ error: seller.error }, { status: 400 })
+      }
+      data.sellerId = seller.sellerId
     }
 
     if (body?.variants !== undefined) {
