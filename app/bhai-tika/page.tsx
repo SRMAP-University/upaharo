@@ -13,9 +13,8 @@ import {
   TikaDots,
   festiveStyles,
 } from '@/components/festive/FestiveDecor'
-import { prisma } from '@/lib/prisma'
-import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
-import { findManyProductsCompat } from '@/lib/product-db'
+import { bhaiTikaCountdown } from '@/lib/festival-dates'
+import { getFestiveSections, type FestiveSection } from '@/lib/festive-products'
 import { resolveStoreContext } from '@/lib/store-context'
 
 export const dynamic = 'force-dynamic'
@@ -33,65 +32,6 @@ export const metadata: Metadata = {
   },
 }
 
-type SectionDef = {
-  id: string
-  eyebrow: string
-  title: string
-  subtitle: string
-  /** Category names, matched case-insensitively and ignoring spaces at the ends. */
-  categories: string[]
-  tags?: string[]
-}
-
-const SECTIONS: SectionDef[] = [
-  {
-    id: 'bhai-tika',
-    eyebrow: 'The main event',
-    title: 'Bhai Tika specials',
-    subtitle: 'Hampers and gift sets made for the day.',
-    categories: ['bhai tika'],
-    tags: ['Bhai Tika', 'Bhai tika'],
-  },
-  {
-    id: 'brother',
-    eyebrow: 'For him',
-    title: 'Gifts for your brother',
-    subtitle: 'Something he’ll love long after the tika.',
-    categories: ['gifts for brother'],
-  },
-  {
-    id: 'sister',
-    eyebrow: 'For her',
-    title: 'Gifts for your sister',
-    subtitle: 'Thank her for every blessing.',
-    categories: ['gifts for sister'],
-  },
-  {
-    id: 'puja',
-    eyebrow: 'For the ceremony',
-    title: 'Tika & puja essentials',
-    subtitle: 'Everything for the thali and the ritual.',
-    categories: ['tihar puja essentials'],
-  },
-  {
-    id: 'tihar',
-    eyebrow: 'All of Tihar',
-    title: 'More Tihar favourites',
-    subtitle: 'Festive picks for the five days of lights.',
-    categories: ['tihar special', 'dasahin & tihar'],
-    tags: ['Tihar Special', 'Tihar'],
-  },
-  {
-    id: 'under-999',
-    eyebrow: 'Easy on the pocket',
-    title: 'Under Rs 999',
-    subtitle: 'Sweet gestures for every budget.',
-    categories: ['under rs 999'],
-  },
-]
-
-const PER_SECTION = 12
-
 const TRADITIONS = [
   {
     title: 'Saptarangi tika',
@@ -107,82 +47,15 @@ const TRADITIONS = [
   },
 ]
 
-type SectionData = SectionDef & {
-  products: any[]
-  total: number
-  seeAllHref: string | null
-}
-
-async function getFestiveSections(): Promise<SectionData[]> {
+async function loadSections(): Promise<FestiveSection[]> {
   try {
     const h = await headers()
     const host = h.get('host') || 'www.upaharo.com'
     const storeContext = await resolveStoreContext({ headers: h, url: `https://${host}/bhai-tika` })
-    const storeId = storeContext?.store.id
-
-    // Product categories live on product.category; occasions (Bhai Tika, Gifts for
-    // Brother, …) are saved on products as tags with the trimmed occasion name.
-    const categories = await prisma.category.findMany({
-      where: { type: { in: ['PRODUCT', 'OCCASION'] }, isActive: true, ...(storeId ? { storeId } : {}) },
-      select: { id: true, name: true, type: true },
-    })
-    type FestiveCategory = { id: string; name: string; type: string }
-    const byName = new Map(categories.map((c) => [c.name.trim().toLowerCase(), c as FestiveCategory]))
-    const sectionCategories = SECTIONS.map((s) =>
-      s.categories.map((name) => byName.get(name)).filter((c): c is FestiveCategory => Boolean(c))
-    )
-    const matchesCategory = (c: FestiveCategory, product: { category?: string; tags?: string[] }) =>
-      c.type === 'PRODUCT'
-        ? product.category === c.name
-        : Array.isArray(product.tags) && product.tags.includes(c.name.trim())
-    const categoryNames = Array.from(
-      new Set(sectionCategories.flat().filter((c) => c.type === 'PRODUCT').map((c) => c.name))
-    )
-    const tagNames = Array.from(
-      new Set([
-        ...SECTIONS.flatMap((s) => s.tags || []),
-        ...sectionCategories.flat().filter((c) => c.type !== 'PRODUCT').map((c) => c.name.trim()),
-      ])
-    )
-
-    const products = await findManyProductsCompat({
-      where: {
-        isAvailable: true,
-        ...(storeId ? { storeId } : {}),
-        NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
-        OR: [
-          ...(categoryNames.length ? [{ category: { in: categoryNames } }] : []),
-          { tags: { hasSome: tagNames } },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 240,
-    })
-
-    // Each product shows once, in the first section it belongs to.
-    const buckets = SECTIONS.map(() => [] as any[])
-    for (const product of products as any[]) {
-      const tags: string[] = Array.isArray(product.tags) ? product.tags : []
-      const index = SECTIONS.findIndex((section, i) => {
-        const inCategory = sectionCategories[i].some((c) => matchesCategory(c, product))
-        const tagged = (section.tags || []).some((tag) => tags.includes(tag))
-        return inCategory || tagged
-      })
-      if (index >= 0) buckets[index].push(product)
-    }
-
-    return SECTIONS.map((section, i) => {
-      const firstCategory = sectionCategories[i][0]
-      return {
-        ...section,
-        products: buckets[i].slice(0, PER_SECTION),
-        total: buckets[i].length,
-        seeAllHref: firstCategory ? `/categories/${firstCategory.id}` : null,
-      }
-    })
+    return await getFestiveSections(storeContext?.store.id)
   } catch (error) {
     console.error('Bhai Tika page data failed:', error)
-    return SECTIONS.map((section) => ({ ...section, products: [], total: 0, seeAllHref: null }))
+    return []
   }
 }
 
@@ -196,7 +69,7 @@ function MarigoldDot() {
   )
 }
 
-function ProductSection({ section }: { section: SectionData }) {
+function ProductSection({ section }: { section: FestiveSection }) {
   return (
     <section id={section.id} className="scroll-mt-6">
       <div className="mb-4 flex items-end justify-between gap-4 lg:mb-6">
@@ -227,7 +100,8 @@ function ProductSection({ section }: { section: SectionData }) {
 }
 
 export default async function BhaiTikaPage() {
-  const sections = await getFestiveSections()
+  const sections = await loadSections()
+  const countdown = bhaiTikaCountdown()
   const filled = sections.filter((s) => s.products.length > 0)
   const firstId = filled[0]?.id
   // Hero buttons only point at sections that have products right now.
@@ -272,6 +146,36 @@ export default async function BhaiTikaPage() {
           >
             भाइटीका
           </p>
+          {countdown ? (
+            <div
+              className={`${festiveStyles.rise} mx-auto mt-6 inline-flex items-center gap-4 rounded-3xl border border-amber-200/30 bg-white/10 px-5 py-3 text-left backdrop-blur`}
+              style={{ ['--delay' as string]: '0.2s' }}
+            >
+              {countdown.daysLeft === 0 ? (
+                <>
+                  <span className="text-4xl" aria-hidden>
+                    🪔
+                  </span>
+                  <span>
+                    <span className="block text-lg font-semibold text-white">Bhai Tika is today</span>
+                    <span className="block text-xs text-white/65">Happy Bhai Tika! · {countdown.dateLabel}</span>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-5xl font-bold tabular-nums leading-none text-amber-300 lg:text-6xl">
+                    {countdown.daysLeft}
+                  </span>
+                  <span>
+                    <span className="block text-base font-semibold text-white lg:text-lg">
+                      {countdown.daysLeft === 1 ? 'day to Bhai Tika' : 'days to Bhai Tika'}
+                    </span>
+                    <span className="block text-xs text-white/65 lg:text-sm">{countdown.dateLabel}</span>
+                  </span>
+                </>
+              )}
+            </div>
+          ) : null}
           <p
             className={`${festiveStyles.rise} mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/80 lg:text-lg`}
             style={{ ['--delay' as string]: '0.24s' }}

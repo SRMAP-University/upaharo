@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { bhaiTikaCountdown } from '@/lib/festival-dates'
 import {
   DiyaRow,
   FallingPetals,
@@ -9,6 +10,15 @@ import {
 
 /** Home page doorway to the Bhai Tika collection (shown while festival mode is on). */
 export default function BhaiTikaEntry() {
+  const countdown = bhaiTikaCountdown()
+  const countdownText = countdown
+    ? countdown.daysLeft === 0
+      ? 'Today!'
+      : countdown.daysLeft === 1
+        ? '1 day to go'
+        : `${countdown.daysLeft} days to go`
+    : null
+
   return (
     <Link
       href="/bhai-tika"
@@ -21,7 +31,14 @@ export default function BhaiTikaEntry() {
 
       <div className="relative flex items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">Tihar special</p>
+          <p className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/90">
+            Tihar special
+            {countdownText ? (
+              <span className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold normal-case tracking-normal text-[#3a0f20]">
+                {countdownText}
+              </span>
+            ) : null}
+          </p>
           <p className="mt-1.5 flex flex-wrap items-baseline gap-x-3 leading-none">
             <span className={`${festiveStyles.shimmerText} text-[38px] font-bold tracking-tight lg:text-6xl`}>
               Bhai Tika
