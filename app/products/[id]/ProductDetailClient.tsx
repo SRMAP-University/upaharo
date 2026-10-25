@@ -10,6 +10,7 @@ import ProductCard from '@/components/ProductCard'
 import { useCartStore } from '@/lib/store/cart'
 import { resolveImageUrl } from '@/lib/image-url'
 import FoodTypeBadge from '@/components/FoodTypeBadge'
+import NavMascot, { useProductMascot } from '@/components/NavMascot'
 import RecommendationShelf from '@/components/recommendations/RecommendationShelf'
 import { getOrCreateRecommendationSessionId, rememberViewedProduct } from '@/lib/recommendation-session'
 import { rememberViewedCategory } from '@/lib/personalization-consent'
@@ -174,6 +175,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
   const requestIdRef = useRef(0)
   const galleryRef = useRef<HTMLDivElement | null>(null)
   const descriptionRef = useRef<HTMLDivElement | null>(null)
+  const mascotScript = useProductMascot(product)
 
   useEffect(() => {
     void fetchProductData()
@@ -635,7 +637,8 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
             ) : null}
 
             {/* Desktop purchase row; phones use the sticky bar */}
-            <div className="mt-7 hidden items-center gap-3 lg:flex">
+            <div className="relative isolate mt-7 hidden items-center gap-3 lg:flex">
+              <NavMascot className="bottom-full left-2" script={mascotScript} scriptKey={product.id} />
               <QuantityStepper value={quantity} onChange={setQuantity} size="lg" />
               <button
                 type="button"
@@ -798,25 +801,30 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
       </div>
 
       {/* Sticky purchase bar on phones */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-ink/10 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-md items-center gap-3">
-          <QuantityStepper value={quantity} onChange={setQuantity} />
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={!product.isAvailable}
-            className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-2xl bg-wine px-4 text-[15px] font-semibold text-white transition hover:bg-wine-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:justify-center disabled:bg-ink/20"
-          >
-            <span className="truncate">{addToCartLabel}</span>
-            {product.isAvailable ? (
-              <span className="flex-shrink-0 whitespace-nowrap">{formatPriceCompact(finalPrice * quantity)}</span>
-            ) : null}
-          </button>
+      <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
+        {/* The gift buddy peeks over the bar and chats about this product. */}
+        <NavMascot className="bottom-full left-4" script={mascotScript} scriptKey={product.id} />
+        <div className="border-t border-ink/10 bg-white/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur">
+          <div className="mx-auto flex max-w-md items-center gap-3">
+            <QuantityStepper value={quantity} onChange={setQuantity} />
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={!product.isAvailable}
+              className="flex h-12 min-w-0 flex-1 items-center justify-between gap-2 rounded-2xl bg-wine px-4 text-[15px] font-semibold text-white transition hover:bg-wine-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:justify-center disabled:bg-ink/20"
+            >
+              <span className="truncate">{addToCartLabel}</span>
+              {product.isAvailable ? (
+                <span className="flex-shrink-0 whitespace-nowrap">{formatPriceCompact(finalPrice * quantity)}</span>
+              ) : null}
+            </button>
+          </div>
         </div>
       </div>
 
       {cartToastMessage ? (
-        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[70] flex justify-center lg:bottom-8">
+        // Sits above the buddy's speech bubble on phones.
+        <div className="pointer-events-none fixed inset-x-0 bottom-40 z-[70] flex justify-center lg:bottom-8">
           <div className="animate-slide-up rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white shadow-xl">
             {cartToastMessage}
           </div>

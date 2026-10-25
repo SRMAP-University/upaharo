@@ -260,7 +260,7 @@ function scrubJunkSearch(filters?: SearchFilters | null): SearchFilters | undefi
   return hasAnyFilter(next) ? next : undefined
 }
 
-async function fetchCloudflareAI(
+export async function fetchCloudflareAI(
   accountId: string,
   apiToken: string,
   messages: Array<{ role: string; content: string }>

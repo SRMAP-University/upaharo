@@ -134,6 +134,7 @@ export const REDIS_KEYS = {
   CATEGORIES: (store: string, type: string) => `cache:${store}:categories:${type}`,
   PRODUCT_LIST: (store: string, query: string) => `cache:${store}:products:${query}`,
   PRODUCT_DETAIL: (store: string, id: string) => `cache:${store}:product:${id}`,
+  MASCOT_PRODUCT: (store: string, id: string, version: string) => `cache:${store}:mascot:product:${id}:${version}`,
   PRODUCT_RECOMMENDATIONS: (store: string, productId: string, viewedKey: string) =>
     `cache:${store}:product-recommendations:${productId}:${viewedKey}`,
   CART_RECOMMENDATIONS: (store: string, productKey: string, viewedKey: string) =>

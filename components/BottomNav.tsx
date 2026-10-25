@@ -4,7 +4,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
 import { motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { greeting, pageMascotScript } from '@/lib/mascot-lines'
 import NavMascot from './NavMascot'
 
 function formatRupee(amount: number) {
@@ -24,7 +25,25 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
   const [visible, setVisible] = useState(true)
   const [freeDeliveryMin, setFreeDeliveryMin] = useState(199)
   const [deliveryFee, setDeliveryFee] = useState(40)
+  const [homeGreeting, setHomeGreeting] = useState<string>()
   const lastScrollYRef = useRef(0)
+
+  // The mascot says hello on the home page once per visit.
+  useEffect(() => {
+    if (pathname !== '/') return
+    try {
+      if (sessionStorage.getItem('mascot-greeted')) return
+      sessionStorage.setItem('mascot-greeted', '1')
+    } catch {
+      // storage blocked: greet anyway
+    }
+    setHomeGreeting(greeting(new Date().getHours()))
+  }, [pathname])
+
+  const mascotScript = useMemo(
+    () => ({ ...pageMascotScript(pathname || '/', cartCount), intro: pathname === '/' ? homeGreeting : undefined }),
+    [pathname, cartCount, homeGreeting]
+  )
 
   useEffect(() => {
     setMounted(true)
@@ -219,7 +238,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden safe-area-bottom"
       >
         {/* Perches on whatever sits on top: the delivery chip or the bar. */}
-        <NavMascot className="bottom-full left-4" hidden={!visible} />
+        <NavMascot className="bottom-full left-4" hidden={!visible} script={mascotScript} scriptKey={pathname ?? '/'} />
         {mounted && showProgress && (
           <div className="px-3 pb-2">{freeDeliveryChip}</div>
         )}
@@ -250,7 +269,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         className={`fixed bottom-6 left-1/2 z-50 ${hideDesktop ? 'hidden' : 'hidden lg:block'}`}
       >
         <div className="relative flex w-[min(480px,90vw)] flex-col gap-2">
-          <NavMascot className="bottom-full left-7" />
+          <NavMascot className="bottom-full left-7" script={mascotScript} scriptKey={pathname ?? '/'} />
           {mounted && showProgress && freeDeliveryChip}
           <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
             <div className="flex items-center gap-4">
