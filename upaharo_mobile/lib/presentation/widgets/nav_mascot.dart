@@ -390,9 +390,10 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                // Sits above the buddy's head so it clears the nav tabs.
                 Positioned(
-                  left: _anchor.dx + size * 0.85,
-                  bottom: _stageSize.height - (_anchor.dy + size * 0.38),
+                  left: _anchor.dx + size * 0.75,
+                  bottom: _stageSize.height - _anchor.dy + 2,
                   child: _buildBubble(),
                 ),
               ],
