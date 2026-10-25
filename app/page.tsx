@@ -12,6 +12,7 @@ import HomeFeedBannerSection, { type HomeFeedBanner } from '@/components/home/Ho
 import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
 import AppDownloadCta from '@/components/AppDownloadCta'
+import BhaiTikaEntry from '@/components/home/BhaiTikaEntry'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { getAppSettings, type HomeSectionConfig } from '@/lib/app-settings'
@@ -549,6 +550,8 @@ export default async function Home() {
       />
 
       <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
+        {/* Admin "festival mode" switches the Bhai Tika entry on and off. */}
+        {settings.festivalMode !== false ? <BhaiTikaEntry /> : null}
         {visibleSections.map((section) => renderSection(section))}
 
         {extraFeedSections.map((section) => (
