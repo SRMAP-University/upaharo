@@ -702,8 +702,18 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     );
   }
 
+  /// True when the buddy sits on the right half of the screen, so its
+  /// bubble grows leftward instead of off the edge.
+  bool _bubbleOnLeft(BuildContext overlayContext) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return false;
+    final centerX = box.localToGlobal(box.size.center(Offset.zero)).dx;
+    return centerX > MediaQuery.sizeOf(overlayContext).width / 2;
+  }
+
   Widget _buildOverlay(BuildContext context) {
     final size = widget.size;
+    final flip = _bubbleOnLeft(context);
     return Positioned(
       left: 0,
       top: 0,
@@ -733,9 +743,10 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
                   for (var i = 0; i < 3; i++) _buildZ(i, size),
                 // Sits above the buddy's head so it clears the nav tabs.
                 Positioned(
-                  left: _anchor.dx + size * 0.75,
+                  left: flip ? null : _anchor.dx + size * 0.75,
+                  right: flip ? _stageSize.width - (_anchor.dx + size * 0.25) : null,
                   bottom: _stageSize.height - _anchor.dy + 2,
-                  child: _buildBubble(),
+                  child: _buildBubble(flip: flip),
                 ),
               ],
             ),
@@ -773,7 +784,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildBubble() {
+  Widget _buildBubble({bool flip = false}) {
     final text = _line;
     return AnimatedBuilder(
       animation: _bubble,
@@ -782,7 +793,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
         return Opacity(
           opacity: v.clamp(0.0, 1.0),
           child: Transform.scale(
-            alignment: Alignment.bottomLeft,
+            alignment: flip ? Alignment.bottomRight : Alignment.bottomLeft,
             scale: 0.6 + 0.4 * Curves.easeOutBack.transform(v),
             child: child,
           ),
@@ -795,11 +806,12 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(16),
-              topRight: Radius.circular(16),
-              bottomRight: Radius.circular(16),
-              bottomLeft: Radius.circular(6),
+            // The small corner points at the buddy.
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(16),
+              topRight: const Radius.circular(16),
+              bottomRight: Radius.circular(flip ? 6 : 16),
+              bottomLeft: Radius.circular(flip ? 16 : 6),
             ),
             border: Border.all(color: _wine.withAlpha(26)),
             boxShadow: [

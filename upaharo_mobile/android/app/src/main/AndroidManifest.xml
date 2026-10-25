@@ -65,5 +65,8 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Truecaller OAuth (Android 11+ package visibility). -->
+        <package android:name="com.truecaller" />
+        <package android:name="com.truecaller.assistant" />
     </queries>
 </manifest>

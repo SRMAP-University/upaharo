@@ -3,11 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../config/theme.dart';
 import '../../../data/models/product.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_quick_sheet.dart';
 
@@ -59,10 +57,7 @@ class _TopPicksScreenState extends State<TopPicksScreen> {
                     16,
                     8,
                     16,
-                    100 +
-                        (context.watch<CartProvider>().totalItems > 0
-                            ? MiniCartBar.height + 8
-                            : 0),
+                    FloatingBottomChrome.clearance(context),
                   ),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
@@ -83,8 +78,9 @@ class _TopPicksScreenState extends State<TopPicksScreen> {
                     );
                   },
                 ),
-      bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 2) : null,
+      bottomNavigationBar: widget.showBottomNav
+          ? const FloatingBottomChrome(currentIndex: 2)
+          : null,
     );
   }
 }

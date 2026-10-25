@@ -41,7 +41,8 @@ class ImageResolver {
     }
     // Rewrite apex/www/netlify upload URLs onto the working API host.
     if (imageUrl.contains('/api/uploads?') &&
-        (imageUrl.contains('upaharo.com') || imageUrl.contains('netlify.app'))) {
+        (imageUrl.contains('upaharo.com') ||
+            imageUrl.contains('netlify.app'))) {
       final uri = Uri.tryParse(imageUrl);
       final key = uri?.queryParameters['key'];
       if (key != null && key.isNotEmpty) {
@@ -51,13 +52,23 @@ class ImageResolver {
     if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
       return imageUrl;
     }
-    return imageUrl;
+    if (imageUrl.startsWith('data:') || imageUrl.startsWith('//')) {
+      return imageUrl.startsWith('//') ? 'https:$imageUrl' : imageUrl;
+    }
+    // Admin-pasted values are often site-relative (`/uploads/hero.jpg`) or
+    // scheme-less (`cdn.host/hero.jpg`); both are unloadable as-is.
+    if (imageUrl.startsWith('/')) {
+      return '$base$imageUrl';
+    }
+    if (RegExp(r'^[\w.-]+\.[a-z]{2,}/').hasMatch(imageUrl)) {
+      return 'https://$imageUrl';
+    }
+    if (imageUrl.startsWith('assets/')) return imageUrl;
+    return '$base/$imageUrl';
   }
 
-  /// Resolved URL tuned for [quality] (smaller download for [ImageQuality.low]).
-  ///
-  /// High quality keeps the original asset URL when possible so we do not
-  /// re-encode through the Next optimizer.
+  /// Resolved URL tuned for [quality]. Thumbnails go through the image
+  /// optimizer so a category tile does not download the original PNG.
   static String resolveQuality(
     String? rawUrl, {
     ImageQuality quality = ImageQuality.high,
@@ -67,33 +78,15 @@ class ImageResolver {
     if (resolved.isEmpty) return '';
 
     if (quality == ImageQuality.high) {
-      // Unsplash / Cloudinary can still request a display-sized high encode.
-      final uri = Uri.tryParse(resolved);
-      final host = uri?.host.toLowerCase() ?? '';
-      if (host.contains('images.unsplash.com') ||
-          host.contains('res.cloudinary.com')) {
-        return variant(
-          resolved,
-          width: targetWidth ?? 1080,
-          quality: 80,
-        );
-      }
-      return resolved;
+      if (_isVideoUrl(resolved)) return resolved;
+      return variant(resolved, width: targetWidth ?? 1080, quality: 75);
     }
 
     if (quality == ImageQuality.medium) {
-      return variant(
-        resolved,
-        width: targetWidth ?? 384,
-        quality: 65,
-      );
+      return variant(resolved, width: targetWidth ?? 384, quality: 65);
     }
 
-    return variant(
-      resolved,
-      width: targetWidth ?? 96,
-      quality: 35,
-    );
+    return variant(resolved, width: targetWidth ?? 96, quality: 35);
   }
 
   /// Best-effort resize/quality rewrite for known CDNs + Upaharo uploads via Next image.
@@ -136,19 +129,27 @@ class ImageResolver {
       return trimmed;
     }
 
-    // Same-origin uploads via Next.js optimizer on the asset's own host.
-    // Do not rewrite onto apex/www while Netlify CDN mishandles upload cache keys.
-    if (host.contains('upaharo.com') ||
-        host.contains('vercel.app') ||
-        host == 'localhost' ||
-        host == '127.0.0.1') {
-      final origin = '${uri.scheme}://${uri.host}';
-      final w = _nearestNextWidth(width);
-      final q = quality.clamp(1, 100);
-      return '$origin/_next/image?url=${Uri.encodeComponent(trimmed)}&w=$w&q=$q';
+    // ImgBB and other hosts have no size parameter. A quick-pick tile was
+    // downloading the original 1MB+ PNG. Ask our image optimizer for a
+    // display-sized file instead. Videos stay on their own URL.
+    if (_isVideoUrl(trimmed) || trimmed.contains('/_next/image?')) {
+      return trimmed;
     }
 
-    return trimmed;
+    final origin = (host.contains('upaharo.com') ||
+            host.contains('vercel.app') ||
+            host == 'localhost' ||
+            host == '127.0.0.1')
+        ? '${uri.scheme}://${uri.host}'
+        : ApiEndpoints.baseUrl;
+    final w = _nearestNextWidth(width);
+    final q = quality.clamp(1, 100);
+    return '$origin/_next/image?url=${Uri.encodeComponent(trimmed)}&w=$w&q=$q';
+  }
+
+  static bool _isVideoUrl(String url) {
+    final decoded = Uri.decodeFull(url).toLowerCase();
+    return RegExp(r'\.(mp4|webm|mov)(?:$|[?#])').hasMatch(decoded);
   }
 
   static int _nearestNextWidth(int width) {

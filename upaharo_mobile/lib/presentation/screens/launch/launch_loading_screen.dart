@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../../../config/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/banner_provider.dart';
 import '../../providers/catalog_provider.dart';
+import '../../providers/coupon_provider.dart';
 import '../../providers/mini_banner_provider.dart';
 import '../../providers/settings_provider.dart';
 
@@ -24,8 +26,6 @@ class LaunchLoadingScreen extends StatefulWidget {
 
 class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     with TickerProviderStateMixin {
-  static const _minShow = Duration(milliseconds: 1400);
-  static const _maxWait = Duration(seconds: 8);
   static const _groollGreen = Color(FlavorConfig.groollGreenValue);
 
   late final AnimationController _floatCtrl;
@@ -39,7 +39,7 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     _floatCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2800),
-    )..repeat(reverse: true);
+    );
     _fadeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -47,35 +47,37 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
     _pulseCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
-    )..repeat(reverse: true);
+    );
+    // Gifts splash is on screen only long enough to read the saved session.
+    // Skip the looping paints so the first frames stay cheap.
+    if (FlavorConfig.isGrocery) {
+      _floatCtrl.repeat(reverse: true);
+      _pulseCtrl.repeat(reverse: true);
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _boot());
   }
 
   Future<void> _boot() async {
-    final started = DateTime.now();
     final catalog = context.read<CatalogProvider>();
     final settings = context.read<SettingsProvider>();
     final banners = context.read<BannerProvider>();
     final mini = context.read<MiniBannerProvider>();
+    final coupons = context.read<CouponProvider>();
     final auth = context.read<AuthProvider>();
 
-    await Future.wait([
-      settings.load().catchError((_) {}),
-      catalog.load().catchError((_) {}),
-      banners.load().catchError((_) {}),
-      mini.load().catchError((_) {}),
-      auth.checkAuth().catchError((_) {}),
-      Future<void>.delayed(_minShow),
-    ]).timeout(
-      _maxWait,
-      onTimeout: () => const [],
-    );
+    // Paint home from disk cache while the network refresh continues.
+    unawaited(settings.load().catchError((_) {}));
+    unawaited(catalog.load().catchError((_) {}));
+    unawaited(banners.load().catchError((_) {}));
+    unawaited(mini.load().catchError((_) {}));
+    unawaited(coupons.load().catchError((_) {}));
 
-    final elapsed = DateTime.now().difference(started);
-    if (elapsed < _minShow) {
-      await Future<void>.delayed(_minShow - elapsed);
-    }
+    // Local session only — trusted-device login finishes after navigation.
+    try {
+      await auth.checkAuth();
+    } catch (_) {}
+
     if (!mounted || _navigated) return;
     _navigated = true;
     // Logged-out users land on login first; guest browse is still available there.
@@ -195,6 +197,12 @@ class _LaunchLoadingScreenState extends State<LaunchLoadingScreen>
                 child: Column(
                   children: [
                     const Spacer(flex: 2),
+                    Image.asset(
+                      'assets/branding/upaharo_mark.png',
+                      width: size.width * 0.46,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(height: 18),
                     Text(
                       FlavorConfig.appName,
                       textAlign: TextAlign.center,

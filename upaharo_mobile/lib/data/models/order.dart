@@ -19,6 +19,54 @@ enum PaymentMethod { cash, online, card }
 
 enum PaymentStatus { pending, completed, failed, refunded }
 
+/// Live delivery partner shown on customer track map.
+class DeliveryPartnerTracking {
+  const DeliveryPartnerTracking({
+    required this.id,
+    required this.name,
+    this.phone,
+    this.vehicleType,
+    this.vehicleNumber,
+    this.currentLat,
+    this.currentLng,
+    this.currentHeading,
+  });
+
+  final String id;
+  final String name;
+  final String? phone;
+  final String? vehicleType;
+  final String? vehicleNumber;
+  final double? currentLat;
+  final double? currentLng;
+  /// Degrees clockwise from north (0–360).
+  final double? currentHeading;
+
+  bool get hasLiveLocation =>
+      currentLat != null &&
+      currentLng != null &&
+      currentLat != 0 &&
+      currentLng != 0;
+
+  bool get hasHeading =>
+      currentHeading != null &&
+      currentHeading! >= 0 &&
+      currentHeading! <= 360;
+
+  factory DeliveryPartnerTracking.fromJson(Map<String, dynamic> json) {
+    return DeliveryPartnerTracking(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Rider',
+      phone: json['phone'] as String?,
+      vehicleType: json['vehicleType'] as String?,
+      vehicleNumber: json['vehicleNumber'] as String?,
+      currentLat: (json['currentLat'] as num?)?.toDouble(),
+      currentLng: (json['currentLng'] as num?)?.toDouble(),
+      currentHeading: (json['currentHeading'] as num?)?.toDouble(),
+    );
+  }
+}
+
 class Order {
   final String id;
   final String orderNumber;
@@ -61,6 +109,7 @@ class Order {
   final bool showSenderName;
   /// Shown to the customer to confirm delivery (share with rider).
   final String? deliveryOtp;
+  final DeliveryPartnerTracking? deliveryPartner;
 
   const Order({
     required this.id,
@@ -99,6 +148,7 @@ class Order {
     this.senderName,
     this.showSenderName = true,
     this.deliveryOtp,
+    this.deliveryPartner,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -158,6 +208,11 @@ class Order {
       senderName: json['senderName'] as String?,
       showSenderName: json['showSenderName'] as bool? ?? true,
       deliveryOtp: json['deliveryOtp'] as String?,
+      deliveryPartner: json['deliveryPartner'] is Map
+          ? DeliveryPartnerTracking.fromJson(
+              Map<String, dynamic>.from(json['deliveryPartner'] as Map),
+            )
+          : null,
     );
   }
 

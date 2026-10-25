@@ -8,9 +8,9 @@ import '../../widgets/progressive_network_image.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/utils/delivery_slots.dart';
-import '../../../core/utils/delivery_radius.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/address.dart';
+import '../../../data/models/app_settings.dart';
 import '../../../data/models/gift_recipient.dart';
 import '../../../data/models/gift_wrap.dart';
 import '../../../data/models/occasion.dart';
@@ -29,6 +29,7 @@ import '../../providers/coupon_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../providers/orders_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/weather_provider.dart';
 import '../../widgets/explore_coupons_section.dart';
 import 'order_success_screen.dart';
 
@@ -514,7 +515,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    await settings.load();
+    await settings.load(force: true);
     await location.loadSavedLocation();
     final giftOptionsEnabled = settings.settings.featureGiftOptions;
 
@@ -679,6 +680,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
   }
 
+  /// Lat/lng for zone fee + ETA. Prefer address pin; fall back to device location.
+  ({double lat, double lng})? _deliveryCoords() {
+    final address = _selectedAddress;
+    if (address != null &&
+        !(address.latitude == 0 && address.longitude == 0)) {
+      return (lat: address.latitude, lng: address.longitude);
+    }
+    final loc = context.read<LocationProvider>().location;
+    if (loc != null && !(loc.latitude == 0 && loc.longitude == 0)) {
+      return (lat: loc.latitude, lng: loc.longitude);
+    }
+    return null;
+  }
+
+  /// Struck-through list price when delivery is FREE (zone fee or flat).
+  double _listedDeliveryFee(AppSettings settings) {
+    final coords = _deliveryCoords();
+    if ((settings.deliveryZones.isNotEmpty ||
+            settings.deliveryRadiusTiers.isNotEmpty) &&
+        coords != null) {
+      final zone = settings.zoneFor(
+        latitude: coords.lat,
+        longitude: coords.lng,
+      );
+      if (zone != null && zone.inRange) return zone.feeAmount;
+    }
+    if (_wallet.deliveryFeeAmount > 0) return _wallet.deliveryFeeAmount;
+    return CartProvider.standardDeliveryFee;
+  }
+
   void _syncGiftToCart() {
     final isGift = _giftOptionsEnabled && _isGift;
     context.read<CartProvider>().setGiftOptions(
@@ -712,25 +743,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               : 0.0)
         : cart.totalPrice + wrapPrice;
     final goodsTotal = cart.totalPrice + wrapPrice;
-    final address = _selectedAddress;
     final settings = context.read<SettingsProvider>().settings;
-    double? distanceKm;
-    if (!_usingPickup &&
-        address != null &&
-        settings.deliveryRadiusTiers.isNotEmpty &&
-        !(address.latitude == 0 && address.longitude == 0)) {
-      distanceKm = distanceKmBetween(
-        settings.mapLatitude,
-        settings.mapLongitude,
-        address.latitude,
-        address.longitude,
-      );
-    }
+    final coords = _deliveryCoords();
     final deliveryFee = deliveryGoods > 0
-        ? _wallet.deliveryFeeFor(
+        ? settings.deliveryFeeForGoods(
             deliveryGoods,
-            distanceKm: distanceKm,
-            tiers: settings.deliveryRadiusTiers,
+            latitude: coords?.lat,
+            longitude: coords?.lng,
           )
         : 0.0;
     final totalBeforeWallet = (goodsTotal + deliveryFee - _couponDiscount)
@@ -769,19 +788,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     }
     if (_needsAddress && address != null) {
       final settings = context.read<SettingsProvider>().settings;
-      if (settings.deliveryRadiusTiers.isNotEmpty &&
-          !(address.latitude == 0 && address.longitude == 0)) {
-        final zone = resolveDeliveryZone(
-          tiers: settings.deliveryRadiusTiers,
-          storeLat: settings.mapLatitude,
-          storeLng: settings.mapLongitude,
-          addressLat: address.latitude,
-          addressLng: address.longitude,
+      final coords = _deliveryCoords();
+      if ((settings.deliveryZones.isNotEmpty ||
+              settings.deliveryRadiusTiers.isNotEmpty) &&
+          coords != null) {
+        final zone = settings.zoneFor(
+          latitude: coords.lat,
+          longitude: coords.lng,
         );
         if (zone != null && !zone.inRange) {
           setState(() {
-            _error =
-                'Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toStringAsFixed(1)} km away).';
+            _error = settings.deliveryZones.isNotEmpty
+                ? 'Sorry, your address is outside our delivery area (about ${zone.distanceKm.toStringAsFixed(1)} km from the store).'
+                : 'Sorry, we only deliver within ${zone.maxRadiusKm} km of the store (you are about ${zone.distanceKm.toStringAsFixed(1)} km away).';
           });
           return;
         }
@@ -810,6 +829,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _syncGiftToCart();
 
     final totals = _computeTotals(cart);
+    final coords = _deliveryCoords();
 
     try {
       final ordersProvider = context.read<OrdersProvider>();
@@ -857,8 +877,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           couponDiscount: _couponDiscount,
           walletAmount: totals.walletApplied,
           couponCode: _appliedCouponCode,
-          addressLatitude: address?.latitude,
-          addressLongitude: address?.longitude,
+          addressLatitude: coords?.lat ?? address?.latitude,
+          addressLongitude: coords?.lng ?? address?.longitude,
           total: deliveryTotal,
           paymentMethod: _paymentMethod,
           items: _deliveryOnlyProducts,
@@ -882,8 +902,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       couponDiscount: _couponDiscount,
       walletAmount: totals.walletApplied,
       couponCode: _appliedCouponCode,
-      addressLatitude: address?.latitude,
-      addressLongitude: address?.longitude,
+      addressLatitude: coords?.lat ?? address?.latitude,
+      addressLongitude: coords?.lng ?? address?.longitude,
       total: totals.total,
       paymentMethod: _paymentMethod,
           scheduledFor: _scheduledFor,
@@ -971,27 +991,29 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cart = context.watch<CartProvider>();
     final settings = context.watch<SettingsProvider>().settings;
     final auth = context.watch<AuthProvider>();
+    context.watch<LocationProvider>();
     final totals = _computeTotals(cart);
     final wrapPrice = totals.wrapPrice;
     final total = totals.total;
     final savings = _couponDiscount + totals.walletApplied;
-    final pageBg = const Color(0xFFF2F2F2);
+    final pageBg = Colors.white;
     final estimate = settings.deliveryEstimate.trim();
-    final address = _selectedAddress;
+    final coords = _deliveryCoords();
+    final weather = context.watch<WeatherProvider>();
+    final rainExtra = weather.isRaining ? settings.rainExtraMinutes : 0;
     String? zoneEstimate;
-    if (!_usingPickup &&
-        address != null &&
-        settings.deliveryRadiusTiers.isNotEmpty &&
-        !(address.latitude == 0 && address.longitude == 0)) {
-      final zone = resolveDeliveryZone(
-        tiers: settings.deliveryRadiusTiers,
-        storeLat: settings.mapLatitude,
-        storeLng: settings.mapLongitude,
-        addressLat: address.latitude,
-        addressLng: address.longitude,
+    if (!_usingPickup && coords != null) {
+      final zone = settings.zoneFor(
+        latitude: coords.lat,
+        longitude: coords.lng,
       );
-      if (zone != null && zone.inRange) {
-        zoneEstimate = zone.estimate;
+      if (zone != null && zone.inRange && zone.tier != null) {
+        final lo = zone.tier!.etaMinMinutes + rainExtra;
+        final hi = zone.tier!.etaMaxMinutes + rainExtra;
+        zoneEstimate = lo == hi ? '$lo mins' : '$lo–$hi mins';
+      } else if (zone != null && !zone.inRange) {
+        zoneEstimate =
+            'Outside delivery area (${zone.distanceKm.toStringAsFixed(1)} km)';
       }
     }
 
@@ -1000,9 +1022,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final scheduledSummary = _scheduledFor != null
         ? 'Arriving ${slotSummary(_scheduleDayIndex!, _scheduleSlot!)}'
         : null;
+    final fallbackEta = settings.deliveryEtaLabel(rainExtraMinutes: rainExtra);
     final deliveryLabel = scheduledSummary ??
-        ((zoneEstimate ?? estimate).isNotEmpty
-            ? (zoneEstimate ?? estimate)
+        ((zoneEstimate ?? fallbackEta).isNotEmpty
+            ? (zoneEstimate ?? fallbackEta)
             : 'Fast delivery');
     final showSuperfast =
         scheduledSummary == null && (zoneEstimate ?? estimate).isNotEmpty;
@@ -1017,7 +1040,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 Expanded(
                   child: ListView(
                     controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                    padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
                     children: [
                       if (_error != null) ...[
                         _thinBanner(text: _error!, tone: _BannerTone.error),
@@ -1136,7 +1159,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               : 'Add delivery address');
 
     return Material(
-      color: AppTheme.cardSurface,
+      color: Colors.white,
       elevation: 0,
       child: SafeArea(
         bottom: false,
@@ -1182,8 +1205,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
                                         color: AppTheme.ink,
                                       ),
                                     ),
@@ -1327,23 +1350,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(headerIcon, size: 18, color: AppTheme.wine),
+              Icon(headerIcon, size: 22, color: const Color(0xFF1F1F1F)),
               const SizedBox(width: 6),
               Expanded(
                 child: Row(
@@ -1487,16 +1503,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1589,16 +1598,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1831,17 +1833,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.wine.withAlpha(55)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 10,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -1975,9 +1969,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _couponCompactRow() {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Column(
         children: [
@@ -2114,9 +2108,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _giftCompactRow() {
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Column(
         children: [
@@ -2245,11 +2239,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     required double wrapPrice,
     required double total,
   }) {
+    final settings = context.read<SettingsProvider>().settings;
+    final listedFee = _listedDeliveryFee(settings);
     return Container(
                           width: double.infinity,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -2302,18 +2298,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               if (totals.deliveryFee <= 0)
                 _waivedFeeRow(
                   'Delivery',
-                  _wallet.deliveryFeeAmount > 0
-                      ? _wallet.deliveryFeeAmount
-                      : CartProvider.standardDeliveryFee,
+                  listedFee,
                 )
               else
                 _totalRow('Delivery', totals.deliveryFee),
             ] else if (totals.deliveryFee <= 0)
                         _waivedFeeRow(
                           'Delivery',
-                          _wallet.deliveryFeeAmount > 0
-                              ? _wallet.deliveryFeeAmount
-                              : CartProvider.standardDeliveryFee,
+                          listedFee,
                         )
                       else
                         _totalRow('Delivery', totals.deliveryFee),
@@ -2368,13 +2360,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 14,
-            offset: Offset(0, -4),
-          ),
-        ],
+        border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: SafeArea(
         top: false,
@@ -2425,10 +2411,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 height: 54,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.wine,
-                    disabledBackgroundColor: AppTheme.wine.withAlpha(90),
+                    backgroundColor: const Color(0xFF1F1F1F),
+                    disabledBackgroundColor: const Color(0xFF1F1F1F).withAlpha(90),
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                   ),

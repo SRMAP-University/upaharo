@@ -149,6 +149,8 @@ class ApiEndpoints {
   /// GET -> { addresses: List of Address }
   /// Body: { label, street, apartment, landmark, city, state, pincode, latitude, longitude, isDefault }
   /// POST -> { address }
+  /// PUT Body: { id, label, street, apartment, landmark, city, state, pincode, latitude, longitude, isDefault }
+  /// PUT -> { address }
   static const String addresses = '/api/addresses';
 
   /// Gift recipients for the authenticated user.

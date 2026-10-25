@@ -309,16 +309,15 @@ class AppTheme {
           color: ink,
         ),
       ),
-      // Keep Scaffold's bottom slot invisible so the floating pill nav
-      // doesn't sit on a separate white/surface strip over the cream page.
+      // Docked bottom nav paints its own white surface.
       bottomAppBarTheme: const BottomAppBarThemeData(
-        color: Colors.transparent,
+        color: Colors.white,
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: Colors.transparent,
+        backgroundColor: Colors.white,
         elevation: 0,
         selectedItemColor: wine,
         unselectedItemColor: charcoal,

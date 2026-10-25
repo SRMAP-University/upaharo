@@ -17,7 +17,7 @@ Paste the **Privacy Policy** URL into Play Console → App content → Privacy p
 |-------|--------|
 | Package name | `com.upaharo.upaharo_mobile` |
 | Display name | Upaharo |
-| Version (pubspec) | `1.0.0+2` → versionName `1.0.0`, versionCode `2` |
+| Version (pubspec) | `1.0.0+9` → versionName `1.0.0`, versionCode `9` |
 
 ## Release signing (one-time)
 
@@ -46,10 +46,12 @@ Use **Shorebird** so you can push Dart fixes over the air later (see [SHOREBIRD.
 ```bash
 cd upaharo_mobile
 flutter pub get
-shorebird release android --artifact=aab
+shorebird release android --flavor gifts --dart-define=STORE=gifts --artifact=aab
 ```
 
-Plain `flutter build appbundle` works for the store, but **cannot** receive Shorebird patches.
+Google Maps SDK (`google_maps_flutter` + Android/iOS API keys) ships in this release for address pick + order tracking maps.
+
+Plain `flutter build appbundle --flavor gifts --dart-define=STORE=gifts` works for the store, but **cannot** receive Shorebird patches.
 
 Upload the Shorebird AAB in Play Console.
 

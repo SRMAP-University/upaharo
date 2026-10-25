@@ -5,11 +5,9 @@ import '../../../config/routes.dart';
 import '../../../config/theme.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../../providers/banner_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/coupon_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/explore_coupons_section.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../widgets/promo_extra_games.dart';
 import '../../widgets/spin_roulette_card.dart';
@@ -61,10 +59,7 @@ class _PromoScreenState extends State<PromoScreen> {
       appBar: AppBar(title: const Text('Promo')),
       body: ListView(
         padding: EdgeInsets.only(
-          bottom: 100 +
-              (context.watch<CartProvider>().totalItems > 0
-                  ? MiniCartBar.height + 8
-                  : 0),
+          bottom: FloatingBottomChrome.clearance(context),
         ),
         children: [
           const SizedBox(height: 8),
@@ -160,8 +155,9 @@ class _PromoScreenState extends State<PromoScreen> {
           ],
         ],
       ),
-      bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 3) : null,
+      bottomNavigationBar: widget.showBottomNav
+          ? const FloatingBottomChrome(currentIndex: 3)
+          : null,
     );
   }
 }

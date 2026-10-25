@@ -17,7 +17,8 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  static const _pageBg = Color(0xFFF2F2F2);
+  static const _muted = Color(0xFF6B6B6B);
+  static const _line = Color(0xFFF0F0F0);
 
   final _repo = const NotificationRepository();
 
@@ -117,36 +118,37 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final unread = _inbox.unreadCount;
 
     return Scaffold(
-      backgroundColor: _pageBg,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: AppTheme.cardSurface,
+        backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: Text(
+        centerTitle: false,
+        title: const Text(
           'Notifications',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F1F1F),
           ),
         ),
         actions: [
           if (unread > 0)
             TextButton(
               onPressed: _markingAll ? null : _markAllRead,
-              style: TextButton.styleFrom(foregroundColor: AppTheme.wine),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF1F1F1F)),
               child: const Text(
                 'Mark all read',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
             ),
         ],
       ),
       body: _loading
-          ? Center(child: CircularProgressIndicator(color: AppTheme.wine))
+          ? Center(child: CircularProgressIndicator(color: AppTheme.ink))
           : RefreshIndicator(
               onRefresh: _load,
-              color: AppTheme.wine,
+              color: AppTheme.ink,
               child: _error != null
                   ? _messageState(_error!)
                   : _inbox.notifications.isEmpty
@@ -154,11 +156,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           'No notifications yet. Order updates and offers will show up here.',
                         )
                       : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 28),
+                          physics: const AlwaysScrollableScrollPhysics(),
                           itemCount: _inbox.notifications.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 8),
+                          separatorBuilder: (_, _) => const Divider(
+                            height: 1,
+                            thickness: 1,
+                            color: _line,
+                          ),
                           itemBuilder: (context, index) =>
-                              _notificationCard(_inbox.notifications[index]),
+                              _notificationRow(_inbox.notifications[index]),
                         ),
             ),
     );
@@ -169,125 +175,95 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 80, 24, 24),
       children: [
-        Icon(
+        const Icon(
           Icons.notifications_none_rounded,
           size: 44,
-          color: AppTheme.charcoal.withAlpha(120),
+          color: _muted,
         ),
         const SizedBox(height: 12),
         Text(
           message,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13,
+          style: const TextStyle(
+            fontSize: 14,
             height: 1.45,
-            color: AppTheme.charcoal,
+            color: _muted,
           ),
         ),
       ],
     );
   }
 
-  Widget _notificationCard(AppNotification notification) {
+  Widget _notificationRow(AppNotification notification) {
     final unread = !notification.isRead;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _openNotification(notification),
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: AppTheme.cardSurface,
-            borderRadius: BorderRadius.circular(16),
-            border: unread
-                ? Border.all(color: AppTheme.wine.withAlpha(60))
-                : null,
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x11000000),
-                blurRadius: 12,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: AppTheme.wine.withAlpha(unread ? 30 : 16),
-                    borderRadius: BorderRadius.circular(11),
-                  ),
-                  child: Icon(
-                    _iconFor(notification.type),
-                    size: 17,
-                    color: AppTheme.wine,
-                  ),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight:
-                                    unread ? FontWeight.w600 : FontWeight.w500,
-                                color: AppTheme.ink,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                          if (unread) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: AppTheme.wine,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      if (notification.body.trim().isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          notification.body.trim(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.charcoal,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 6),
-                      Text(
-                        _relativeTime(notification.createdAt),
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.charcoal.withAlpha(170),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+    return InkWell(
+      onTap: () => _openNotification(notification),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              _iconFor(notification.type),
+              size: 22,
+              color: unread ? const Color(0xFF1F1F1F) : _muted,
             ),
-          ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: unread ? FontWeight.w700 : FontWeight.w500,
+                      color: const Color(0xFF1F1F1F),
+                      height: 1.3,
+                    ),
+                  ),
+                  if (notification.body.trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      notification.body.trim(),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: _muted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    _relativeTime(notification.createdAt),
+                    style: const TextStyle(fontSize: 12, color: _muted),
+                  ),
+                ],
+              ),
+            ),
+            if (unread)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 6, left: 8),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1F1F1F),
+                  shape: BoxShape.circle,
+                ),
+              )
+            else if (notification.orderId != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 22,
+                  color: Color(0xFFB0B0B0),
+                ),
+              ),
+          ],
         ),
       ),
     );

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -40,6 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
   /// After trusted-login fails, show an explicit Send OTP control (no auto-SMS).
   bool _offerManualOtp = false;
   bool _truecallerAvailable = false;
+  bool _truecallerBusy = false;
+  bool _didLeave = false;
+  AuthProvider? _auth;
 
   static const _groollGreen = Color(FlavorConfig.groollGreenValue);
 
@@ -47,16 +51,42 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _auth = context.read<AuthProvider>();
+      if (_auth!.isAuthenticated) {
+        _onAuthenticated();
+        return;
+      }
+      _auth!.addListener(_onAuthFromProvider);
       _prefillRememberedPhone();
       _probeTruecaller();
     });
   }
 
+  void _onAuthFromProvider() {
+    if (!mounted || _didLeave) return;
+    if (_auth?.isAuthenticated == true) {
+      _onAuthenticated();
+    }
+  }
+
   Future<void> _probeTruecaller() async {
-    if (!TruecallerLoginService.isSupported) return;
-    final usable = await TruecallerLoginService.isUsable();
+    // Always show the Android entry point. Usability (Truecaller installed +
+    // logged in) is checked on tap so the option is never silently missing.
+    final supported = TruecallerLoginService.isSupported;
     if (!mounted) return;
-    setState(() => _truecallerAvailable = usable);
+    setState(() => _truecallerAvailable = supported);
+    if (!supported) return;
+    unawaited(() async {
+      try {
+        final usable = await TruecallerLoginService.isUsable();
+        if (kDebugMode) {
+          debugPrint('Truecaller supported=$supported usable=$usable');
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('Truecaller probe failed: $e');
+      }
+    }());
   }
 
   Future<void> _prefillRememberedPhone() async {
@@ -70,6 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _auth?.removeListener(_onAuthFromProvider);
     _resendTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
@@ -98,7 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _onAuthenticated() async {
-    if (!mounted) return;
+    if (!mounted || _didLeave) return;
+    _didLeave = true;
     unawaited(context.read<WishlistProvider>().load(force: true));
     Navigator.pushReplacementNamed(context, AppRoutes.main);
   }
@@ -210,31 +242,37 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _loginWithTruecaller() async {
+    if (_truecallerBusy) return;
     FocusScope.of(context).unfocus();
     final auth = context.read<AuthProvider>();
     auth.clearError();
-    final result = await auth.loginWithTruecaller();
-    if (!mounted) return;
+    setState(() => _truecallerBusy = true);
+    try {
+      final result = await auth.loginWithTruecaller();
+      if (!mounted) return;
 
-    if (result.signedIn) {
-      await _onAuthenticated();
-      return;
-    }
+      if (result.signedIn) {
+        await _onAuthenticated();
+        return;
+      }
 
-    if (auth.needsOtpSignup) {
-      final name = result.suggestedName?.trim();
-      final email = result.suggestedEmail?.trim();
-      if (name != null && name.isNotEmpty) {
-        _nameController.text = name;
+      if (auth.needsOtpSignup) {
+        final name = result.suggestedName?.trim();
+        final email = result.suggestedEmail?.trim();
+        if (name != null && name.isNotEmpty) {
+          _nameController.text = name;
+        }
+        if (email != null && email.isNotEmpty) {
+          _signupEmailController.text = email;
+        }
+        if (auth.otpVerifiedPhone != null &&
+            auth.otpVerifiedPhone!.isNotEmpty) {
+          _phoneController.text = _last10(auth.otpVerifiedPhone!);
+        }
+        setState(() => _phoneStep = _PhoneStep.completeSignup);
       }
-      if (email != null && email.isNotEmpty) {
-        _signupEmailController.text = email;
-      }
-      if (auth.otpVerifiedPhone != null &&
-          auth.otpVerifiedPhone!.isNotEmpty) {
-        _phoneController.text = _last10(auth.otpVerifiedPhone!);
-      }
-      setState(() => _phoneStep = _PhoneStep.completeSignup);
+    } finally {
+      if (mounted) setState(() => _truecallerBusy = false);
     }
   }
 
@@ -244,6 +282,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _phoneStep != _PhoneStep.enterPhone) {
       return const SizedBox.shrink();
     }
+    final busy = loading || _truecallerBusy;
     return Column(
       children: [
         const SizedBox(height: 12),
@@ -268,13 +307,8 @@ class _LoginScreenState extends State<LoginScreen> {
         SizedBox(
           width: double.infinity,
           height: 52,
-          child: OutlinedButton.icon(
-            onPressed: loading ? null : _loginWithTruecaller,
-            icon: const Icon(Icons.verified_user_outlined, size: 20),
-            label: const Text(
-              'Continue with Truecaller',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-            ),
+          child: OutlinedButton(
+            onPressed: busy ? null : _loginWithTruecaller,
             style: OutlinedButton.styleFrom(
               foregroundColor: accent,
               side: BorderSide(color: accent.withValues(alpha: 0.45)),
@@ -282,6 +316,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(14),
               ),
             ),
+            child: busy
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      color: accent,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.verified_user_outlined, size: 20, color: accent),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Continue with Truecaller',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: accent,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ],
@@ -364,42 +422,55 @@ class _LoginScreenState extends State<LoginScreen> {
     return digits.length >= 10;
   }
 
+  Color get _accent =>
+      FlavorConfig.isGrocery ? _groollGreen : _UpaharoLoginColors.accent;
+
+  Color get _heroTop => FlavorConfig.isGrocery
+      ? _GroollLoginColors.topGreen
+      : _UpaharoLoginColors.topPink;
+
+  String get _logoAsset => FlavorConfig.isGrocery
+      ? 'assets/branding/grooll_logo.png'
+      : 'assets/branding/upaharo_mark.png';
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final loading = auth.status == AuthStatus.loading;
-
-    if (FlavorConfig.isGrocery) {
-      return _buildGroollLogin(auth, loading);
-    }
-    return _buildClassicLogin(auth, loading);
+    // Same phone-OTP-first login for Grooll and Upaharo (brand chrome differs).
+    return _buildPhoneOtpLogin(auth, loading);
   }
 
-  // ─── Grooll / Blinkit-style login ──────────────────────────────────────────
+  // ─── Phone OTP login (Grooll + Upaharo) ────────────────────────────────────
 
-  Widget _buildGroollLogin(AuthProvider auth, bool loading) {
+  Widget _buildPhoneOtpLogin(AuthProvider auth, bool loading) {
     final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final accent = _accent;
+    final heroTop = _heroTop;
 
+    final lightHero = FlavorConfig.isGifts;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        statusBarColor: _GroollLoginColors.topGreen,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
+      value: SystemUiOverlayStyle(
+        statusBarColor: heroTop,
+        statusBarIconBrightness:
+            lightHero ? Brightness.dark : Brightness.light,
+        statusBarBrightness: lightHero ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-      backgroundColor: _GroollLoginColors.topGreen,
+      backgroundColor: heroTop,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Solid green behind the hero — matches visible video fill.
-          const ColoredBox(color: _GroollLoginColors.topGreen),
+          ColoredBox(color: heroTop),
           Column(
             children: [
               Expanded(
                 flex: keyboardOpen ? 0 : 7,
                 child: keyboardOpen
                     ? const SizedBox.shrink()
-                    : const _LoginHeroVideo(),
+                    : (FlavorConfig.isGrocery
+                        ? const _LoginHeroVideo()
+                        : const _UpaharoLoginHero()),
               ),
               Expanded(
                 flex: keyboardOpen ? 1 : 5,
@@ -416,15 +487,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Brand mark (logo already includes green square)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset(
-                              'assets/branding/grooll_logo.png',
-                              height: 52,
-                              width: 52,
-                              fit: BoxFit.cover,
-                            ),
+                          Image.asset(
+                            _logoAsset,
+                            height: FlavorConfig.isGrocery ? 52 : 72,
+                            width: FlavorConfig.isGrocery ? 52 : 72,
+                            fit: FlavorConfig.isGrocery
+                                ? BoxFit.cover
+                                : BoxFit.contain,
                           ),
                         const SizedBox(height: 14),
                         Text(
@@ -453,7 +522,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 20),
                         if (_mode == _LoginMode.phone)
-                          ..._buildGroollPhoneFields(loading, auth)
+                          ..._buildPhoneOtpFields(loading, auth)
                         else
                           ..._buildEmailFields(loading),
                         if (auth.errorMessage != null) ...[
@@ -471,7 +540,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               backgroundColor:
                                   _primaryAction(auth, loading) == null
                                   ? const Color(0xFFBDBDBD)
-                                  : _groollGreen,
+                                  : accent,
                               foregroundColor: Colors.white,
                               disabledBackgroundColor: const Color(0xFFBDBDBD),
                               shape: RoundedRectangleBorder(
@@ -496,7 +565,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                           ),
                         ),
-                        _truecallerButton(loading: loading, accent: _groollGreen),
+                        _truecallerButton(loading: loading, accent: accent),
                         if (_mode == _LoginMode.phone &&
                             _phoneStep == _PhoneStep.enterPhone &&
                             auth.rememberedPhone != null &&
@@ -509,7 +578,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
-                                  color: _groollGreen,
+                                  color: accent,
                                 ),
                               ),
                             ),
@@ -538,7 +607,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   : 'Resend code',
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                color: _groollGreen,
+                                color: accent,
                               ),
                             ),
                           ),
@@ -643,7 +712,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  List<Widget> _buildGroollPhoneFields(bool loading, AuthProvider auth) {
+  List<Widget> _buildPhoneOtpFields(bool loading, AuthProvider auth) {
+    final accent = _accent;
     switch (_phoneStep) {
       case _PhoneStep.enterPhone:
         if (auth.rememberedPhone != null && auth.rememberedPhone!.isNotEmpty) {
@@ -674,7 +744,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Icon(
                     Icons.verified_user_outlined,
                     size: 20,
-                    color: _groollGreen,
+                    color: accent,
                   ),
                 ],
               ),
@@ -871,195 +941,77 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ─── Classic gifts AuthScaffold login ──────────────────────────────────────
-
-  Widget _buildClassicLogin(AuthProvider auth, bool loading) {
-    return AuthScaffold(
-      brandLine: FlavorConfig.appName,
-      headline: _phoneStep == _PhoneStep.completeSignup
-          ? 'Almost there'
-          : 'Welcome back',
-      subtitle: _phoneStep == _PhoneStep.completeSignup
-          ? 'Add your name and email to finish creating your account.'
-          : 'Sign in to send flowers, cakes and thoughtful gifts.',
-      child: AutofillGroup(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_phoneStep != _PhoneStep.completeSignup) ...[
-              _ModeToggle(
-                mode: _mode,
-                enabled: !loading,
-                onChanged: _switchMode,
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (_mode == _LoginMode.phone)
-              ..._buildClassicPhoneFields(loading, auth)
-            else
-              ..._buildEmailFields(loading),
-            const SizedBox(height: 20),
-            if (auth.errorMessage != null)
-              AuthErrorBanner(message: auth.errorMessage!),
-            AuthPrimaryButton(
-              label: _primaryLabel(auth),
-              loading: loading,
-              onPressed: _primaryAction(auth, loading),
-            ),
-            _truecallerButton(loading: loading, accent: AppTheme.wine),
-            if (_offerManualOtp &&
-                _mode == _LoginMode.phone &&
-                _phoneStep == _PhoneStep.enterPhone)
-              TextButton(
-                onPressed: loading ? null : _sendOtpExplicit,
-                style: TextButton.styleFrom(foregroundColor: AppTheme.wine),
-                child: const Text(
-                  'Send OTP instead',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                ),
-              ),
-            if (_mode == _LoginMode.phone &&
-                _phoneStep == _PhoneStep.enterOtp) ...[
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: loading || _resendSeconds > 0
-                    ? null
-                    : () => _sendOtp(resend: true),
-                style: TextButton.styleFrom(foregroundColor: AppTheme.wine),
-                child: Text(
-                  _resendSeconds > 0
-                      ? 'Resend code in ${_resendSeconds}s'
-                      : 'Resend code',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: loading ? null : _backToPhone,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.charcoal.withAlpha(160),
-                ),
-                child: const Text(
-                  'Change phone number',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ),
-            ],
-            if (_phoneStep != _PhoneStep.completeSignup) ...[
-              const SizedBox(height: 10),
-              AuthLinkRow(
-                prefix: 'New here? ',
-                action: 'Create an account',
-                onPressed: loading
-                    ? null
-                    : () => Navigator.pushNamed(context, AppRoutes.register),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildClassicPhoneFields(bool loading, AuthProvider auth) {
-    switch (_phoneStep) {
-      case _PhoneStep.enterPhone:
-        return [
-          AuthField(
-            controller: _phoneController,
-            label: 'Mobile number',
-            icon: Icons.phone_outlined,
-            keyboardType: TextInputType.phone,
-            autofillHints: const [AutofillHints.telephoneNumber],
-            textInputAction: TextInputAction.done,
-          ),
-          if (auth.rememberedPhone != null &&
-              auth.rememberedPhone!.isNotEmpty) ...[
-            TextButton(
-              onPressed: loading ? null : _forgetThisDevice,
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.charcoal.withAlpha(160),
-              ),
-              child: const Text(
-                'Use a different number',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-          ],
-        ];
-      case _PhoneStep.enterOtp:
-        return [
-          Text(
-            'Code sent to ${_phoneController.text.trim()}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.charcoal.withAlpha(170),
-            ),
-          ),
-          const SizedBox(height: 12),
-          AuthField(
-            controller: _otpController,
-            label: '6-digit OTP',
-            icon: Icons.lock_outline_rounded,
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.oneTimeCode],
-          ),
-        ];
-      case _PhoneStep.completeSignup:
-        return [
-          if (auth.otpVerifiedPhone != null) ...[
-            Text(
-              'Phone ${auth.otpVerifiedPhone} verified',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.charcoal.withAlpha(170),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-          AuthField(
-            controller: _nameController,
-            label: 'Full name',
-            icon: Icons.person_outline_rounded,
-            textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.name],
-          ),
-          const SizedBox(height: 12),
-          AuthField(
-            controller: _signupEmailController,
-            label: 'Email',
-            icon: Icons.mail_outline_rounded,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.email],
-          ),
-        ];
-    }
-  }
-
   List<Widget> _buildEmailFields(bool loading) {
     return [
-      AuthField(
+      _outlinedField(
         controller: _emailController,
-        label: 'Email',
-        icon: Icons.mail_outline_rounded,
+        hint: 'Email',
         keyboardType: TextInputType.emailAddress,
+        enabled: !loading,
         autofillHints: const [AutofillHints.email],
       ),
       const SizedBox(height: 12),
-      AuthField(
-        controller: _passwordController,
-        label: 'Password',
-        icon: Icons.lock_outline_rounded,
-        obscureText: _obscure,
-        textInputAction: TextInputAction.done,
-        autofillHints: const [AutofillHints.password],
-        onToggleObscure: () => setState(() => _obscure = !_obscure),
+      Container(
+        height: 54,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          children: [
+            Expanded(
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  inputDecorationTheme: const InputDecorationTheme(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    filled: false,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ),
+                child: TextField(
+                  controller: _passwordController,
+                  enabled: !loading,
+                  obscureText: _obscure,
+                  autofillHints: const [AutofillHints.password],
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.ink,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    filled: false,
+                    border: InputBorder.none,
+                    hintText: 'Password',
+                    hintStyle: TextStyle(
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.charcoal.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: loading
+                  ? null
+                  : () => setState(() => _obscure = !_obscure),
+              icon: Icon(
+                _obscure
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                size: 20,
+                color: AppTheme.charcoal.withValues(alpha: 0.45),
+              ),
+            ),
+          ],
+        ),
       ),
     ];
   }
@@ -1068,7 +1020,281 @@ class _LoginScreenState extends State<LoginScreen> {
 /// Greens matched to the visible video fill (not the file edge row).
 abstract final class _GroollLoginColors {
   static const topGreen = Color(0xFF147E42);
-  static const bottomGreen = Color(0xFF27974D);
+}
+
+/// Light pink wash for Upaharo phone-OTP login.
+abstract final class _UpaharoLoginColors {
+  static const topPink = Color(0xFFFFE4EC);
+  static const midPink = Color(0xFFFFD0DE);
+  static const deepPink = Color(0xFFFFC0D4);
+  /// CTA / accents — readable rose on white buttons.
+  static const accent = Color(0xFFE85A8C);
+  static const ink = Color(0xFF5C2A3A);
+}
+
+/// Auto-scrolling gift mosaic for Upaharo login hero.
+class _UpaharoLoginHero extends StatelessWidget {
+  const _UpaharoLoginHero();
+
+  static const _rowA = <_GiftChip>[
+    _GiftChip('💐', 'Bouquet', Color(0xFFFFE0EC)),
+    _GiftChip('🎂', 'Cake', Color(0xFFFFF0D6)),
+    _GiftChip('🍫', 'Chocolate', Color(0xFFF3E0D4)),
+    _GiftChip('🧸', 'Teddy', Color(0xFFE8F0FF)),
+    _GiftChip('🌹', 'Roses', Color(0xFFFFD6E0)),
+    _GiftChip('🎁', 'Hamper', Color(0xFFE8FFE8)),
+    _GiftChip('🕯️', 'Candles', Color(0xFFFFF6D8)),
+    _GiftChip('💍', 'Jewelry', Color(0xFFF0E8FF)),
+    _GiftChip('🎈', 'Balloons', Color(0xFFE0F4FF)),
+    _GiftChip('🧁', 'Cupcakes', Color(0xFFFFE8F2)),
+    _GiftChip('🌿', 'Plants', Color(0xFFE4F5E8)),
+    _GiftChip('🍾', 'Celebration', Color(0xFFFFEFD8)),
+  ];
+
+  static const _rowB = <_GiftChip>[
+    _GiftChip('🎀', 'Gift wrap', Color(0xFFFFE4F0)),
+    _GiftChip('🍪', 'Cookies', Color(0xFFFFF2DC)),
+    _GiftChip('🌸', 'Orchid', Color(0xFFF8E0F0)),
+    _GiftChip('💌', 'Cards', Color(0xFFFFE8E0)),
+    _GiftChip('🍩', 'Donuts', Color(0xFFFFE6F4)),
+    _GiftChip('🥂', 'Toast', Color(0xFFE8F4FF)),
+    _GiftChip('🌻', 'Sunflower', Color(0xFFFFF4C8)),
+    _GiftChip('🥝', 'Fruit box', Color(0xFFE4FFE8)),
+    _GiftChip('📿', 'Accessories', Color(0xFFF0E8FF)),
+    _GiftChip('🍯', 'Gourmet', Color(0xFFFFF0D0)),
+    _GiftChip('🪄', 'Surprise', Color(0xFFE8ECFF)),
+    _GiftChip('💝', 'Love box', Color(0xFFFFDCE8)),
+  ];
+
+  static const _rowC = <_GiftChip>[
+    _GiftChip('🌷', 'Tulips', Color(0xFFFFE0F0)),
+    _GiftChip('🍰', 'Pastry', Color(0xFFFFF0E4)),
+    _GiftChip('🧸', 'Soft toy', Color(0xFFE8F0FF)),
+    _GiftChip('🌺', 'Exotic', Color(0xFFFFD8E8)),
+    _GiftChip('☕', 'Coffee set', Color(0xFFF3E8DC)),
+    _GiftChip('🎄', 'Festive', Color(0xFFE4F8E8)),
+    _GiftChip('💎', 'Sparkle', Color(0xFFE8F0FF)),
+    _GiftChip('🍬', 'Sweets', Color(0xFFFFE8F4)),
+    _GiftChip('🪴', 'Planter', Color(0xFFE0F5E4)),
+    _GiftChip('🎻', 'Keepsake', Color(0xFFF8E8FF)),
+    _GiftChip('🥳', 'Party', Color(0xFFFFEAD4)),
+    _GiftChip('✨', 'Luxury', Color(0xFFFFE8F0)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.paddingOf(context).top;
+    return ClipRect(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  _UpaharoLoginColors.topPink,
+                  _UpaharoLoginColors.midPink,
+                  _UpaharoLoginColors.deepPink,
+                ],
+              ),
+            ),
+          ),
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.only(top: topPad + 28, bottom: 40),
+              child: Column(
+                children: const [
+                  Expanded(
+                    child: _GiftMarqueeRow(
+                      items: _rowA,
+                      speed: 28,
+                      reverse: false,
+                      tileHeight: 92,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Expanded(
+                    child: _GiftMarqueeRow(
+                      items: _rowB,
+                      speed: 34,
+                      reverse: true,
+                      tileHeight: 92,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Expanded(
+                    child: _GiftMarqueeRow(
+                      items: _rowC,
+                      speed: 24,
+                      reverse: false,
+                      tileHeight: 92,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 160,
+            child: IgnorePointer(
+              child: Image(
+                image: AssetImage('assets/branding/login_white_fade.png'),
+                fit: BoxFit.fill,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GiftChip {
+  const _GiftChip(this.emoji, this.label, this.tint);
+  final String emoji;
+  final String label;
+  final Color tint;
+}
+
+/// Seamless horizontal auto-scroll of gift chips (duplicated for loop).
+class _GiftMarqueeRow extends StatefulWidget {
+  const _GiftMarqueeRow({
+    required this.items,
+    required this.speed,
+    required this.reverse,
+    required this.tileHeight,
+  });
+
+  final List<_GiftChip> items;
+  final double speed;
+  final bool reverse;
+  final double tileHeight;
+
+  @override
+  State<_GiftMarqueeRow> createState() => _GiftMarqueeRowState();
+}
+
+class _GiftMarqueeRowState extends State<_GiftMarqueeRow>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  static const _tileWidth = 86.0;
+  static const _gap = 10.0;
+
+  @override
+  void initState() {
+    super.initState();
+    final loopWidth = widget.items.length * (_tileWidth + _gap);
+    final durationMs = ((loopWidth / widget.speed) * 1000).round().clamp(8000, 40000);
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: durationMs),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loopWidth = widget.items.length * (_tileWidth + _gap);
+    final sequence = [...widget.items, ...widget.items];
+
+    // Positioned + min-size Row avoids RenderFlex overflow (~full strip width).
+    return ClipRect(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) {
+          final t = widget.reverse ? (1 - _ctrl.value) : _ctrl.value;
+          final dx = -t * loopWidth;
+          return Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned(
+                left: dx,
+                top: 0,
+                bottom: 0,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final gift in sequence)
+                      Padding(
+                        padding: const EdgeInsets.only(right: _gap),
+                        child: _GiftMarqueeTile(
+                          gift: gift,
+                          width: _tileWidth,
+                          height: widget.tileHeight,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GiftMarqueeTile extends StatelessWidget {
+  const _GiftMarqueeTile({
+    required this.gift,
+    required this.width,
+    required this.height,
+  });
+
+  final _GiftChip gift;
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: gift.tint,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.85)),
+        boxShadow: [
+          BoxShadow(
+            color: _UpaharoLoginColors.accent.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(gift.emoji, style: const TextStyle(fontSize: 30)),
+          const SizedBox(height: 6),
+          Text(
+            gift.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: _UpaharoLoginColors.ink,
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Login hero — looping scooter video; letterbox bars match clip edges.
@@ -1177,85 +1403,3 @@ class _LoginHeroVideoState extends State<_LoginHeroVideo> {
   }
 }
 
-class _ModeToggle extends StatelessWidget {
-  const _ModeToggle({
-    required this.mode,
-    required this.enabled,
-    required this.onChanged,
-  });
-
-  final _LoginMode mode;
-  final bool enabled;
-  final ValueChanged<_LoginMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(12);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppTheme.charcoal.withAlpha(12),
-        borderRadius: radius,
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _Segment(
-              label: 'Phone OTP',
-              selected: mode == _LoginMode.phone,
-              enabled: enabled,
-              onTap: () => onChanged(_LoginMode.phone),
-            ),
-          ),
-          Expanded(
-            child: _Segment(
-              label: 'Email',
-              selected: mode == _LoginMode.email,
-              enabled: enabled,
-              onTap: () => onChanged(_LoginMode.email),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Segment extends StatelessWidget {
-  const _Segment({
-    required this.label,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppTheme.wine : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: selected
-                  ? Colors.white
-                  : AppTheme.charcoal.withAlpha(170),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}

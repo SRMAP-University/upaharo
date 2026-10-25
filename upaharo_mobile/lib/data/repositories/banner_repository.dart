@@ -21,7 +21,7 @@ class BannerRepository {
       final banners = list
           .whereType<Map>()
           .map((e) => BannerModel.fromJson(Map<String, dynamic>.from(e)))
-          .where((b) => b.image.trim().isNotEmpty)
+          .where((b) => b.showsWithoutImage || b.image.trim().isNotEmpty)
           .toList();
 
       final rawSections = data['sections'] as List<dynamic>? ?? const [];

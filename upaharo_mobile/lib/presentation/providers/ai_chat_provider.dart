@@ -14,7 +14,7 @@ class AiChatProvider extends ChangeNotifier {
     AiMessage(
       role: AiRole.assistant,
       content:
-          "Hi! I'm Upaharo's gifting assistant. Tell me the occasion, recipient, or budget and I'll suggest the perfect gift.",
+          "Maya here. Don't just say 'gift' — tell me who messed up, who's getting spoiled, and how much we're spending.",
     ),
   ];
   bool _loading = false;
@@ -62,7 +62,7 @@ class AiChatProvider extends ChangeNotifier {
         AiMessage(
           role: AiRole.assistant,
           content:
-              "Hi! I'm Upaharo's gifting assistant. What are you shopping for today?",
+              "Back. Spill — who is it for, what's the occasion, and don't be shy about the budget.",
         ),
       );
     _error = null;

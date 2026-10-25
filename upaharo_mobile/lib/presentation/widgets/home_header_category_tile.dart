@@ -178,6 +178,8 @@ class _HeaderVisual extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
+            progressive: false,
+            memCacheLogicalWidth: size,
             enableBlur: false,
             fadeDuration: Duration.zero,
             placeholder: _IconFallback(

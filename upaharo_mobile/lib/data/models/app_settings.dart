@@ -2,6 +2,9 @@ import '../../core/utils/delivery_slots.dart';
 import '../../core/utils/delivery_radius.dart';
 import '../../config/flavor.dart';
 
+export '../../core/utils/delivery_radius.dart'
+    show DeliveryRadiusTier, DeliveryZone, DeliveryZoneMatch;
+
 /// One reorderable mobile home section, configured from the admin panel.
 class HomeSectionConfig {
   final String id;
@@ -54,17 +57,22 @@ const List<HomeSectionConfig> defaultHomeSections = [
 class AppSettings {
   final String siteName;
   final String supportPhone;
+  final String supportInstagram;
   final String supportEmail;
   final String supportHours;
   final String supportMessage;
   final String deliveryEstimate;
   final String deliveryNote;
+  /// Extra minutes added to ETA while rain is detected. 0 = no bump.
+  final int rainExtraMinutes;
   final String announcementText;
   final String storeAddress;
   final double mapLatitude;
   final double mapLongitude;
   final bool homepageShowBanner;
   final int homepageBannerHeight;
+  /// Hero card width as a percent of the screen (70–100).
+  final int homepageBannerWidth;
   final int homepageBannerProductHeight;
 
   /// Mini banner tiles visible per row (1-4); sets each tile's width.
@@ -82,6 +90,7 @@ class AppSettings {
   final String valueDealsPromoText;
   final double valueDealsUnlockAmount;
   final bool homepageShowSpinBanner;
+  final bool festivalMode;
   final String homepageRecommendationMode;
   final String homepageRecommendationTitle;
   final List<HomeSectionConfig> homeSectionLayout;
@@ -111,6 +120,8 @@ class AppSettings {
   final double deliveryFeeAmount;
   /// Distance zones from the store pin. Empty = flat fee only.
   final List<DeliveryRadiusTier> deliveryRadiusTiers;
+  /// Polygon zones; when non-empty they replace circle tiers for matching.
+  final List<DeliveryZone> deliveryZones;
 
   /// Bookable delivery windows. Empty means the admin turned scheduling off.
   final List<DeliverySlot> deliverySlots;
@@ -120,6 +131,7 @@ class AppSettings {
   const AppSettings({
     this.siteName = 'Upaharo',
     this.supportPhone = '',
+    this.supportInstagram = '',
     this.supportEmail = '',
     this.supportHours = '9:00 AM - 9:00 PM',
     this.supportMessage =
@@ -127,6 +139,7 @@ class AppSettings {
     this.deliveryEstimate = 'Estimated delivery: 20-30 minutes',
     this.deliveryNote =
         'Delivery timings may vary depending on location and order volume.',
+    this.rainExtraMinutes = 15,
     this.announcementText =
         'Same day gifting with live support and doorstep delivery.',
     this.storeAddress = '',
@@ -134,6 +147,7 @@ class AppSettings {
     this.mapLongitude = 85.324,
     this.homepageShowBanner = true,
     this.homepageBannerHeight = 320,
+    this.homepageBannerWidth = 88,
     this.homepageBannerProductHeight = 112,
     this.miniBannerColumns = 3,
     this.miniBannerHeight = 96,
@@ -149,6 +163,7 @@ class AppSettings {
     this.valueDealsPromoText = 'Shop for {amount} to unlock deals',
     this.valueDealsUnlockAmount = 199,
     this.homepageShowSpinBanner = true,
+    this.festivalMode = true,
     this.homepageRecommendationMode = 'LATEST',
     this.homepageRecommendationTitle = 'Latest Arrivals',
     this.homeSectionLayout = defaultHomeSections,
@@ -176,6 +191,7 @@ class AppSettings {
     this.freeDeliveryMinAmount = 199,
     this.deliveryFeeAmount = 40,
     this.deliveryRadiusTiers = const [],
+    this.deliveryZones = const [],
     this.deliverySlots = defaultDeliverySlots,
     this.scheduleDayCount = defaultScheduleDayCount,
     this.scheduleMaxDaysAhead = defaultScheduleMaxDaysAhead,
@@ -188,6 +204,90 @@ class AppSettings {
         ? scheduleDayCount
         : scheduleMaxDaysAhead,
   );
+
+  /// Match an address against distance/polygon zones. Null when zones are off
+  /// or coordinates are missing.
+  DeliveryZoneMatch? zoneFor({
+    required double latitude,
+    required double longitude,
+  }) {
+    if (deliveryZones.isEmpty && deliveryRadiusTiers.isEmpty) return null;
+    if (latitude == 0 && longitude == 0) return null;
+    return resolveDeliveryZone(
+      tiers: deliveryRadiusTiers,
+      zones: deliveryZones,
+      storeLat: mapLatitude,
+      storeLng: mapLongitude,
+      addressLat: latitude,
+      addressLng: longitude,
+    );
+  }
+
+  /// Compact header ETA, e.g. `20–30 mins`. Falls back to [deliveryEstimate].
+  ///
+  /// When [rainExtraMinutes] > 0, both ends of the range are bumped.
+  String deliveryEtaLabel({
+    double? latitude,
+    double? longitude,
+    int rainExtraMinutes = 0,
+  }) {
+    final extra = rainExtraMinutes.clamp(0, 180);
+    final zone = (latitude != null && longitude != null)
+        ? zoneFor(latitude: latitude, longitude: longitude)
+        : null;
+    if (zone != null && zone.inRange) {
+      final lo = zone.etaMinMinutes + extra;
+      final hi = zone.etaMaxMinutes + extra;
+      if (lo == hi) return '$lo mins';
+      return '$lo–$hi mins';
+    }
+    if (zone != null && !zone.inRange) return 'Outside delivery area';
+    final raw = deliveryEstimate.trim();
+    if (raw.isEmpty) return '';
+    // Strip "Estimated delivery: " prefix for the compact header chip.
+    final compact = raw
+        .replaceFirst(RegExp(r'^estimated\s+delivery:\s*', caseSensitive: false), '')
+        .replaceFirst(RegExp(r'\s*minutes?\s*$', caseSensitive: false), ' mins')
+        .trim();
+    return _bumpEtaRange(compact, extra);
+  }
+
+  static String _bumpEtaRange(String label, int extra) {
+    if (extra <= 0) return label;
+    final range = RegExp(r'(\d+)\s*[–\-]\s*(\d+)').firstMatch(label);
+    if (range != null) {
+      final lo = int.parse(range.group(1)!) + extra;
+      final hi = int.parse(range.group(2)!) + extra;
+      return label.replaceFirst(range.group(0)!, '$lo–$hi');
+    }
+    final single = RegExp(r'(\d+)').firstMatch(label);
+    if (single != null) {
+      final n = int.parse(single.group(1)!) + extra;
+      return label.replaceFirst(single.group(0)!, '$n');
+    }
+    return label;
+  }
+
+  /// Fee for a goods total at a lat/lng. Uses zone when configured.
+  double deliveryFeeForGoods(
+    double goodsTotal, {
+    double? latitude,
+    double? longitude,
+  }) {
+    final goods = goodsTotal < 0 ? 0.0 : goodsTotal;
+    if (freeDeliveryMinAmount > 0 && goods >= freeDeliveryMinAmount) {
+      return 0;
+    }
+    final zone = (latitude != null && longitude != null)
+        ? zoneFor(latitude: latitude, longitude: longitude)
+        : null;
+    if (zone != null && zone.inRange) {
+      final fee = zone.feeAmount;
+      return ((fee * 100).roundToDouble() / 100);
+    }
+    if (deliveryFeeAmount <= 0) return 0;
+    return ((deliveryFeeAmount * 100).roundToDouble() / 100);
+  }
 
   /// Ordered sections from admin. Unique ids appear once; `bannerCarousel`
   /// may repeat when each entry has a distinct [HomeSectionConfig.key].
@@ -265,11 +365,14 @@ class AppSettings {
     return AppSettings(
       siteName: json['siteName'] as String? ?? 'Upaharo',
       supportPhone: json['supportPhone'] as String? ?? '',
+      supportInstagram: json['supportInstagram'] as String? ?? '',
       supportEmail: json['supportEmail'] as String? ?? '',
       supportHours: json['supportHours'] as String? ?? '9:00 AM - 9:00 PM',
       supportMessage: json['supportMessage'] as String? ?? '',
       deliveryEstimate: json['deliveryEstimate'] as String? ?? '',
       deliveryNote: json['deliveryNote'] as String? ?? '',
+      rainExtraMinutes: ((json['rainExtraMinutes'] as num?)?.round() ?? 15)
+          .clamp(0, 180),
       announcementText: json['announcementText'] as String? ?? '',
       storeAddress: json['storeAddress'] as String? ?? '',
       mapLatitude: (json['mapLatitude'] as num?)?.toDouble() ?? 27.7172,
@@ -277,6 +380,8 @@ class AppSettings {
       homepageShowBanner: json['homepageShowBanner'] as bool? ?? true,
       homepageBannerHeight:
           (json['homepageBannerHeight'] as num?)?.round() ?? 320,
+      homepageBannerWidth:
+          ((json['homepageBannerWidth'] as num?)?.round() ?? 88).clamp(70, 100),
       homepageBannerProductHeight:
           (json['homepageBannerProductHeight'] as num?)?.round() ?? 112,
       miniBannerColumns: ((json['miniBannerColumns'] as num?)?.round() ?? 3)
@@ -316,6 +421,7 @@ class AppSettings {
       valueDealsUnlockAmount:
           (json['valueDealsUnlockAmount'] as num?)?.toDouble() ?? 199,
       homepageShowSpinBanner: json['homepageShowSpinBanner'] as bool? ?? true,
+      festivalMode: json['festivalMode'] as bool? ?? true,
       homepageRecommendationMode:
           json['homepageRecommendationMode'] as String? ?? 'LATEST',
       homepageRecommendationTitle:
@@ -355,6 +461,7 @@ class AppSettings {
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
       deliveryRadiusTiers:
           parseDeliveryRadiusTiers(json['deliveryRadiusTiers']),
+      deliveryZones: parseDeliveryZones(json['deliveryZones']),
       deliverySlots: DeliverySchedule.parseSlots(json['deliverySlots']),
       scheduleDayCount:
           (json['scheduleDayCount'] as num?)?.toInt() ??
@@ -376,17 +483,20 @@ class AppSettings {
   Map<String, dynamic> toJson() => {
     'siteName': siteName,
     'supportPhone': supportPhone,
+    'supportInstagram': supportInstagram,
     'supportEmail': supportEmail,
     'supportHours': supportHours,
     'supportMessage': supportMessage,
     'deliveryEstimate': deliveryEstimate,
     'deliveryNote': deliveryNote,
+    'rainExtraMinutes': rainExtraMinutes,
     'announcementText': announcementText,
     'storeAddress': storeAddress,
     'mapLatitude': mapLatitude,
     'mapLongitude': mapLongitude,
     'homepageShowBanner': homepageShowBanner,
     'homepageBannerHeight': homepageBannerHeight,
+    'homepageBannerWidth': homepageBannerWidth,
     'homepageBannerProductHeight': homepageBannerProductHeight,
     'miniBannerColumns': miniBannerColumns,
     'miniBannerHeight': miniBannerHeight,
@@ -402,6 +512,7 @@ class AppSettings {
     'valueDealsPromoText': valueDealsPromoText,
     'valueDealsUnlockAmount': valueDealsUnlockAmount,
     'homepageShowSpinBanner': homepageShowSpinBanner,
+    'festivalMode': festivalMode,
     'homepageRecommendationMode': homepageRecommendationMode,
     'homepageRecommendationTitle': homepageRecommendationTitle,
     'homeSectionLayout': homeSectionLayout.map((e) => e.toJson()).toList(),
@@ -430,6 +541,7 @@ class AppSettings {
     'deliveryFeeAmount': deliveryFeeAmount,
     'deliveryRadiusTiers':
         deliveryRadiusTiers.map((e) => e.toJson()).toList(),
+    'deliveryZones': deliveryZones.map((e) => e.toJson()).toList(),
     'deliverySlots': deliverySlots.map((e) => e.toJson()).toList(),
     'scheduleDayCount': scheduleDayCount,
     'scheduleMaxDaysAhead': scheduleMaxDaysAhead,

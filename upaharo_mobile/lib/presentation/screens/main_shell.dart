@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
@@ -11,17 +12,15 @@ import '../providers/promo_spin_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../providers/wishlist_provider.dart';
-import '../widgets/active_order_bar.dart';
 import '../widgets/animated_indexed_stack.dart';
-import '../widgets/bottom_nav_bar.dart';
-import '../widgets/mini_cart_bar.dart';
+import '../widgets/floating_bottom_chrome.dart';
 import 'categories/categories_screen.dart';
 import 'home/home_screen.dart';
 import 'order/orders_screen.dart';
 import 'promo/promo_screen.dart';
 
 /// Keeps all main tabs alive so switching does not reload pages.
-/// Bottom nav hides on scroll-down; cart stays and lowers into the free space.
+/// Cart / order chips and the menu float over the page; scroll tucks them away.
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
 
@@ -29,23 +28,55 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
-  bool _navVisible = true;
-  int _lastTab = 0;
+class _MainShellState extends State<MainShell>
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   bool? _wasAuthed;
   bool _bootstrapped = false;
-
-  static const _navAnimDuration = Duration(milliseconds: 560);
-  static const _navAnimCurve = Curves.easeInOutCubic;
+  int _lastTab = 0;
+  int? _seenAddSerial;
+  DateTime? _revealHoldUntil;
+  late final AnimationController _navReveal;
 
   @override
   void initState() {
     super.initState();
+    _navReveal = AnimationController(vsync: this, value: 1);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _bootstrap();
       _syncOrdersPolling();
     });
+  }
+
+  void _revealChrome() {
+    _revealHoldUntil = DateTime.now().add(const Duration(milliseconds: 1800));
+    _navReveal.animateTo(
+      1,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification is! ScrollUpdateNotification) return false;
+    final hold = _revealHoldUntil;
+    if (hold != null && DateTime.now().isBefore(hold)) return false;
+
+    if (notification.metrics.pixels <= 0) {
+      if (_navReveal.value != 1) _navReveal.value = 1;
+      return false;
+    }
+
+    final delta = notification.scrollDelta ?? 0;
+    if (delta.abs() < 0.4) return false;
+
+    final next = (_navReveal.value - delta / FloatingBottomChrome.hideDistance)
+        .clamp(0.0, 1.0);
+    if ((next - _navReveal.value).abs() > 0.002) {
+      _navReveal.value = next;
+    }
+    return false;
   }
 
   @override
@@ -94,6 +125,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _navReveal.dispose();
     WidgetsBinding.instance.removeObserver(this);
     // Provider may outlive this shell — stop only if still mounted tree.
     try {
@@ -114,34 +146,18 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     _wasAuthed = authed;
   }
 
-  void _setNavVisible(bool visible) {
-    if (_navVisible == visible) return;
-    setState(() => _navVisible = visible);
-  }
-
-  bool _onScroll(ScrollNotification notification) {
-    if (notification.metrics.axis != Axis.vertical) return false;
-    if (notification is! ScrollUpdateNotification) return false;
-
-    final delta = notification.scrollDelta ?? 0;
-    final pixels = notification.metrics.pixels;
-
-    if (pixels <= 8) {
-      _setNavVisible(true);
-      return false;
-    }
-
-    if (delta > 4) {
-      _setNavVisible(false);
-    } else if (delta < -4) {
-      _setNavVisible(true);
-    }
-
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final addSerial = context.select<CartProvider, int>((cart) => cart.addSerial);
+    if (_seenAddSerial == null) {
+      _seenAddSerial = addSerial;
+    } else if (addSerial != _seenAddSerial) {
+      _seenAddSerial = addSerial;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _revealChrome();
+      });
+    }
+
     final tab = context.watch<ShellTabController>().index;
     final authed = context.watch<AuthProvider>().isAuthenticated;
     if (_wasAuthed != authed) {
@@ -156,86 +172,52 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
     if (tab != _lastTab) {
       _lastTab = tab;
-      if (!_navVisible) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _setNavVisible(true);
-        });
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _navReveal.value = 1;
+      });
     }
-
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       extendBody: true,
+      backgroundColor: AppTheme.cream,
       body: NotificationListener<ScrollNotification>(
         onNotification: _onScroll,
-        child: AnimatedIndexedStack(
-          index: tab,
-          duration: const Duration(milliseconds: 300),
-          children: const [
-            HomeScreen(showBottomNav: false),
-            CategoriesScreen(showBottomNav: false),
-            OrdersScreen(showBottomNav: false),
-            PromoScreen(showBottomNav: false),
+        child: Stack(
+          children: [
+            AnimatedIndexedStack(
+              index: tab,
+              duration: const Duration(milliseconds: 300),
+              children: const [
+                HomeScreen(showBottomNav: false),
+                CategoriesScreen(showBottomNav: false),
+                OrdersScreen(showBottomNav: false),
+                PromoScreen(showBottomNav: false),
+              ],
+            ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedBuilder(
+                animation: _navReveal,
+                builder: (context, child) {
+                  final reveal = _navReveal.value;
+                  return IgnorePointer(
+                    ignoring: reveal < 0.18,
+                    child: Opacity(
+                      opacity: reveal,
+                      child: Transform.translate(
+                        offset: Offset(0, (1 - reveal) * 180),
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: FloatingBottomChrome(currentIndex: tab),
+              ),
+            ),
           ],
         ),
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Order status + cart sit side-by-side above the nav.
-          AnimatedPadding(
-            duration: _navAnimDuration,
-            curve: _navAnimCurve,
-            padding: EdgeInsets.only(
-              bottom: _navVisible ? 0 : bottomInset + 8,
-            ),
-            child: Transform.translate(
-              offset: const Offset(0, 10),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
-                child: Consumer2<CartProvider, OrdersProvider>(
-                  builder: (context, cart, orders, _) {
-                    final showCart = cart.totalItems > 0;
-                    final showOrder = context.watch<AuthProvider>().isAuthenticated &&
-                        orders.activeOrders.isNotEmpty;
-
-                    if (!showCart && !showOrder) {
-                      return const SizedBox.shrink();
-                    }
-
-                    // Prefer cart over active-order progress when both apply.
-                    if (showCart) {
-                      return const MiniCartBar();
-                    }
-
-                    return const ActiveOrderBar();
-                  },
-                ),
-              ),
-            ),
-          ),
-          // Keep the bar mounted so slide/fade can finish (no instant height:0 swap).
-          ClipRect(
-            child: AnimatedAlign(
-              duration: _navAnimDuration,
-              curve: _navAnimCurve,
-              alignment: Alignment.topCenter,
-              heightFactor: _navVisible ? 1 : 0,
-              child: AnimatedOpacity(
-                duration: _navAnimDuration,
-                curve: _navAnimCurve,
-                opacity: _navVisible ? 1 : 0,
-                child: AnimatedSlide(
-                  duration: _navAnimDuration,
-                  curve: _navAnimCurve,
-                  offset: _navVisible ? Offset.zero : const Offset(0, 0.35),
-                  child: BottomNavBar(currentIndex: tab),
-                ),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

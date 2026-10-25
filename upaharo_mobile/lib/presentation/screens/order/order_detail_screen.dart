@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,8 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../config/app_constants.dart';
+import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
+import '../../widgets/delivery_scooter_illustration.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../core/utils/reorder.dart';
@@ -35,6 +38,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Timer? _pollTimer;
   String _orderId = '';
   GoogleMapController? _mapController;
+  BitmapDescriptor? _scooterIcon;
 
   @override
   void didChangeDependencies() {
@@ -44,11 +48,23 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     _orderId = args is String ? args : '';
     _started = true;
     if (_orderId.isNotEmpty) {
+      _loadScooterMarker();
       _fetch();
       _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _fetch(silent: true));
     } else {
       _loading = false;
       _error = 'Missing order id';
+    }
+  }
+
+  Future<void> _loadScooterMarker() async {
+    if (!FlavorConfig.isGrocery) return;
+    try {
+      final icon = await DeliveryScooterIllustration.toMapIcon(logicalSize: 28);
+      if (!mounted) return;
+      setState(() => _scooterIcon = icon);
+    } catch (_) {
+      // Fall back to default marker hue.
     }
   }
 
@@ -111,37 +127,69 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return const LatLng(AppConstants.defaultLatitude, AppConstants.defaultLongitude);
   }
 
+  LatLng? _riderLatLng(Order order) {
+    final p = order.deliveryPartner;
+    if (p == null || !p.hasLiveLocation) return null;
+    return LatLng(p.currentLat!, p.currentLng!);
+  }
+
+  /// Rough distance in meters (good enough for camera clamping).
+  double _approxMeters(LatLng a, LatLng b) {
+    const mPerDeg = 111320.0;
+    final dLat = (a.latitude - b.latitude) * mPerDeg;
+    final dLng = (a.longitude - b.longitude) *
+        mPerDeg *
+        math.cos(a.latitude * math.pi / 180);
+    return math.sqrt(dLat * dLat + dLng * dLng);
+  }
+
   Future<void> _fitMap(Order order) async {
     final controller = _mapController;
     if (controller == null) return;
 
     final dest = _deliveryLatLng(order);
-    final store = _storeLatLng();
-    final inTransit = order.status == OrderStatus.outForDelivery ||
-        order.status == OrderStatus.ready;
+    final rider = _riderLatLng(order);
 
-    if (inTransit &&
-        (store.latitude != dest.latitude || store.longitude != dest.longitude)) {
+    // Fit only delivery ↔ live rider. Including the store pin often zooms
+    // the camera across the city when settings coords are far away.
+    if (rider != null) {
+      final meters = _approxMeters(dest, rider);
+      if (meters > 20000) {
+        // Stale / bad GPS — stay on the delivery address.
+        await controller.animateCamera(
+          CameraUpdate.newCameraPosition(
+            CameraPosition(target: dest, zoom: 15.5),
+          ),
+        );
+        return;
+      }
+      final padLat = math.max(0.0015, (dest.latitude - rider.latitude).abs() * 0.35);
+      final padLng =
+          math.max(0.0015, (dest.longitude - rider.longitude).abs() * 0.35);
       final bounds = LatLngBounds(
         southwest: LatLng(
-          store.latitude < dest.latitude ? store.latitude : dest.latitude,
-          store.longitude < dest.longitude ? store.longitude : dest.longitude,
+          math.min(dest.latitude, rider.latitude) - padLat,
+          math.min(dest.longitude, rider.longitude) - padLng,
         ),
         northeast: LatLng(
-          store.latitude > dest.latitude ? store.latitude : dest.latitude,
-          store.longitude > dest.longitude ? store.longitude : dest.longitude,
+          math.max(dest.latitude, rider.latitude) + padLat,
+          math.max(dest.longitude, rider.longitude) + padLng,
         ),
       );
       try {
-        await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 72));
+        await controller.animateCamera(
+          CameraUpdate.newLatLngBounds(bounds, 80),
+        );
         return;
       } catch (_) {
-        // Fall through to single-point zoom.
+        // Fall through.
       }
     }
 
     await controller.animateCamera(
-      CameraUpdate.newCameraPosition(CameraPosition(target: dest, zoom: 16)),
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: dest, zoom: 15.5),
+      ),
     );
   }
 
@@ -239,6 +287,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         order.status != OrderStatus.delivered &&
         (store.latitude != dest.latitude || store.longitude != dest.longitude);
 
+    final rider = _riderLatLng(order);
+    final partner = order.deliveryPartner;
+    // Grooll: show 3D scooter whenever a rider is on an active delivery.
+    final showScooterArt = FlavorConfig.isGrocery &&
+        partner != null &&
+        (order.status == OrderStatus.outForDelivery ||
+            order.status == OrderStatus.ready);
+    // Only plot the rider pin when we have real GPS (store stand-in pulled the
+    // camera across town when admin map coords were far from the order).
+    final showRiderPin = showScooterArt && rider != null;
+
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('delivery'),
@@ -251,12 +310,33 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               : (order.address?.label ?? 'Your location'),
         ),
       ),
-      if (showRoute)
+      if (showRoute && !showRiderPin)
         Marker(
           markerId: const MarkerId('store'),
           position: store,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           infoWindow: const InfoWindow(title: 'Store'),
+        ),
+      if (showRiderPin)
+        Marker(
+          markerId: const MarkerId('rider'),
+          position: rider,
+          icon: _scooterIcon ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          anchor: const Offset(0.5, 0.55),
+          // Scooter art faces west (left); Maps rotation is clockwise from north.
+          rotation: partner.hasHeading
+              ? (partner.currentHeading! + 90) % 360
+              : 0,
+          flat: true,
+          infoWindow: InfoWindow(
+            title: partner.name,
+            snippet: partner.vehicleType?.isNotEmpty == true
+                ? '${partner.vehicleType}'
+                    '${(partner.vehicleNumber?.isNotEmpty == true) ? ' · ${partner.vehicleNumber}' : ''}'
+                : 'Live location',
+          ),
+          zIndexInt: 2,
         ),
     };
 
@@ -264,8 +344,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       if (showRoute)
         Polyline(
           polylineId: const PolylineId('route'),
-          points: [store, dest],
-          color: AppTheme.wine.withValues(alpha: 0.75),
+          points: showRiderPin ? [rider, dest] : [store, dest],
+          color: (FlavorConfig.isGrocery
+                  ? const Color(0xFF0D9373)
+                  : AppTheme.wine)
+              .withValues(alpha: 0.75),
           width: 4,
           patterns: [PatternItem.dash(16), PatternItem.gap(10)],
         ),
@@ -345,7 +428,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               left: 16,
               right: 16,
               top: MediaQuery.paddingOf(context).top + 64,
-              child: _MapStatusHover(order: order, theme: theme),
+              child: _MapStatusHover(
+                order: order,
+                theme: theme,
+                showScooterArt: showScooterArt,
+              ),
             ),
 
             // Bottom sheet: products + details
@@ -477,15 +564,29 @@ class _MapCircleButton extends StatelessWidget {
 
 /// Compact progress card that floats over the map.
 class _MapStatusHover extends StatelessWidget {
-  const _MapStatusHover({required this.order, required this.theme});
+  const _MapStatusHover({
+    required this.order,
+    required this.theme,
+    this.showScooterArt = false,
+  });
 
   final Order order;
   final OrderStatusTheme theme;
+  final bool showScooterArt;
 
   @override
   Widget build(BuildContext context) {
     final completed = trackingCompletedIndex(order.status);
     final cancelled = order.status == OrderStatus.cancelled;
+    final partner = order.deliveryPartner;
+    final liveHint = partner != null &&
+            (order.status == OrderStatus.outForDelivery ||
+                order.status == OrderStatus.ready)
+        ? partner.hasLiveLocation
+            ? '${partner.name} is on the way'
+                '${partner.vehicleNumber?.isNotEmpty == true ? ' · ${partner.vehicleNumber}' : ''}'
+            : '${partner.name} assigned — waiting for GPS'
+        : theme.hint;
 
     return Material(
       color: Colors.white,
@@ -500,20 +601,28 @@ class _MapStatusHover extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: showScooterArt ? 28 : 40,
+                  height: showScooterArt ? 28 : 40,
                   decoration: BoxDecoration(
                     color: theme.background,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    order.status == OrderStatus.outForDelivery
-                        ? Icons.delivery_dining_rounded
-                        : order.status == OrderStatus.delivered
-                            ? Icons.check_circle_rounded
-                            : Icons.inventory_2_outlined,
-                    color: theme.color,
-                  ),
+                  clipBehavior: Clip.antiAlias,
+                  alignment: Alignment.center,
+                  child: showScooterArt
+                      ? const DeliveryScooterIllustration(
+                          size: 22,
+                          animate: false,
+                          accent: Color(0xFF0D9373),
+                        )
+                      : Icon(
+                          order.status == OrderStatus.outForDelivery
+                              ? Icons.delivery_dining_rounded
+                              : order.status == OrderStatus.delivered
+                                  ? Icons.check_circle_rounded
+                                  : Icons.inventory_2_outlined,
+                          color: theme.color,
+                        ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -529,7 +638,7 @@ class _MapStatusHover extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        theme.hint,
+                        liveHint,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

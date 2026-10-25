@@ -9,10 +9,8 @@ import '../../../core/network/api_exception.dart';
 import '../../../data/models/product.dart';
 import '../../../data/repositories/ai_repository.dart';
 import '../../../data/repositories/product_repository.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_quick_sheet.dart';
 
@@ -140,9 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cartPad = context.watch<CartProvider>().totalItems > 0
-        ? MiniCartBar.height + 8
-        : 0.0;
+    final navClear = FloatingBottomChrome.clearance(context);
     final aiEnabled = context
         .watch<SettingsProvider>()
         .settings
@@ -201,14 +197,14 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
         ],
       ),
-      body: _buildBody(cartPad, aiEnabled),
+      body: _buildBody(navClear, aiEnabled),
       bottomNavigationBar: widget.showBottomNav
-          ? const BottomNavBar(currentIndex: 0)
+          ? const FloatingBottomChrome(currentIndex: 0)
           : null,
     );
   }
 
-  Widget _buildBody(double cartPad, bool aiEnabled) {
+  Widget _buildBody(double navClear, bool aiEnabled) {
     final query = _controller.text.trim();
 
     if (query.isEmpty) {
@@ -237,7 +233,7 @@ class _SearchScreenState extends State<SearchScreen> {
               );
             }).toList(),
           ),
-          SizedBox(height: 110 + cartPad),
+          SizedBox(height: navClear),
         ],
       );
     }
@@ -316,7 +312,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 110 + cartPad),
+          padding: EdgeInsets.fromLTRB(16, 8, 16, navClear),
           sliver: SliverGrid(
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,

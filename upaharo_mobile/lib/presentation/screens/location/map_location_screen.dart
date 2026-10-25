@@ -208,7 +208,7 @@ class _MapLocationScreenState extends State<MapLocationScreen> {
     await context.read<LocationProvider>().setLocation(location);
 
     if (!mounted) return;
-    Navigator.pop(context);
+    Navigator.pop(context, location);
   }
 
   @override

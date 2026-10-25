@@ -19,6 +19,7 @@ import '../../../runtime/feature.dart';
 import '../../../runtime/feature_slot.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_coupon_chip.dart';
+import '../../widgets/product_social_order_buttons.dart';
 import '../../widgets/progressive_network_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -235,9 +236,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           bottomNavigationBar: snapshot.hasData && !snapshot.hasError
               ? Stack(
                   children: [
-                    // Server features (the gift buddy by default) peek over the cart bar.
+                    // Server features (the gift buddy by default) peek over the Add to Cart button.
                     Positioned(
-                      left: 18,
+                      right: 34,
                       top: 0,
                       child: FeatureSlot(
                         placement: Placements.productCartBar,
@@ -651,7 +652,16 @@ class _BottomCartBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ProductSocialOrderButtons(
+              product: product,
+              quantity: quantity,
+              compact: false,
+            ),
+            const SizedBox(height: 10),
+            Row(
           children: [
             Container(
               decoration: BoxDecoration(
@@ -711,6 +721,8 @@ class _BottomCartBar extends StatelessWidget {
                       )
                     : const Text('Currently Unavailable', style: TextStyle(fontSize: 15)),
               ),
+            ),
+          ],
             ),
           ],
         ),

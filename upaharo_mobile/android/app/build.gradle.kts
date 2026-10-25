@@ -65,6 +65,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Phone is arm64. Skipping x86_64 and armeabi-v7a cuts the native
+            // compile that makes a restart feel stuck. Release still ships every ABI.
+            ndk {
+                abiFilters += listOf("arm64-v8a")
+            }
+        }
         release {
             // Prefer upload keystore when key.properties exists; otherwise debug (local only).
             signingConfig = if (hasReleaseKeystore) {

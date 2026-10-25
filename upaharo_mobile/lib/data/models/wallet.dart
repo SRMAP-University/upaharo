@@ -15,6 +15,7 @@ class WalletSummary {
     this.freeDeliveryMinAmount = 199,
     this.deliveryFeeAmount = 40,
     this.deliveryRadiusTiers = const [],
+    this.deliveryZones = const [],
     this.transactions = const [],
   });
 
@@ -30,6 +31,7 @@ class WalletSummary {
   final double freeDeliveryMinAmount;
   final double deliveryFeeAmount;
   final List<DeliveryRadiusTier> deliveryRadiusTiers;
+  final List<DeliveryZone> deliveryZones;
   final List<WalletTransaction> transactions;
 
   static const empty = WalletSummary(
@@ -60,6 +62,7 @@ class WalletSummary {
       deliveryFeeAmount: (json['deliveryFeeAmount'] as num?)?.toDouble() ?? 40,
       deliveryRadiusTiers:
           parseDeliveryRadiusTiers(json['deliveryRadiusTiers']),
+      deliveryZones: parseDeliveryZones(json['deliveryZones']),
       transactions: rawTransactions
           .whereType<Map>()
           .map((e) => WalletTransaction.fromJson(Map<String, dynamic>.from(e)))
