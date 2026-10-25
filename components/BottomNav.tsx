@@ -5,6 +5,7 @@ import { useCartStore } from '@/lib/store/cart'
 import { useUserStore } from '@/lib/store/user'
 import { motion } from 'framer-motion'
 import { useEffect, useRef, useState } from 'react'
+import NavMascot from './NavMascot'
 
 function formatRupee(amount: number) {
   return `Rs. ${Math.ceil(amount).toLocaleString('en-IN')}`
@@ -217,6 +218,8 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden safe-area-bottom"
       >
+        {/* Perches on whatever sits on top: the delivery chip or the bar. */}
+        <NavMascot className="bottom-full left-4" hidden={!visible} />
         {mounted && showProgress && (
           <div className="px-3 pb-2">{freeDeliveryChip}</div>
         )}
@@ -246,7 +249,8 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         transition={{ duration: 0.25, ease: 'easeInOut' }}
         className={`fixed bottom-6 left-1/2 z-50 ${hideDesktop ? 'hidden' : 'hidden lg:block'}`}
       >
-        <div className="flex w-[min(480px,90vw)] flex-col gap-2">
+        <div className="relative flex w-[min(480px,90vw)] flex-col gap-2">
+          <NavMascot className="bottom-full left-7" />
           {mounted && showProgress && freeDeliveryChip}
           <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
             <div className="flex items-center gap-4">

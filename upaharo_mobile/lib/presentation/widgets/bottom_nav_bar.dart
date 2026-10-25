@@ -10,6 +10,7 @@ import '../../config/theme.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
+import 'nav_mascot.dart';
 
 /// Compact bar: Home · Categories · Orders + circular Promo orb.
 class BottomNavBar extends StatefulWidget {
@@ -248,60 +249,67 @@ class _BottomNavBarState extends State<BottomNavBar>
                       ],
                     ),
                     child: Row(
-                      children: List.generate(items.length, (index) {
-                        final selected = barActive && index == selectedBar;
-                        final item = items[index];
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => _onTap(context, index),
-                            behavior: HitTestBehavior.opaque,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                if (item.assetIcon != null)
-                                  ColorFiltered(
-                                    colorFilter: ColorFilter.mode(
-                                      selected
-                                          ? AppTheme.wine
-                                          : AppTheme.charcoal.withAlpha(170),
-                                      BlendMode.srcIn,
-                                    ),
-                                    child: Image.asset(
-                                      item.assetIcon!,
-                                      width: selected ? 72 : 68,
-                                      height: selected ? 40 : 38,
-                                      fit: BoxFit.fitWidth,
-                                      alignment: Alignment.center,
-                                    ),
-                                  )
-                                else
-                                  Icon(
-                                    selected ? item.filled : item.outline,
-                                    color: selected
-                                        ? AppTheme.wine
-                                        : AppTheme.charcoal.withAlpha(170),
-                                    size: selected ? 21 : 19,
-                                  ),
-                                if (!item.hideLabel) ...[
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    item.label,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
+                      children: [
+                        if (FlavorConfig.isGifts)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8, right: 2),
+                            child: NavMascot(),
+                          ),
+                        ...List.generate(items.length, (index) {
+                          final selected = barActive && index == selectedBar;
+                          final item = items[index];
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => _onTap(context, index),
+                              behavior: HitTestBehavior.opaque,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (item.assetIcon != null)
+                                    ColorFiltered(
+                                      colorFilter: ColorFilter.mode(
+                                        selected
+                                            ? AppTheme.wine
+                                            : AppTheme.charcoal.withAlpha(170),
+                                        BlendMode.srcIn,
+                                      ),
+                                      child: Image.asset(
+                                        item.assetIcon!,
+                                        width: selected ? 72 : 68,
+                                        height: selected ? 40 : 38,
+                                        fit: BoxFit.fitWidth,
+                                        alignment: Alignment.center,
+                                      ),
+                                    )
+                                  else
+                                    Icon(
+                                      selected ? item.filled : item.outline,
                                       color: selected
                                           ? AppTheme.wine
                                           : AppTheme.charcoal.withAlpha(170),
+                                      size: selected ? 21 : 19,
                                     ),
-                                  ),
+                                  if (!item.hideLabel) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      item.label,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: selected
+                                            ? AppTheme.wine
+                                            : AppTheme.charcoal.withAlpha(170),
+                                      ),
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
-                          ),
-                        );
-                      }),
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 ),
