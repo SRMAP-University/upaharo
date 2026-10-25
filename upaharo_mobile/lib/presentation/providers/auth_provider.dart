@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../core/notifications/order_progress_notification.dart';
@@ -14,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
 
   final AuthRepository _authRepository;
 
+  Future<void>? _checkInFlight;
   AuthStatus _status = AuthStatus.idle;
   User? _user;
   String? _errorMessage;
@@ -33,8 +36,22 @@ class AuthProvider extends ChangeNotifier {
   bool get isAuthenticated =>
       _status == AuthStatus.authenticated || _user != null;
 
-  /// Called on splash — restores JWT, or falls back to trusted-device login.
-  Future<void> checkAuth() async {
+  /// Restores a saved session from disk, then continues trusted-device login
+  /// in the background so the first screen is not waiting on the network.
+  Future<void> checkAuth() {
+    if (_status == AuthStatus.authenticated && _user != null) {
+      return Future<void>.value();
+    }
+    final inFlight = _checkInFlight;
+    if (inFlight != null) return inFlight;
+    final task = _checkAuthBody();
+    _checkInFlight = task;
+    return task.whenComplete(() {
+      if (identical(_checkInFlight, task)) _checkInFlight = null;
+    });
+  }
+
+  Future<void> _checkAuthBody() async {
     _setStatus(AuthStatus.loading);
     try {
       _rememberedPhone = await _authRepository.readRememberedPhone();
@@ -44,28 +61,33 @@ class AuthProvider extends ChangeNotifier {
         _user = await _authRepository.restoreSession();
         _errorMessage = null;
         _setStatus(AuthStatus.authenticated);
-        await PushNotificationService.instance.syncTokenWithBackend();
-        return;
-      }
-
-      // No JWT (expired session / logged out) — try remembered device.
-      final trusted = await _authRepository.tryRememberedTrustedLogin();
-      if (trusted != null) {
-        _user = trusted;
-        _errorMessage = null;
-        _rememberedPhone = await _authRepository.readRememberedPhone();
-        _setStatus(AuthStatus.authenticated);
-        await PushNotificationService.instance.syncTokenWithBackend();
+        unawaited(PushNotificationService.instance.syncTokenWithBackend());
         return;
       }
 
       _user = null;
       _setStatus(AuthStatus.unauthenticated);
+      // Remembered-device login hits the network. Do not block first paint.
+      unawaited(_resumeTrustedLogin());
     } catch (e) {
       if (kDebugMode) debugPrint('checkAuth failed: $e');
       _user = null;
       _errorMessage = null;
       _setStatus(AuthStatus.unauthenticated);
+    }
+  }
+
+  Future<void> _resumeTrustedLogin() async {
+    try {
+      final trusted = await _authRepository.tryRememberedTrustedLogin();
+      if (trusted == null) return;
+      _user = trusted;
+      _errorMessage = null;
+      _rememberedPhone = await _authRepository.readRememberedPhone();
+      _setStatus(AuthStatus.authenticated);
+      unawaited(PushNotificationService.instance.syncTokenWithBackend());
+    } catch (e) {
+      if (kDebugMode) debugPrint('trusted resume failed: $e');
     }
   }
 
@@ -209,9 +231,12 @@ class AuthProvider extends ChangeNotifier {
   /// Returns a record with [signedIn] and optional suggested name/email for signup.
   Future<({bool signedIn, String? suggestedName, String? suggestedEmail})>
       loginWithTruecaller() async {
-    _setStatus(AuthStatus.loading);
+    // Do NOT set AuthStatus.loading while the Truecaller sheet is open —
+    // dismiss/cancel often never completes a callback and would leave the
+    // primary button spinning forever.
     try {
       final oauth = await TruecallerLoginService.requestAuthorizationCode();
+      _setStatus(AuthStatus.loading);
       final result = await _authRepository.loginWithTruecaller(
         authorizationCode: oauth.authorizationCode,
         codeVerifier: oauth.codeVerifier,
@@ -237,8 +262,14 @@ class AuthProvider extends ChangeNotifier {
       await PushNotificationService.instance.syncTokenWithBackend();
       return (signedIn: true, suggestedName: null, suggestedEmail: null);
     } catch (e) {
-      _errorMessage = e.toString();
-      _setStatus(AuthStatus.error);
+      final message = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      _errorMessage = message.replaceFirst(RegExp(r'^Bad state:\s*'), '');
+      if (_status == AuthStatus.loading) {
+        _setStatus(AuthStatus.error);
+      } else {
+        _status = AuthStatus.error;
+        notifyListeners();
+      }
       return (signedIn: false, suggestedName: null, suggestedEmail: null);
     }
   }
@@ -294,6 +325,12 @@ class AuthProvider extends ChangeNotifier {
 
   void clearError() {
     _errorMessage = null;
+    // Unstick a hung loading spinner (e.g. Truecaller sheet dismissed).
+    if (_status == AuthStatus.loading || _status == AuthStatus.error) {
+      if (_user == null) {
+        _status = AuthStatus.unauthenticated;
+      }
+    }
     notifyListeners();
   }
 

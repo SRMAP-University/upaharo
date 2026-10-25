@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,12 +14,21 @@ import 'progressive_network_image.dart';
 /// Compact cart chip above the bottom nav when cart has items.
 /// Shows free-delivery progress with a sliding circular thumb.
 class MiniCartBar extends StatefulWidget {
-  const MiniCartBar({super.key, this.side = false});
+  const MiniCartBar({
+    super.key,
+    this.side = false,
+    this.shrinkWhenIdle = false,
+  });
 
   /// When true, aligns as a side chip next to the order status.
   final bool side;
 
+  /// Resting state is the centered pill. The full strip returns only after an add.
+  final bool shrinkWhenIdle;
+
   static const double height = 56;
+  static const double compactHeight = 42;
+  static const Duration idleBeforeCompact = Duration(seconds: 5);
 
   @override
   State<MiniCartBar> createState() => _MiniCartBarState();
@@ -28,6 +39,12 @@ class _MiniCartBarState extends State<MiniCartBar>
   late final AnimationController _progressAnim;
   late Animation<double> _progressTween;
   double _lastTarget = 0;
+  int _latchedSerial = 0;
+  bool _latched = false;
+  bool _showAdded = false;
+  bool _compact = false;
+  Timer? _addedTimer;
+  Timer? _idleTimer;
 
   void _reportTarget() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -47,6 +64,20 @@ class _MiniCartBarState extends State<MiniCartBar>
     _reportTarget();
   }
 
+  void _scheduleIdle() {
+    if (!widget.shrinkWhenIdle) return;
+    _idleTimer?.cancel();
+    _idleTimer = Timer(MiniCartBar.idleBeforeCompact, () {
+      if (!mounted) return;
+      setState(() => _compact = true);
+    });
+  }
+
+  void _expandForAdd() {
+    _compact = false;
+    _scheduleIdle();
+  }
+
   @override
   void didUpdateWidget(covariant MiniCartBar oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -56,6 +87,8 @@ class _MiniCartBarState extends State<MiniCartBar>
   @override
   void dispose() {
     _progressAnim.dispose();
+    _addedTimer?.cancel();
+    _idleTimer?.cancel();
     super.dispose();
   }
 
@@ -71,11 +104,40 @@ class _MiniCartBarState extends State<MiniCartBar>
       ..forward();
   }
 
+  void _noteAdded(CartProvider cart) {
+    final serial = cart.addSerial;
+    if (_latched && serial == _latchedSerial) return;
+
+    final addedAt = cart.lastAddedAt;
+    final openedOnAFreshAdd = !_latched &&
+        addedAt != null &&
+        DateTime.now().difference(addedAt) < const Duration(milliseconds: 1600);
+    final addedWhileVisible = _latched && serial != _latchedSerial;
+    _latched = true;
+    _latchedSerial = serial;
+
+    if (!widget.shrinkWhenIdle || openedOnAFreshAdd || addedWhileVisible) {
+      if (openedOnAFreshAdd || addedWhileVisible) {
+        _expandForAdd();
+        _showAdded = true;
+        _addedTimer?.cancel();
+        _addedTimer = Timer(const Duration(milliseconds: 1600), () {
+          if (mounted) setState(() => _showAdded = false);
+        });
+      }
+      return;
+    }
+
+    _idleTimer?.cancel();
+    _compact = true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.watch<CartProvider>();
     final settings = context.watch<SettingsProvider>().settings;
     _reportTarget();
+    _noteAdded(cart);
 
     if (cart.totalItems <= 0) {
       return const SizedBox.shrink();
@@ -100,7 +162,12 @@ class _MiniCartBarState extends State<MiniCartBar>
     }
 
     final thumbs = cart.items.take(1).toList();
-    final radius = BorderRadius.circular(14);
+    final compact = widget.shrinkWhenIdle && _compact;
+    final radius = BorderRadius.circular(compact ? 21 : 14);
+    final previewImages = <String>[
+      for (final item in cart.items)
+        if (item.image.isNotEmpty) item.image,
+    ].take(3).toList();
 
     final chip = Material(
       color: AppTheme.wine,
@@ -111,43 +178,75 @@ class _MiniCartBarState extends State<MiniCartBar>
         onTap: () => Navigator.pushNamed(context, AppRoutes.cart),
         borderRadius: radius,
         child: SizedBox(
-          height: MiniCartBar.height,
-          width: widget.side ? null : double.infinity,
+          height: compact ? MiniCartBar.compactHeight : MiniCartBar.height,
+          width: widget.side ? null : (compact ? null : double.infinity),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(widget.side ? 10 : 14, 8, 10, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: showProgress
-                      ? AnimatedBuilder(
-                          animation: _progressTween,
-                          builder: (context, _) {
-                            return _DeliveryProgressSide(
-                              unlocked: unlocked,
-                              remaining: remaining,
-                              progress: _progressTween.value,
-                              compact: widget.side,
-                            );
-                          },
-                        )
-                      : Text(
-                          '${cart.totalItems} ${cart.totalItems == 1 ? 'item' : 'items'} · ${PriceFormatter.format(cartTotal)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+            padding: EdgeInsets.fromLTRB(
+              compact ? 8 : (widget.side ? 10 : 14),
+              compact ? 0 : 8,
+              compact ? 4 : 10,
+              compact ? 0 : 8,
+            ),
+            child: compact
+                ? _CompactCartFace(
+                    key: const ValueKey('cart-compact'),
+                    imageUrls: previewImages,
+                    itemCount: cart.totalItems,
+                  )
+                : AnimatedSwitcher(
+              duration: const Duration(milliseconds: 360),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0.08, 0),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: _showAdded && cart.lastAdded != null
+                  ? _AddedToCartLine(
+                      key: ValueKey('added-${cart.addSerial}'),
+                      imageUrl: cart.lastAdded!.image,
+                    )
+                  : Row(
+                      key: const ValueKey('cart-summary'),
+                      children: [
+                        Expanded(
+                          child: showProgress
+                              ? AnimatedBuilder(
+                                  animation: _progressTween,
+                                  builder: (context, _) {
+                                    return _DeliveryProgressSide(
+                                      unlocked: unlocked,
+                                      remaining: remaining,
+                                      progress: _progressTween.value,
+                                      compact: widget.side,
+                                    );
+                                  },
+                                )
+                              : Text(
+                                  '${cart.totalItems} ${cart.totalItems == 1 ? 'item' : 'items'} · ${PriceFormatter.format(cartTotal)}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                         ),
-                ),
-                const SizedBox(width: 10),
-                _CartRightSide(
-                  itemCount: cart.totalItems,
-                  thumbUrl: thumbs.isEmpty ? null : thumbs.first.image,
-                  compact: widget.side,
-                ),
-              ],
+                        const SizedBox(width: 10),
+                        _CartRightSide(
+                          itemCount: cart.totalItems,
+                          thumbUrl: thumbs.isEmpty ? null : thumbs.first.image,
+                          compact: widget.side,
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -161,7 +260,154 @@ class _MiniCartBarState extends State<MiniCartBar>
       );
     }
 
-    return chip;
+    if (!widget.shrinkWhenIdle) return chip;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Align(
+          alignment: Alignment.center,
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 380),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.center,
+            child: SizedBox(
+              width: compact ? null : constraints.maxWidth,
+              child: chip,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CompactCartFace extends StatelessWidget {
+  const _CompactCartFace({
+    super.key,
+    required this.imageUrls,
+    required this.itemCount,
+  });
+
+  final List<String> imageUrls;
+  final int itemCount;
+
+  static const double _thumb = 28;
+  static const double _step = 16;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = '$itemCount ${itemCount == 1 ? 'item' : 'items'}';
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (imageUrls.isEmpty)
+          const Icon(Icons.shopping_bag_outlined, size: 18, color: Colors.white)
+        else
+          _StackedThumbs(urls: imageUrls),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          maxLines: 1,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Icon(Icons.chevron_right_rounded, size: 18, color: Colors.white),
+      ],
+    );
+  }
+}
+
+class _StackedThumbs extends StatelessWidget {
+  const _StackedThumbs({required this.urls});
+
+  final List<String> urls;
+
+  @override
+  Widget build(BuildContext context) {
+    final n = urls.length.clamp(0, 3);
+    final width = _CompactCartFace._thumb + (n - 1) * _CompactCartFace._step;
+    return SizedBox(
+      width: width,
+      height: _CompactCartFace._thumb,
+      child: Stack(
+        children: [
+          for (var i = 0; i < n; i++)
+            Positioned(
+              left: i * _CompactCartFace._step,
+              child: Container(
+                width: _CompactCartFace._thumb,
+                height: _CompactCartFace._thumb,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ProgressiveNetworkImage(
+                  url: urls[i],
+                  fit: BoxFit.cover,
+                  progressive: false,
+                  fadeDuration: Duration.zero,
+                  errorWidget: Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 14,
+                    color: AppTheme.wine,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddedToCartLine extends StatelessWidget {
+  const _AddedToCartLine({super.key, required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: ColoredBox(
+            color: Colors.white,
+            child: ProgressiveNetworkImage(
+              url: imageUrl,
+              width: 36,
+              height: 36,
+              fit: BoxFit.cover,
+              progressive: false,
+              fadeDuration: Duration.zero,
+              errorWidget: Icon(
+                Icons.shopping_bag_outlined,
+                size: 18,
+                color: AppTheme.wine,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'Added to cart',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

@@ -37,7 +37,10 @@ class AppCache {
       final age = DateTime.now().millisecondsSinceEpoch - savedAt;
       if (age > maxAge.inMilliseconds) return null;
 
-      final json = jsonDecode(raw);
+      // Large catalog payloads decode off the UI isolate so home can paint.
+      final dynamic json = raw.length > 12000
+          ? await compute(_decodeCacheJson, raw)
+          : jsonDecode(raw);
       _memory[scopedKey] = _MemoryEntry(json, DateTime.fromMillisecondsSinceEpoch(savedAt));
       return parser(json);
     } catch (e) {
@@ -68,6 +71,8 @@ class AppCache {
     } catch (_) {}
   }
 }
+
+dynamic _decodeCacheJson(String raw) => jsonDecode(raw);
 
 class _MemoryEntry {
   _MemoryEntry(this.data, this.savedAt);

@@ -13,7 +13,7 @@ import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/wishlist_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, this.showBottomNav = true});
@@ -28,7 +28,9 @@ class _AccountScreenState extends State<AccountScreen> {
   String get _privacyUrl => '${FlavorConfig.shareDomain}/privacy';
   String get _termsUrl => '${FlavorConfig.shareDomain}/terms';
   String get _deleteInfoUrl => '${FlavorConfig.shareDomain}/account-deletion';
-  static const _pageBg = Color(0xFFF2F2F2);
+  static const _pageBg = Color(0xFFFFFFFF);
+  static const _line = Color(0xFFEDEDED);
+  static const _muted = Color(0xFF6B6B6B);
 
   final _walletRepo = const WalletRepository();
   final _notificationRepo = const NotificationRepository();
@@ -173,402 +175,327 @@ class _AccountScreenState extends State<AccountScreen> {
       if (settings.supportPhone.trim().isNotEmpty) settings.supportPhone,
     ].join(' · ');
 
+    final firstName = name.split(' ').first;
+    final showWishlist = loggedIn && settings.featureWishlist;
+    final openWallet = loggedIn && _wallet.enabled
+        ? () async {
+            await Navigator.pushNamed(context, AppRoutes.wallet);
+            await _loadWallet();
+          }
+        : null;
+
     return Scaffold(
       extendBody: true,
       backgroundColor: _pageBg,
-      appBar: AppBar(
-        backgroundColor: AppTheme.cardSurface,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Account',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.ink,
-          ),
-        ),
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 120),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          MediaQuery.paddingOf(context).top + 12,
+          20,
+          FloatingBottomChrome.clearance(context),
+        ),
         children: [
-          _profileCard(name: name, email: email),
-          if (settings.announcementText.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _announcementBanner(settings.announcementText),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  'Hey, $firstName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 26,
+                    height: 1.15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.4,
+                    color: AppTheme.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _helpPill(
+                onTap: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
+              ),
+            ],
+          ),
+          if (email.trim().isNotEmpty && email != firstName) ...[
+            const SizedBox(height: 4),
+            Text(
+              email,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: _muted),
+            ),
           ],
-          const SizedBox(height: 14),
-          _sectionLabel('Orders & wallet'),
-          const SizedBox(height: 8),
-          _shortcutsRow(
-            loggedIn: loggedIn,
-            onOrders: () => Navigator.pushNamed(context, AppRoutes.orders),
-            onWallet: loggedIn && _wallet.enabled
-                ? () async {
-                    await Navigator.pushNamed(context, AppRoutes.wallet);
-                    await _loadWallet();
-                  }
-                : null,
-          ),
-          const SizedBox(height: 10),
-          _groupCard(
+          if (settings.announcementText.trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              settings.announcementText.trim(),
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: AppTheme.ink,
+              ),
+            ),
+          ],
+          if (openWallet != null) ...[
+            const SizedBox(height: 18),
+            _walletCard(onTap: openWallet),
+          ],
+          const SizedBox(height: 16),
+          Row(
             children: [
-              if (loggedIn && settings.featureWishlist)
-                _row(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Notifications',
-                  subtitle: _unreadNotifications > 0
-                      ? '$_unreadNotifications unread update${_unreadNotifications == 1 ? '' : 's'}'
-                      : 'Order updates, reminders and offers',
-                  badgeCount: _unreadNotifications,
-                  onTap: () async {
-                    await Navigator.pushNamed(context, AppRoutes.notifications);
-                    await _loadUnread();
-                  },
+              Expanded(
+                child: _outlineAction(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Orders',
+                  onTap: () => Navigator.pushNamed(context, AppRoutes.orders),
                 ),
-              if (loggedIn)
-                _row(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'Wishlist',
-                  subtitle: 'Gifts you saved for later',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.wishlist),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _outlineAction(
+                  icon: showWishlist
+                      ? Icons.favorite_border_rounded
+                      : Icons.location_on_outlined,
+                  label: showWishlist ? 'Wishlist' : 'Location',
+                  onTap: showWishlist
+                      ? () => Navigator.pushNamed(context, AppRoutes.wishlist)
+                      : () => Navigator.pushNamed(context, AppRoutes.location),
                 ),
-              _row(
-                icon: Icons.location_on_outlined,
-                title: 'Delivery location',
-                subtitle: settings.deliveryEstimate.trim().isEmpty
-                    ? 'Used only to confirm delivery in our service area'
-                    : settings.deliveryEstimate,
-                onTap: () => Navigator.pushNamed(context, AppRoutes.location),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          _sectionLabel('Help & info'),
-          const SizedBox(height: 8),
-          _groupCard(
-            children: [
-              _row(
-                icon: Icons.support_agent_outlined,
-                title: 'Help & Support',
-                subtitle: supportSubtitle,
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.helpSupport),
-              ),
-              _row(
-                icon: Icons.info_outline,
-                title: 'About ${settings.siteName}',
-                subtitle: 'Version $_versionLabel',
-                onTap: () => Navigator.pushNamed(context, AppRoutes.about),
-              ),
-              if (settings.storeAddress.trim().isNotEmpty)
-                _row(
-                  icon: Icons.storefront_outlined,
-                  title: 'Store address',
-                  subtitle: settings.storeAddress,
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.helpSupport),
-                ),
-            ],
+          const SizedBox(height: 28),
+          _sectionLabel('Your account'),
+          if (loggedIn && settings.featureWishlist)
+            _row(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              subtitle: _unreadNotifications > 0
+                  ? '$_unreadNotifications unread update${_unreadNotifications == 1 ? '' : 's'}'
+                  : 'Order updates, reminders and offers',
+              badgeCount: _unreadNotifications,
+              onTap: () async {
+                await Navigator.pushNamed(context, AppRoutes.notifications);
+                await _loadUnread();
+              },
+            ),
+          _row(
+            icon: Icons.location_on_outlined,
+            title: 'Delivery location',
+            subtitle: settings.deliveryEstimate.trim().isEmpty
+                ? 'Used to confirm delivery in our area'
+                : settings.deliveryEstimate,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.location),
           ),
-          const SizedBox(height: 14),
+          _row(
+            icon: Icons.support_agent_outlined,
+            title: 'Help & Support',
+            subtitle: supportSubtitle.isEmpty ? 'Chat and call us' : supportSubtitle,
+            onTap: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
+          ),
+          if (settings.storeAddress.trim().isNotEmpty)
+            _row(
+              icon: Icons.storefront_outlined,
+              title: 'Store address',
+              subtitle: settings.storeAddress,
+              onTap: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
+            ),
+          const SizedBox(height: 22),
           _sectionLabel('Settings'),
-          const SizedBox(height: 8),
-          _groupCard(
-            children: [
-              _row(
-                icon: Icons.notifications_outlined,
-                title: 'Notifications',
-                subtitle: 'Order updates & offers — manage in phone Settings',
-                onTap: _showNotificationsInfo,
-              ),
-              _row(
-                icon: Icons.privacy_tip_outlined,
-                title: 'Privacy Policy',
-                subtitle: 'How we use your data',
-                onTap: () => _openUrl(_privacyUrl),
-              ),
-              _row(
-                icon: Icons.description_outlined,
-                title: 'Terms of Service',
-                onTap: () => _openUrl(_termsUrl),
-              ),
-            ],
+          _row(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            subtitle: 'Manage alerts in phone Settings',
+            onTap: _showNotificationsInfo,
+          ),
+          _row(
+            icon: Icons.privacy_tip_outlined,
+            title: 'Privacy Policy',
+            subtitle: 'How we use your data',
+            onTap: () => _openUrl(_privacyUrl),
+          ),
+          _row(
+            icon: Icons.description_outlined,
+            title: 'Terms of Service',
+            onTap: () => _openUrl(_termsUrl),
+          ),
+          _row(
+            icon: Icons.info_outline,
+            title: 'About ${settings.siteName}',
+            subtitle: 'Version $_versionLabel',
+            onTap: () => Navigator.pushNamed(context, AppRoutes.about),
           ),
           if (loggedIn) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 22),
             _sectionLabel('Account'),
-            const SizedBox(height: 8),
-            _groupCard(
-              children: [
-                _row(
-                  icon: Icons.delete_forever_outlined,
-                  title: 'Delete account',
-                  subtitle: 'Remove your personal data from Upaharo',
-                  onTap: _deleting ? () {} : () => _confirmDelete(auth),
-                  danger: true,
-                ),
-              ],
+            _row(
+              icon: Icons.logout_rounded,
+              title: 'Log out',
+              onTap: _deleting
+                  ? () {}
+                  : () async {
+                      await auth.logout();
+                      if (context.mounted) {
+                        context.read<WishlistProvider>().clear();
+                        Navigator.pushReplacementNamed(
+                          context,
+                          AppRoutes.login,
+                        );
+                      }
+                    },
             ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: () => _openUrl(_deleteInfoUrl),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.wine,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 4,
-                  ),
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: const Text(
-                  'Learn more about account deletion',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                ),
+            _row(
+              icon: Icons.delete_outline,
+              title: 'Delete account',
+              subtitle: 'Remove your personal data',
+              onTap: _deleting ? () {} : () => _confirmDelete(auth),
+              danger: true,
+            ),
+            TextButton(
+              onPressed: () => _openUrl(_deleteInfoUrl),
+              style: TextButton.styleFrom(
+                foregroundColor: _muted,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                alignment: Alignment.centerLeft,
+              ),
+              child: const Text(
+                'Learn more about account deletion',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
               ),
             ),
-          ],
-          const SizedBox(height: 18),
-          if (loggedIn)
+          ] else ...[
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              height: 46,
-              child: OutlinedButton(
-                onPressed: _deleting
-                    ? null
-                    : () async {
-                        await auth.logout();
-                        if (context.mounted) {
-                          context.read<WishlistProvider>().clear();
-                          Navigator.pushReplacementNamed(
-                            context,
-                            AppRoutes.login,
-                          );
-                        }
-                      },
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFB42318),
-                  side: const BorderSide(color: Color(0x33B42318)),
-                  backgroundColor: AppTheme.cardSurface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                child: _deleting
-                    ? SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppTheme.wine,
-                        ),
-                      )
-                    : const Text(
-                        'Log out',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            )
-          else
-            SizedBox(
-              width: double.infinity,
-              height: 46,
+              height: 48,
               child: ElevatedButton(
                 onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.wine,
+                  backgroundColor: AppTheme.ink,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text(
                   'Sign in',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
+          ],
         ],
       ),
       bottomNavigationBar: widget.showBottomNav
-          ? const BottomNavBar(currentIndex: 0)
+          ? const FloatingBottomChrome(currentIndex: 0)
           : null,
     );
   }
 
-  Widget _profileCard({required String name, required String email}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: _cardDecoration,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppTheme.wine.withAlpha(22),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(Icons.person_outline, size: 22, color: AppTheme.wine),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: AppTheme.charcoal,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+  Widget _helpPill({required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: const BorderSide(color: _line),
       ),
-    );
-  }
-
-  Widget _announcementBanner(String text) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.wine.withAlpha(12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.wine.withAlpha(40)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          color: AppTheme.ink,
-          height: 1.35,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.headset_mic_outlined, size: 16, color: Color(0xFF1F1F1F)),
+              SizedBox(width: 6),
+              Text(
+                'Help',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1F1F1F),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _shortcutsRow({
-    required bool loggedIn,
-    required VoidCallback onOrders,
-    required VoidCallback? onWallet,
-  }) {
-    final showWallet = loggedIn && _wallet.enabled && onWallet != null;
-    final walletSubtitle = _wallet.pendingCashback > 0
-        ? '${PriceFormatter.format(_wallet.balance)} · ${PriceFormatter.format(_wallet.pendingCashback)} pending'
-        : '${PriceFormatter.format(_wallet.balance)} available';
-
-    return Row(
-      children: [
-        Expanded(
-          child: _shortcutTile(
-            icon: Icons.receipt_long_outlined,
-            title: 'My Orders',
-            subtitle: 'Track & reorder',
-            onTap: onOrders,
+  Widget _walletCard({required VoidCallback onTap}) {
+    return Material(
+      color: const Color(0xFFF3F5FF),
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Wallet balance',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  PriceFormatter.format(_wallet.balance),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
           ),
         ),
-        if (showWallet) ...[
-          const SizedBox(width: 10),
-          Expanded(
-            child: _shortcutTile(
-              icon: Icons.account_balance_wallet_outlined,
-              title: 'Wallet',
-              subtitle: walletSubtitle,
-              onTap: onWallet,
-            ),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
-  Widget _shortcutTile({
+  Widget _outlineAction({
     required IconData icon,
-    required String title,
-    required String subtitle,
+    required String label,
     required VoidCallback onTap,
   }) {
     return Material(
-      color: Colors.transparent,
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _line),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          decoration: _cardDecoration,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(icon, size: 18, color: AppTheme.wine),
-                const SizedBox(height: 10),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.ink,
-                  ),
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: AppTheme.ink),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.ink,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w400,
-                    color: AppTheme.charcoal,
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _groupCard({required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      decoration: _cardDecoration,
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            children[i],
-            if (i < children.length - 1)
-              Divider(height: 1, thickness: 1, color: AppTheme.creamDeep),
-          ],
-        ],
       ),
     );
   }
@@ -582,18 +509,16 @@ class _AccountScreenState extends State<AccountScreen> {
     int badgeCount = 0,
   }) {
     final titleColor = danger ? const Color(0xFFB42318) : AppTheme.ink;
-    final iconColor = danger ? const Color(0xFFB42318) : AppTheme.wine;
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Row(
             children: [
-              Icon(icon, size: 18, color: iconColor),
-              const SizedBox(width: 10),
+              Icon(icon, size: 22, color: titleColor),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -601,8 +526,8 @@ class _AccountScreenState extends State<AccountScreen> {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
                         color: titleColor,
                       ),
                     ),
@@ -612,26 +537,21 @@ class _AccountScreenState extends State<AccountScreen> {
                         subtitle.trim(),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w400,
-                          color: AppTheme.charcoal,
+                        style: const TextStyle(
+                          fontSize: 13,
                           height: 1.3,
+                          color: _muted,
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              const SizedBox(width: 6),
               if (badgeCount > 0) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 2,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppTheme.wine,
+                    color: AppTheme.ink,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
@@ -645,11 +565,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
                 const SizedBox(width: 6),
               ],
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: AppTheme.charcoal.withAlpha(140),
-              ),
+              const Icon(Icons.chevron_right_rounded, size: 22, color: Color(0xFFB0B0B0)),
             ],
           ),
         ),
@@ -658,21 +574,17 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _sectionLabel(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: AppTheme.charcoal,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.3,
+          color: AppTheme.ink,
+        ),
       ),
     );
   }
-
-  BoxDecoration get _cardDecoration => BoxDecoration(
-    color: AppTheme.cardSurface,
-    borderRadius: BorderRadius.circular(18),
-    boxShadow: const [
-      BoxShadow(color: Color(0x14000000), blurRadius: 14, offset: Offset(0, 4)),
-    ],
-  );
 }

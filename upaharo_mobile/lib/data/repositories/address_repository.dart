@@ -25,4 +25,15 @@ class AddressRepository {
 
     return Address.fromJson(data['address'] as Map<String, dynamic>);
   }
+
+  Future<Address> updateAddress(Address address) async {
+    final data = await DioClient.request<Map<String, dynamic>>(
+      ApiEndpoints.addresses,
+      method: 'PUT',
+      data: address.toJson(),
+      parser: (json) => json as Map<String, dynamic>,
+    );
+
+    return Address.fromJson(data['address'] as Map<String, dynamic>);
+  }
 }

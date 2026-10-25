@@ -115,9 +115,15 @@ class CartProvider extends ChangeNotifier {
 
   List<CartItem> _items = [];
   GiftOptions _giftOptions = const GiftOptions();
+  CartItem? _lastAdded;
+  int _addSerial = 0;
+  DateTime? _lastAddedAt;
 
   List<CartItem> get items => List.unmodifiable(_items);
   GiftOptions get giftOptions => _giftOptions;
+  CartItem? get lastAdded => _lastAdded;
+  int get addSerial => _addSerial;
+  DateTime? get lastAddedAt => _lastAddedAt;
 
   int get totalItems => _items.fold<int>(0, (sum, item) => sum + item.quantity);
 
@@ -137,6 +143,9 @@ class CartProvider extends ChangeNotifier {
     } else {
       _items = [..._items, item];
     }
+    _lastAdded = item;
+    _lastAddedAt = DateTime.now();
+    _addSerial++;
     _saveCart();
     notifyListeners();
   }

@@ -9,6 +9,9 @@ import 'shimmer_loader.dart';
 ///
 /// Set [progressive] to false for scroll-heavy feeds (home grid, deals) — one
 /// decode only, much smoother while scrolling.
+///
+/// For full-bleed banners use [progressive] false + [highQuality] true so
+/// decode/CDN quality stay sharp without the dual-decode progressive stack.
 class ProgressiveNetworkImage extends StatelessWidget {
   const ProgressiveNetworkImage({
     super.key,
@@ -23,8 +26,11 @@ class ProgressiveNetworkImage extends StatelessWidget {
     /// Unused — kept so call sites that passed blur flags still compile.
     this.lowBlurSigma = 0,
     this.enableBlur = false,
-    /// When false, load a single medium-quality image (preferred in lists).
+    /// When false, load a single image (preferred in lists).
     this.progressive = true,
+    /// With [progressive] false: use high CDN quality + larger decode cap
+    /// (banners). Leave false for product grids / deal cards.
+    this.highQuality = false,
     /// Explicit decode width in logical px (skips LayoutBuilder when set with [width]).
     this.memCacheLogicalWidth,
   });
@@ -40,6 +46,7 @@ class ProgressiveNetworkImage extends StatelessWidget {
   final double lowBlurSigma;
   final bool enableBlur;
   final bool progressive;
+  final bool highQuality;
   final double? memCacheLogicalWidth;
 
   Widget get _defaultPlaceholder => const ShimmerLoader();
@@ -51,6 +58,17 @@ class ProgressiveNetworkImage extends StatelessWidget {
         ),
       );
 
+  double _resolveLayoutWidth(BuildContext context) {
+    final explicit = memCacheLogicalWidth ?? width;
+    if (explicit != null && explicit.isFinite && explicit > 0) {
+      return explicit;
+    }
+    if (height != null && height!.isFinite && height! > 0) {
+      return height! * 1.6;
+    }
+    return MediaQuery.sizeOf(context).width;
+  }
+
   @override
   Widget build(BuildContext context) {
     final resolved = ImageResolver.resolve(url);
@@ -61,10 +79,12 @@ class ProgressiveNetworkImage extends StatelessWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     if (!progressive) {
-      final layoutW = memCacheLogicalWidth ??
-          width ??
-          (height != null ? height! * 1.1 : 160.0);
-      return _wrap(_buildSimple(layoutW: layoutW, dpr: dpr));
+      return _wrap(
+        _buildSimple(
+          layoutW: _resolveLayoutWidth(context),
+          dpr: dpr,
+        ),
+      );
     }
 
     // Prefer fixed width when given so we skip LayoutBuilder rebuilds.
@@ -84,11 +104,13 @@ class ProgressiveNetworkImage extends StatelessWidget {
   }
 
   Widget _buildSimple({required double layoutW, required double dpr}) {
+    final maxCache = highQuality ? 1440 : 480;
+    final fallback = highQuality ? 1080 : 360;
     final cache =
-        (ImageResolver.memCacheWidth(layoutW, dpr) ?? 360).clamp(64, 480);
+        (ImageResolver.memCacheWidth(layoutW, dpr) ?? fallback).clamp(64, maxCache);
     final imageUrl = ImageResolver.resolveQuality(
       url,
-      quality: ImageQuality.medium,
+      quality: highQuality ? ImageQuality.high : ImageQuality.medium,
       targetWidth: cache,
     );
 
@@ -98,12 +120,13 @@ class ProgressiveNetworkImage extends StatelessWidget {
       width: width ?? double.infinity,
       height: height ?? double.infinity,
       memCacheWidth: cache,
-      memCacheHeight: height != null
+      memCacheHeight: height != null && height!.isFinite
           ? (ImageResolver.memCacheWidth(height!, dpr) ?? cache)
           : null,
       fadeInDuration: fadeDuration,
       fadeOutDuration: Duration.zero,
-      filterQuality: FilterQuality.low,
+      filterQuality:
+          highQuality ? FilterQuality.medium : FilterQuality.low,
       placeholder: (_, _) => placeholder ?? _defaultPlaceholder,
       errorWidget: (_, _, _) => errorWidget ?? _defaultError,
     );

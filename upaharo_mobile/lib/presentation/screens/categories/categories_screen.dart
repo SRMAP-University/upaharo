@@ -9,10 +9,8 @@ import '../../../core/utils/image_resolver.dart';
 import '../../../data/models/category.dart';
 import '../../../data/models/product.dart';
 import '../../../data/repositories/category_repository.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_quick_sheet.dart';
 import '../../widgets/progressive_network_image.dart';
@@ -93,8 +91,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
-    final cartPad =
-        context.watch<CartProvider>().totalItems > 0 ? MiniCartBar.height + 8 : 0.0;
+    final navClear = FloatingBottomChrome.clearance(context);
     final selected = _selected;
     final products = selected == null
         ? const <Product>[]
@@ -158,7 +155,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           width: _railWidth,
                           categories: _categories,
                           selectedId: selected?.id,
-                          bottomPad: 100 + cartPad,
+                          bottomPad: navClear,
                           onSelect: _selectCategory,
                         ),
                         Expanded(
@@ -179,7 +176,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                         10,
                                         8,
                                         12,
-                                        100 + cartPad,
+                                        navClear,
                                       ),
                                       gridDelegate:
                                           const SliverGridDelegateWithFixedCrossAxisCount(
@@ -205,8 +202,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         ),
                       ],
                     ),
-      bottomNavigationBar:
-          widget.showBottomNav ? const BottomNavBar(currentIndex: 1) : null,
+      bottomNavigationBar: widget.showBottomNav
+          ? const FloatingBottomChrome(currentIndex: 1)
+          : null,
     );
   }
 }
@@ -284,6 +282,8 @@ class _CategoryRail extends StatelessWidget {
                                   fit: BoxFit.cover,
                                   width: 52,
                                   height: 52,
+                                  memCacheLogicalWidth: 52,
+                                  progressive: false,
                                   errorWidget: ColoredBox(
                                     color: wash,
                                     child: Icon(

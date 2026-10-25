@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
@@ -6,7 +9,6 @@ import 'package:provider/provider.dart';
 import '../../../config/flavor.dart';
 import '../../../config/routes.dart';
 import '../../../config/theme.dart';
-import '../../../core/utils/category_style.dart';
 import '../../../core/utils/image_resolver.dart';
 import '../../../core/utils/price_formatter.dart';
 import '../../../data/models/banner.dart';
@@ -15,11 +17,12 @@ import '../../../data/models/coupon.dart';
 import '../../../data/models/mini_banner.dart';
 import '../../../data/models/product.dart';
 import '../../../data/models/app_settings.dart';
+import '../../../data/models/user.dart';
+import '../../../data/models/user_location.dart';
 import '../../../data/models/wallet.dart';
 import '../../../data/repositories/wallet_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/banner_provider.dart';
-import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/coupon_provider.dart';
 import '../../providers/location_provider.dart';
@@ -27,12 +30,14 @@ import '../../providers/mini_banner_provider.dart';
 import '../../providers/promo_spin_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
+import '../../providers/weather_provider.dart';
 import '../../widgets/add_to_cart_plus.dart';
-import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/home_feed_banner_carousel.dart';
 import '../../widgets/home_header_category_tile.dart';
 import '../../widgets/home_header_promo.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/home_header_navratri.dart';
+import '../../widgets/home_header_rain.dart';
 import '../../widgets/product_quick_sheet.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../widgets/quick_picks_categories_section.dart';
@@ -50,7 +55,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
-  int _selectedTab = 0;
+  final int _selectedTab = 0;
   BannerWash? _bannerWash;
 
   /// Painted header wash — drives ONLY the wash DecoratedBox / chip tint via
@@ -64,6 +69,7 @@ class _HomeScreenState extends State<HomeScreen>
   final _walletRepo = const WalletRepository();
   WalletSummary _wallet = WalletSummary.empty;
   String? _walletUserId;
+  bool _walletLoading = false;
 
   bool _sameColor(Color? a, Color? b) {
     if (identical(a, b)) return true;
@@ -75,7 +81,9 @@ class _HomeScreenState extends State<HomeScreen>
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
     if (!_sameColor(a.color, b.color)) return false;
-    return (a.gradient?.signature ?? '') == (b.gradient?.signature ?? '');
+    final ag = a.gradient?.signature ?? '';
+    final bg = b.gradient?.signature ?? '';
+    return ag == bg;
   }
 
   Color _washOrDefault(Color? color) => color ?? AppTheme.headerWash;
@@ -110,44 +118,6 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  Future<void> _onSelectTab(int index, List<Category> categories) async {
-    if (index == _selectedTab) return;
-
-    setState(() {
-      _selectedTab = index;
-    });
-
-    if (index == 0) {
-      final bannerWash = context.read<BannerProvider>().banners.isEmpty
-          ? null
-          : context.read<BannerProvider>().banners.first.wash;
-      _bannerWash = bannerWash;
-      _animateWashTo(bannerWash);
-      // All uses the mixed home feed — reload if a stale cakes-only cache stuck.
-      final catalog = context.read<CatalogProvider>();
-      if (catalog.homeLooksNarrow || catalog.products.isEmpty) {
-        await catalog.load(force: true);
-      }
-      if (!mounted || _selectedTab != 0) return;
-      setState(() {});
-      return;
-    }
-
-    if (index <= categories.length) {
-      _animateWashTo(BannerWash(color: categoryWashFor(categories[index - 1])));
-    }
-
-    if (index <= 0 || index > categories.length) return;
-    final cat = categories[index - 1];
-    // Force refresh so a previously cached Netlify "same for all" list is replaced.
-    await context.read<CatalogProvider>().loadProductsForCategory(
-      cat,
-      force: true,
-    );
-    if (!mounted || _selectedTab != index) return;
-    setState(() {});
-  }
-
   @override
   void initState() {
     super.initState();
@@ -166,17 +136,38 @@ class _HomeScreenState extends State<HomeScreen>
           });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      // Force a fresh home feed so a stale 4-item cakes cache cannot win.
-      context.read<CatalogProvider>().load(force: true);
-      // Always refresh admin coupons / banners so newly added items appear.
-      context.read<CouponProvider>().load(force: true);
-      context.read<BannerProvider>().load(force: true);
-      context.read<MiniBannerProvider>().load(force: true);
+      // Stale-while-revalidate: splash already warmed catalog/banners. Only
+      // force-reload when we have nothing to paint (avoids a full second wave).
+      // Never force here: force skips the disk cache and waits on the network.
+      context.read<CatalogProvider>().load();
+      context.read<CouponProvider>().load();
+      context.read<BannerProvider>().load();
+      context.read<MiniBannerProvider>().load();
+      if (FlavorConfig.isGrocery) {
+        context.read<LocationProvider>().addListener(_onLocationForWeather);
+        _refreshWeather();
+      }
       _loadWallet();
     });
   }
 
+  void _onLocationForWeather() => _refreshWeather();
+
+  void _refreshWeather({bool force = false}) {
+    if (!FlavorConfig.isGrocery) return;
+    final settings = context.read<SettingsProvider>().settings;
+    final location = context.read<LocationProvider>().location;
+    unawaited(
+      context.read<WeatherProvider>().refresh(
+        latitude: location?.latitude ?? settings.mapLatitude,
+        longitude: location?.longitude ?? settings.mapLongitude,
+        force: force,
+      ),
+    );
+  }
+
   Future<void> _loadWallet() async {
+    if (_walletLoading) return;
     final auth = context.read<AuthProvider>();
     final userId = auth.user?.id;
     if (!auth.isAuthenticated || userId == null) {
@@ -186,18 +177,26 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return;
     }
+    _walletLoading = true;
+    _walletUserId = userId;
     try {
       final wallet = await _walletRepo.getWallet(limit: 1);
       if (!mounted) return;
-      _walletUserId = userId;
       setState(() => _wallet = wallet);
     } catch (_) {
       // Header chip is optional — leave previous / empty state.
+    } finally {
+      _walletLoading = false;
     }
   }
 
   @override
   void dispose() {
+    if (FlavorConfig.isGrocery) {
+      try {
+        context.read<LocationProvider>().removeListener(_onLocationForWeather);
+      } catch (_) {}
+    }
     _washCurve.dispose();
     _washCtrl.dispose();
     _washColor.dispose();
@@ -216,6 +215,8 @@ class _HomeScreenState extends State<HomeScreen>
       context.read<PromoSpinProvider>().refresh(),
       _loadWallet(),
     ]);
+    if (!mounted) return;
+    _refreshWeather(force: true);
   }
 
   void _openBannerLink(String? link) {
@@ -250,6 +251,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _openCart() {
     Navigator.pushNamed(context, AppRoutes.cart);
+  }
+
+  void _openWishlist() {
+    Navigator.pushNamed(context, AppRoutes.wishlist);
   }
 
   void _openSearch() {
@@ -327,8 +332,6 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogProvider>();
-    final coupons = context.watch<CouponProvider>();
-    final banners = context.watch<BannerProvider>();
     final appSettings = context.watch<SettingsProvider>().settings;
     return Scaffold(
       extendBody: true,
@@ -361,14 +364,6 @@ class _HomeScreenState extends State<HomeScreen>
           final products = data.products;
           final groups = _groupByCategory(products);
           final topInset = MediaQuery.paddingOf(context).top;
-          final location = context.watch<LocationProvider>().location;
-          final user = context.watch<AuthProvider>().user;
-          final userId = user?.id;
-          if (userId != _walletUserId) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _loadWallet();
-            });
-          }
 
           return CustomScrollView(
             physics: const BouncingScrollPhysics(
@@ -430,51 +425,29 @@ class _HomeScreenState extends State<HomeScreen>
                       );
                     },
               ),
-              // Sticky header: safe area always on top while scrolling.
-              // Location collapses away; search + text categories stay pinned.
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _PinnedHomeHeader(
-                  topInset: topInset,
-                  deliveryEstimate: appSettings.deliveryEstimate,
-                  locationLabel: location?.headerLabel ?? 'Choose location',
-                  profileInitial: (user?.name.trim().isNotEmpty ?? false)
-                      ? user!.name.trim()[0].toUpperCase()
-                      : null,
-                  walletBalance: _wallet.enabled ? _wallet.balance : null,
-                  categories: headerCategories,
-                  selectedTab: _selectedTab,
-                  // All → banner wash; category tabs → header-only tint that
-                  // fades down into cream (same as before). Painted via
-                  // ValueNotifier so PageView is not rebuilt each lerp tick.
-                  washColor: _washColor,
-                  washStyle: _washStyle,
-                  // Banner only on All — category tabs are product-only.
-                  // Sticky header carousel only — feed bannerCarousel sections
-                  // use their own layout Visible flags and ignore this toggle.
-                  showPromo:
-                      appSettings.homepageShowBanner && _selectedTab == 0,
-                  coupons: coupons.coupons,
-                  banners: banners.banners,
-                  promoProducts: products.take(5).toList(),
-                  onSelectTab: (i) => _onSelectTab(i, headerCategories),
-                  onSearchTap: _openSearch,
-                  onAiTap: _openAiChat,
-                  showAiAssistant: appSettings.featureAiAssistant,
-                  onWishlistTap: _openCart,
-                  onLocationTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.location),
-                  onProfileTap: _openAccount,
-                  onWalletTap: _openWallet,
-                  onBannerTap: _openBannerLink,
-                  onProductTap: _openProduct,
-                  onShopAll: () => _openProducts(title: 'All gifts'),
-                  onBannerWashChanged: _onBannerWashChanged,
-                  announcement: appSettings.announcementText,
-                  bannerHeight: appSettings.homepageBannerHeight.toDouble(),
-                  bannerProductHeight: appSettings.homepageBannerProductHeight
-                      .toDouble(),
-                ),
+              // Location, weather, cart, and banners update this sliver only.
+              _HomePinnedHeaderSliver(
+                topInset: topInset,
+                selectedTab: _selectedTab,
+                washColor: _washColor,
+                washStyle: _washStyle,
+                promoProducts: products.take(5).toList(),
+                appSettings: appSettings,
+                walletUserId: _walletUserId,
+                walletBalance: _wallet.enabled ? _wallet.balance : null,
+                onSearchTap: _openSearch,
+                onAiTap: _openAiChat,
+                onWishlistTap: _openCart,
+                onBookmarkTap: _openWishlist,
+                onLocationTap: () =>
+                    Navigator.pushNamed(context, AppRoutes.location),
+                onProfileTap: _openAccount,
+                onWalletTap: _openWallet,
+                onBannerTap: _openBannerLink,
+                onProductTap: _openProduct,
+                onShopAll: () => _openProducts(title: 'All gifts'),
+                onBannerWashChanged: _onBannerWashChanged,
+                onWalletUser: _loadWallet,
               ),
               ..._buildFeed(
                 data: data,
@@ -485,27 +458,15 @@ class _HomeScreenState extends State<HomeScreen>
                 showSpinBanner:
                     _selectedTab == 0 &&
                     FlavorConfig.isGifts &&
-                    appSettings.homepageShowSpinBanner &&
-                    context.watch<PromoSpinProvider>().showHomeBanner,
+                    appSettings.homepageShowSpinBanner,
               ),
-              SliverToBoxAdapter(
-                child: SizedBox(
-                  height:
-                      110 +
-                      (context.watch<CartProvider>().totalItems > 0
-                          ? MiniCartBar.height + 8
-                          : 0),
-                ),
-              ),
+              const _HomeCartSpacer(),
             ],
           );
         },
       ),
       bottomNavigationBar: widget.showBottomNav
-          ? const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [MiniCartBar(), BottomNavBar(currentIndex: 0)],
-            )
+          ? const FloatingBottomChrome(currentIndex: 0)
           : null,
     );
   }
@@ -644,8 +605,9 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Admin owns order + copy; each builder still gates on its own data/toggle.
     final builders = <String, List<Widget> Function(HomeSectionConfig)>{
-      'spinBanner': (section) =>
-          showSpinBanner ? [_spinBannerSliver(section)] : const [],
+      'spinBanner': (section) => [
+        _SpinBannerSliver(section: section, enabled: showSpinBanner),
+      ],
       'valueDeals': (section) =>
           settings.homepageShowValueDeals && dealPeers.isNotEmpty
           ? [
@@ -694,6 +656,7 @@ class _HomeScreenState extends State<HomeScreen>
               title: section.title,
               subtitle: section.subtitle,
               onBannerTap: _openBannerLink,
+              onProductTap: _openProduct,
             ),
           ),
         ];
@@ -707,8 +670,7 @@ class _HomeScreenState extends State<HomeScreen>
                   subtitle: section.subtitle,
                   categories: data.categories,
                   onCategoryTap: (c) => _openProducts(category: c),
-                  onSeeAll: () =>
-                      context.read<ShellTabController>().goTo(1),
+                  onSeeAll: () => context.read<ShellTabController>().goTo(1),
                 ),
               ),
             ]
@@ -727,77 +689,6 @@ class _HomeScreenState extends State<HomeScreen>
       slivers.addAll(builders[section.id]?.call(section) ?? const []);
     }
     return slivers;
-  }
-
-  /// Spin & Win teaser → Promo tab (hidden once used until daily reset).
-  Widget _spinBannerSliver(HomeSectionConfig section) {
-    final radius = BorderRadius.circular(AppTheme.cornerRadius + 2);
-    return SliverToBoxAdapter(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(12, AppTheme.space(10), 12, 4),
-        child: Material(
-          color: AppTheme.wine.withAlpha(18),
-          borderRadius: radius,
-          child: InkWell(
-            borderRadius: radius,
-            onTap: () => context.read<ShellTabController>().goTo(3),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: AppTheme.wine,
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.cornerRadius,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.casino_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          section.title,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: AppTheme.ink,
-                          ),
-                        ),
-                        if (section.subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            section.subtitle,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.charcoal,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppTheme.wine.withAlpha(220),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   /// Shared grid so home and category tabs honour the same admin card settings.
@@ -858,7 +749,7 @@ class _PlainHomeProductTile extends StatelessWidget {
     return Material(
       color: AppTheme.cardSurface,
       borderRadius: BorderRadius.circular(AppTheme.cornerRadius),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -873,7 +764,7 @@ class _PlainHomeProductTile extends StatelessWidget {
                       url: product.image,
                       fit: BoxFit.cover,
                       progressive: false,
-                      memCacheLogicalWidth: 180,
+                      memCacheLogicalWidth: 120,
                       fadeDuration: Duration.zero,
                       placeholder: ColoredBox(color: AppTheme.creamDeep),
                       errorWidget: ColoredBox(
@@ -979,7 +870,281 @@ class HomeData {
 
 // ─── Shared chrome (BigBasket-style header) ──────────────────────────────────
 
-/// Collapsing home header: location + promo fade away; search/cats stay pinned.
+/// Collapsing home header: location + promo fade away; search stays pinned.
+/// Header chrome that listens to location, weather, and banners on its own
+/// so GPS and cart updates do not rebuild the product grid.
+class _HomePinnedHeaderSliver extends StatelessWidget {
+  const _HomePinnedHeaderSliver({
+    required this.topInset,
+    required this.selectedTab,
+    required this.washColor,
+    required this.washStyle,
+    required this.promoProducts,
+    required this.appSettings,
+    required this.walletUserId,
+    required this.walletBalance,
+    required this.onSearchTap,
+    required this.onAiTap,
+    required this.onWishlistTap,
+    required this.onBookmarkTap,
+    required this.onLocationTap,
+    required this.onProfileTap,
+    required this.onWalletTap,
+    required this.onBannerTap,
+    required this.onProductTap,
+    required this.onShopAll,
+    required this.onBannerWashChanged,
+    required this.onWalletUser,
+  });
+
+  final double topInset;
+  final int selectedTab;
+  final ValueListenable<Color> washColor;
+  final ValueListenable<BannerWash?> washStyle;
+  final List<Product> promoProducts;
+  final AppSettings appSettings;
+  final String? walletUserId;
+  final double? walletBalance;
+  final VoidCallback onSearchTap;
+  final VoidCallback onAiTap;
+  final VoidCallback onWishlistTap;
+  final VoidCallback onBookmarkTap;
+  final VoidCallback onLocationTap;
+  final VoidCallback onProfileTap;
+  final VoidCallback onWalletTap;
+  final ValueChanged<String?> onBannerTap;
+  final ValueChanged<Product> onProductTap;
+  final VoidCallback onShopAll;
+  final ValueChanged<BannerWash?> onBannerWashChanged;
+  final VoidCallback onWalletUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final location = context.select<LocationProvider, UserLocation?>(
+      (provider) => provider.location,
+    );
+    final raining = context.select<WeatherProvider, bool>(
+      (provider) => provider.isRaining,
+    );
+    final user = context.select<AuthProvider, User?>(
+      (provider) => provider.user,
+    );
+    final coupons = context.watch<CouponProvider>().coupons;
+    final banners = context.watch<BannerProvider>().banners;
+
+    final userId = user?.id;
+    if (userId != walletUserId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => onWalletUser());
+    }
+
+    final deliveryEstimate = appSettings.deliveryEtaLabel(
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+      rainExtraMinutes: raining ? appSettings.rainExtraMinutes : 0,
+    );
+    final name = user?.name.trim() ?? '';
+
+    return SliverPersistentHeader(
+      pinned: true,
+      delegate: _PinnedHomeHeader(
+        topInset: topInset,
+        deliveryEstimate: deliveryEstimate,
+        locationLabel: location?.headerAddress ?? 'Choose location',
+        profileInitial: name.isNotEmpty ? name[0].toUpperCase() : null,
+        walletBalance: walletBalance,
+        washColor: washColor,
+        washStyle: washStyle,
+        showPromo: appSettings.homepageShowBanner && selectedTab == 0,
+        coupons: coupons,
+        banners: banners,
+        promoProducts: promoProducts,
+        onSearchTap: onSearchTap,
+        onAiTap: onAiTap,
+        showAiAssistant: appSettings.featureAiAssistant,
+        showBookmark: appSettings.featureWishlist,
+        onWishlistTap: onWishlistTap,
+        onBookmarkTap: onBookmarkTap,
+        onLocationTap: onLocationTap,
+        onProfileTap: onProfileTap,
+        onWalletTap: onWalletTap,
+        onBannerTap: onBannerTap,
+        onProductTap: onProductTap,
+        onShopAll: onShopAll,
+        onBannerWashChanged: onBannerWashChanged,
+        announcement: appSettings.announcementText,
+        bannerHeight: appSettings.homepageBannerHeight.toDouble(),
+        bannerWidth: appSettings.homepageBannerWidth.toDouble(),
+        bannerProductHeight: appSettings.homepageBannerProductHeight.toDouble(),
+        showRain: FlavorConfig.isGrocery && raining,
+        festivalMode: appSettings.festivalMode,
+      ),
+    );
+  }
+}
+
+class _HomeCartSpacer extends StatelessWidget {
+  const _HomeCartSpacer();
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverToBoxAdapter(
+      child: SizedBox(height: FloatingBottomChrome.clearance(context)),
+    );
+  }
+}
+
+class _SpinBannerSliver extends StatelessWidget {
+  const _SpinBannerSliver({required this.section, required this.enabled});
+
+  final HomeSectionConfig section;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return const SliverToBoxAdapter(child: SizedBox.shrink());
+    final show = context.select<PromoSpinProvider, bool>(
+      (provider) => provider.showHomeBanner,
+    );
+    if (!show) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    final radius = BorderRadius.circular(AppTheme.cornerRadius + 2);
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(12, AppTheme.space(10), 12, 4),
+        child: Material(
+          color: AppTheme.wine.withAlpha(18),
+          borderRadius: radius,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: () => context.read<ShellTabController>().goTo(3),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppTheme.wine,
+                      borderRadius: BorderRadius.circular(
+                        AppTheme.cornerRadius,
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.casino_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          section.title,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            color: AppTheme.ink,
+                          ),
+                        ),
+                        if (section.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            section.subtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.charcoal,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppTheme.wine.withAlpha(220),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TypingSearchHint extends StatefulWidget {
+  const _TypingSearchHint({required this.phrases});
+
+  final List<String> phrases;
+
+  @override
+  State<_TypingSearchHint> createState() => _TypingSearchHintState();
+}
+
+class _TypingSearchHintState extends State<_TypingSearchHint> {
+  Timer? _timer;
+  int _phrase = 0;
+  int _count = 0;
+  bool _deleting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule(90);
+  }
+
+  void _schedule(int ms) {
+    _timer?.cancel();
+    _timer = Timer(Duration(milliseconds: ms), _tick);
+  }
+
+  void _tick() {
+    if (!mounted || widget.phrases.isEmpty) return;
+    final text = widget.phrases[_phrase % widget.phrases.length];
+    if (!_deleting) {
+      if (_count < text.length) {
+        setState(() => _count++);
+        _schedule(72);
+      } else {
+        _deleting = true;
+        _schedule(1400);
+      }
+      return;
+    }
+    if (_count > 0) {
+      setState(() => _count--);
+      _schedule(36);
+      return;
+    }
+    _deleting = false;
+    _phrase = (_phrase + 1) % widget.phrases.length;
+    _schedule(280);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final phrase = widget.phrases[_phrase % widget.phrases.length];
+    final shown = phrase.substring(0, _count.clamp(0, phrase.length));
+    return Text(
+      'Search $shown',
+      maxLines: 1,
+      overflow: TextOverflow.clip,
+      style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
+    );
+  }
+}
+
 class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   _PinnedHomeHeader({
     required this.topInset,
@@ -987,8 +1152,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.locationLabel,
     required this.profileInitial,
     this.walletBalance,
-    required this.categories,
-    required this.selectedTab,
     required this.washColor,
     required this.washStyle,
     required this.showPromo,
@@ -996,11 +1159,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.banners,
     required this.promoProducts,
     required this.announcement,
-    required this.onSelectTab,
     required this.onSearchTap,
     required this.onAiTap,
     required this.showAiAssistant,
+    required this.showBookmark,
     required this.onWishlistTap,
+    required this.onBookmarkTap,
     required this.onLocationTap,
     required this.onProfileTap,
     this.onWalletTap,
@@ -1009,7 +1173,10 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     required this.onShopAll,
     required this.onBannerWashChanged,
     this.bannerHeight,
+    this.bannerWidth,
     this.bannerProductHeight,
+    this.showRain = false,
+    this.festivalMode = true,
   });
 
   final double topInset;
@@ -1019,8 +1186,6 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
 
   /// Null when the wallet programme is off or the user is logged out.
   final double? walletBalance;
-  final List<Category> categories;
-  final int selectedTab;
 
   /// Animated header wash — listened locally so promo PageView is not rebuilt.
   final ValueListenable<Color> washColor;
@@ -1030,11 +1195,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final List<BannerModel> banners;
   final List<Product> promoProducts;
   final String announcement;
-  final ValueChanged<int> onSelectTab;
   final VoidCallback onSearchTap;
   final VoidCallback onAiTap;
   final bool showAiAssistant;
+  final bool showBookmark;
   final VoidCallback onWishlistTap;
+  final VoidCallback onBookmarkTap;
   final VoidCallback onLocationTap;
   final VoidCallback onProfileTap;
   final VoidCallback? onWalletTap;
@@ -1043,24 +1209,21 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
   final VoidCallback onShopAll;
   final ValueChanged<BannerWash?> onBannerWashChanged;
   final double? bannerHeight;
+  final double? bannerWidth;
   final double? bannerProductHeight;
+  final bool showRain;
+  final bool festivalMode;
 
-  static const double _locationHeight = 46;
-  static const double _catsExpandedGifts = 56;
-  static const double _catsCollapsedGifts = 44;
-  static const double _catsExpandedGrocery = 58;
-  static const double _catsCollapsedGrocery = 38;
-  static const double _searchRow = 2 + 38 + 4; // pad + search + gap before cats
-  static const double _catsPromoGap = 10;
+  /// Built once per header. Scroll only changes clip/offset, so the banner
+  /// PageView is not reconstructed on every pixel.
+  Widget? _washSlot;
+  Widget? _promoSlot;
+
+  double get _locationHeight => FlavorConfig.isGifts ? 68 : 52;
+  double get _searchControl => FlavorConfig.isGifts ? 44 : 38;
+  double get _searchRow => 2 + _searchControl + 4;
+  static const double _promoTopGap = 8;
   static const double _bottomPad = 0;
-
-  double get _catsExpanded =>
-      FlavorConfig.isGrocery ? _catsExpandedGrocery : _catsExpandedGifts;
-
-  double get _catsCollapsed =>
-      FlavorConfig.isGrocery ? _catsCollapsedGrocery : _catsCollapsedGifts;
-
-  double get _catsExtra => _catsExpanded - _catsCollapsed;
 
   double get _promoHeight {
     final body = HomeHeaderPromo.extentFor(
@@ -1069,20 +1232,15 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
       bannerHeight: bannerHeight,
     );
     if (body <= 0) return 0;
-    return body + _catsPromoGap;
+    return body + _promoTopGap;
   }
 
   @override
-  double get minExtent => topInset + _searchRow + _catsCollapsed + _bottomPad;
+  double get minExtent => topInset + _searchRow + _bottomPad;
 
   @override
   double get maxExtent =>
-      topInset +
-      _locationHeight +
-      _searchRow +
-      _catsExpanded +
-      _promoHeight +
-      _bottomPad;
+      topInset + _locationHeight + _searchRow + _promoHeight + _bottomPad;
 
   @override
   Widget build(
@@ -1093,8 +1251,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final height = (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
     final promoH = _promoHeight;
 
-    // Collapse bottom-up with layout: location → promo → category icons.
-    // Promo sits under cats in the same wash so tint never restarts below cats.
+    // Collapse bottom-up: location, then the hero.
     final locationProgress = (1 - (shrinkOffset / _locationHeight)).clamp(
       0.0,
       1.0,
@@ -1106,18 +1263,21 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
     final promoProgress = promoH <= 0
         ? 1.0
         : (1 - (afterLocation / promoH).clamp(0.0, 1.0));
-    final afterPromo = (afterLocation - promoH).clamp(0.0, _catsExtra);
-    final iconProgress = (1 - (afterPromo / _catsExtra)).clamp(0.0, 1.0);
-    final catsHeight = _catsCollapsed + (_catsExtra * iconProgress);
 
-    final tabs = homeHeaderCategoryTabs(categories);
-    final illustrativeCats = FlavorConfig.isGrocery;
-    final headerTint = AppTheme.headerWash;
-    final headerTintDeep =
-        Color.lerp(headerTint, AppTheme.wine, 0.22) ?? headerTint;
-    final headerTintMid =
-        Color.lerp(headerTint, Colors.white, 0.25) ?? headerTint;
+    // Overcast at the top only — slowly dissolves into normal cream downward.
+    const rainCloud = Color(0xFF9AA6B2);
+    const rainMist = Color(0xFFB8C0C8);
+    final headerTint = showRain
+        ? (Color.lerp(AppTheme.headerWash, rainMist, 0.55) ?? rainMist)
+        : AppTheme.headerWash;
+    final headerTintDeep = showRain
+        ? (Color.lerp(rainCloud, AppTheme.wine, 0.06) ?? rainCloud)
+        : (Color.lerp(headerTint, AppTheme.wine, 0.22) ?? headerTint);
+    final headerTintMid = showRain
+        ? (Color.lerp(rainMist, AppTheme.cream, 0.28) ?? rainMist)
+        : (Color.lerp(headerTint, Colors.white, 0.25) ?? headerTint);
     final pageBg = AppTheme.cream;
+    final showNavratri = FlavorConfig.isGifts && festivalMode;
 
     // Straight rectangular edge — avoids cloud clips hiding banner/categories.
     return SizedBox(
@@ -1130,7 +1290,7 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
           children: [
             // Header-only wash: strong at top, fades into cream (not full page).
             // Isolated so wash lerp does not rebuild HomeHeaderPromo / PageView.
-            AnimatedBuilder(
+            _washSlot ??= AnimatedBuilder(
               animation: Listenable.merge([washColor, washStyle]),
               builder: (context, _) {
                 final style = washStyle.value;
@@ -1139,7 +1299,12 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                   final g = style!.gradient!;
                   final pairs = g.resolvedPairs;
                   final colors = <Color>[
-                    for (final pair in pairs) pair.$2,
+                    for (final pair in pairs)
+                      showRain
+                          ? (Color.lerp(
+                                  pair.$2, const Color(0xFFAEB6BE), 0.35) ??
+                              pair.$2)
+                          : pair.$2,
                     pageBg,
                   ];
                   final stops = <double>[
@@ -1161,27 +1326,65 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                     ),
                   );
                 }
+                final wash = showRain
+                    ? (Color.lerp(washTarget, const Color(0xFFAEB6BE), 0.45) ??
+                          washTarget)
+                    : washTarget;
                 return DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Color.lerp(headerTintDeep, washTarget, 0.78) ??
-                            headerTintDeep,
-                        Color.lerp(headerTintMid, washTarget, 0.82) ??
-                            headerTintMid,
-                        Color.lerp(headerTint, washTarget, 0.85) ?? headerTint,
-                        Color.lerp(washTarget, pageBg, 0.55) ?? pageBg,
-                        pageBg,
-                        pageBg,
-                      ],
-                      stops: const [0.0, 0.18, 0.34, 0.52, 0.72, 1.0],
+                      colors: showRain
+                          ? [
+                              Color.lerp(headerTintDeep, wash, 0.55) ??
+                                  headerTintDeep,
+                              Color.lerp(headerTintMid, wash, 0.5) ??
+                                  headerTintMid,
+                              Color.lerp(headerTint, pageBg, 0.35) ??
+                                  headerTint,
+                              Color.lerp(wash, pageBg, 0.72) ?? pageBg,
+                              Color.lerp(pageBg, wash, 0.08) ?? pageBg,
+                              pageBg,
+                            ]
+                          : [
+                              Color.lerp(headerTintDeep, wash, 0.78) ??
+                                  headerTintDeep,
+                              Color.lerp(headerTintMid, wash, 0.82) ??
+                                  headerTintMid,
+                              Color.lerp(headerTint, wash, 0.85) ?? headerTint,
+                              Color.lerp(wash, pageBg, 0.55) ?? pageBg,
+                              pageBg,
+                              pageBg,
+                            ],
+                      stops: showRain
+                          ? const [0.0, 0.16, 0.34, 0.55, 0.78, 1.0]
+                          : const [0.0, 0.18, 0.34, 0.52, 0.72, 1.0],
                     ),
                   ),
                 );
               },
             ),
+            if (showRain)
+              const IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0x3D8E9CAA),
+                        Color(0x288E9CAA),
+                        Color(0x148E9CAA),
+                        Color(0x088E9CAA),
+                        Color(0x00FFFFFF),
+                      ],
+                      stops: [0.0, 0.22, 0.48, 0.72, 1.0],
+                    ),
+                  ),
+                  child: SizedBox.expand(),
+                ),
+              ),
             Column(
               children: [
                 SizedBox(height: topInset),
@@ -1190,20 +1393,66 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                     alignment: Alignment.topCenter,
                     heightFactor: locationProgress,
                     child: SizedBox(
-                        height: _locationHeight,
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: GestureDetector(
-                                  onTap: onLocationTap,
-                                  behavior: HitTestBehavior.opaque,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
+                      height: _locationHeight,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: onLocationTap,
+                                behavior: HitTestBehavior.opaque,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (FlavorConfig.isGifts) ...[
+                                      Text(
+                                        deliveryEstimate.trim().isEmpty
+                                            ? 'Fast delivery'
+                                            : deliveryEstimate,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          height: 1.15,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppTheme.wine,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Flexible(
+                                            child: Text(
+                                              locationLabel,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                height: 1.2,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppTheme.ink,
+                                              ),
+                                            ),
+                                          ),
+                                          Icon(
+                                            Icons.keyboard_arrow_down,
+                                            size: 18,
+                                            color: AppTheme.ink,
+                                          ),
+                                        ],
+                                      ),
+                                      if (showRain)
+                                        Text(
+                                          'Rain delay',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFF5B6F86),
+                                          ),
+                                        ),
+                                    ] else
                                       Row(
                                         children: [
                                           Icon(
@@ -1231,142 +1480,260 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                           ),
                                         ],
                                       ),
+                                    if (!FlavorConfig.isGifts &&
+                                        deliveryEstimate.trim().isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 17,
+                                          top: 1,
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                deliveryEstimate,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppTheme.charcoal
+                                                      .withAlpha(200),
+                                                ),
+                                              ),
+                                            ),
+                                            if (showRain) ...[
+                                              Text(
+                                                ' · ',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: AppTheme.charcoal
+                                                      .withAlpha(140),
+                                                ),
+                                              ),
+                                              Text(
+                                                'Rain delay',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: const Color(
+                                                    0xFF5B6F86,
+                                                  ).withAlpha(230),
+                                                ),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (walletBalance != null) ...[
+                              GestureDetector(
+                                onTap: onWalletTap,
+                                child: Container(
+                                  height: 28,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: AppTheme.wine.withAlpha(40),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.account_balance_wallet_outlined,
+                                        size: 14,
+                                        color: AppTheme.wine,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        PriceFormatter.format(walletBalance!),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.wine,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              if (walletBalance != null) ...[
-                                GestureDetector(
-                                  onTap: onWalletTap,
-                                  child: Container(
-                                    height: 28,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: AppTheme.wine.withAlpha(40),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.account_balance_wallet_outlined,
-                                          size: 14,
-                                          color: AppTheme.wine,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          PriceFormatter.format(walletBalance!),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.wine,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                              ],
-                              GestureDetector(
-                                onTap: onProfileTap,
-                                child: CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: Colors.white,
-                                  child: profileInitial != null
-                                      ? Text(
-                                          profileInitial!,
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppTheme.wine,
-                                            fontSize: 12,
-                                          ),
-                                        )
-                                      : Icon(
-                                          Icons.person_outline,
-                                          color: AppTheme.wine,
-                                          size: 16,
-                                        ),
-                                ),
-                              ),
                             ],
-                          ),
+                            GestureDetector(
+                              onTap: onProfileTap,
+                              child: CircleAvatar(
+                                radius: FlavorConfig.isGifts ? 20 : 14,
+                                backgroundColor: Colors.white,
+                                child: profileInitial != null
+                                    ? Text(
+                                        profileInitial!,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.wine,
+                                          fontSize: 12,
+                                        ),
+                                      )
+                                    : Icon(
+                                        Icons.person_outline,
+                                        color: AppTheme.wine,
+                                        size: 16,
+                                      ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
                   child: Row(
                     children: [
                       Expanded(
-                        child: GestureDetector(
-                          onTap: onSearchTap,
-                          child: Container(
-                            height: 38,
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withAlpha(10),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.search,
-                                  size: 18,
-                                  color: AppTheme.charcoal,
-                                ),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    "Search for 'roses'",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: AppTheme.charcoal,
+                        child: MarigoldSearchFrame(
+                          enabled: showNavratri,
+                          child: GestureDetector(
+                            onTap: onSearchTap,
+                            child: Container(
+                              height: _searchControl,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withAlpha(10),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 1),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.search,
+                                    size: 18,
+                                    color: AppTheme.charcoal,
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: _TypingSearchHint(
+                                      phrases: !FlavorConfig.isGifts
+                                          ? const [
+                                              'roses',
+                                              'birthday cake',
+                                              'chocolates',
+                                              'soft toys',
+                                            ]
+                                          : showNavratri
+                                          ? const [
+                                              'navratri gift',
+                                              'garba dress',
+                                              'dandiya set',
+                                              'gift for her',
+                                              'cake for birthday',
+                                              'flowers for anniversary',
+                                              'chocolate hamper',
+                                            ]
+                                          : const [
+                                              'gift for her',
+                                              'cake for birthday',
+                                              'flowers for anniversary',
+                                              'teddy for him',
+                                              'chocolate hamper',
+                                              'roses for her',
+                                            ],
                                     ),
                                   ),
-                                ),
-                                Icon(
-                                  Icons.mic_none_rounded,
-                                  size: 18,
-                                  color: AppTheme.charcoal,
-                                ),
-                              ],
+                                  if (FlavorConfig.isGifts && showAiAssistant)
+                                    GestureDetector(
+                                      onTap: onAiTap,
+                                      child: Icon(
+                                        Icons.auto_awesome,
+                                        size: 18,
+                                        color: AppTheme.wine,
+                                      ),
+                                    )
+                                  else if (!FlavorConfig.isGifts)
+                                    Icon(
+                                      Icons.mic_none_rounded,
+                                      size: 18,
+                                      color: AppTheme.charcoal,
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 2),
-                        decoration: BoxDecoration(
+                      if (FlavorConfig.isGifts && showBookmark) ...[
+                        const SizedBox(width: 8),
+                        Material(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(10),
-                              blurRadius: 6,
-                              offset: const Offset(0, 1),
+                          borderRadius: BorderRadius.circular(14),
+                          child: InkWell(
+                            onTap: onBookmarkTap,
+                            borderRadius: BorderRadius.circular(14),
+                            child: SizedBox(
+                              width: _searchControl,
+                              height: _searchControl,
+                              child: Icon(
+                                Icons.bookmark_border_rounded,
+                                color: AppTheme.ink,
+                                size: 22,
+                              ),
                             ),
-                          ],
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            if (showAiAssistant)
+                      ] else if (!FlavorConfig.isGifts) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          height: _searchControl,
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withAlpha(10),
+                                blurRadius: 6,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              if (showAiAssistant)
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 34,
+                                    minHeight: 34,
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  onPressed: onAiTap,
+                                  icon: Icon(
+                                    Icons.auto_awesome,
+                                    size: 20,
+                                    color: AppTheme.wine,
+                                  ),
+                                  tooltip: 'AI assistant',
+                                ),
                               IconButton(
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(
@@ -1374,179 +1741,80 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
                                   minHeight: 34,
                                 ),
                                 visualDensity: VisualDensity.compact,
-                                onPressed: onAiTap,
+                                onPressed: onWishlistTap,
                                 icon: Icon(
-                                  Icons.auto_awesome,
+                                  Icons.shopping_cart_outlined,
                                   size: 20,
-                                  color: AppTheme.wine,
+                                  color: AppTheme.ink,
                                 ),
-                                tooltip: 'AI assistant',
+                                tooltip: 'Cart',
                               ),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 34,
-                                minHeight: 34,
-                              ),
-                              visualDensity: VisualDensity.compact,
-                              onPressed: onWishlistTap,
-                              icon: Icon(
-                                Icons.shopping_cart_outlined,
-                                size: 20,
-                                color: AppTheme.ink,
-                              ),
-                              tooltip: 'Cart',
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(height: 4),
-                SizedBox(
-                  height: catsHeight,
-                  child: ValueListenableBuilder<Color>(
-                    valueListenable: washColor,
-                    builder: (context, washTarget, _) {
-                      final selectedChipFg =
-                          Color.lerp(washTarget, AppTheme.ink, 0.65) ??
-                          AppTheme.wine;
-                      return ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        itemCount: tabs.length,
-                        separatorBuilder: (_, _) => SizedBox(
-                          width: illustrativeCats ? 6 : 6,
-                        ),
-                        itemBuilder: (_, index) {
-                          final selected = index == selectedTab;
-                          final tab = tabs[index];
-                          if (illustrativeCats) {
-                            final compact = iconProgress < 0.35;
-                            return HomeHeaderCategoryTile(
-                              label: tab.label,
-                              fallbackIcon: tab.fallbackIcon,
-                              washColor: tab.washColor,
-                              imageUrl: tab.imageUrl,
-                              selected: selected,
-                              height: catsHeight,
-                              compact: compact,
-                              onTap: () => onSelectTab(index),
-                            );
-                          }
-                          final thumb = (36 + (8 * iconProgress)).clamp(
-                            36.0,
-                            44.0,
-                          );
-                          final imageUrl = index == 0
-                              ? ''
-                              : ImageResolver.resolve(
-                                  categories[index - 1].image,
-                                );
-                          return Tooltip(
-                            message: tab.label,
-                            child: GestureDetector(
-                              onTap: () => onSelectTab(index),
-                              behavior: HitTestBehavior.opaque,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 180),
-                                curve: Curves.easeOutCubic,
-                                width: thumb + 10,
-                                height: catsHeight,
-                                alignment: Alignment.center,
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                  width: thumb,
-                                  height: thumb,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: selected
-                                        ? Border.all(
-                                            color: selectedChipFg.withAlpha(
-                                              120,
-                                            ),
-                                            width: 2,
-                                          )
-                                        : null,
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: imageUrl.isEmpty
-                                      ? ColoredBox(
-                                          color: selectedChipFg.withValues(
-                                            alpha: 0.12,
-                                          ),
-                                          child: Icon(
-                                            tab.fallbackIcon,
-                                            size: thumb * 0.45,
-                                            color: selected
-                                                ? selectedChipFg
-                                                : AppTheme.ink,
-                                          ),
-                                        )
-                                      : _CategoryHeaderThumb(
-                                          url: imageUrl,
-                                          size: thumb,
-                                          fallbackIcon: tab.fallbackIcon,
-                                          fallbackColor: selected
-                                              ? selectedChipFg
-                                              : AppTheme.ink,
-                                        ),
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-                if (showPromo && promoH > 0 && promoProgress > 0.02)
+                if (showPromo && promoH > 0)
+                  // Stay mounted while the feed covers it. Unmounting the
+                  // promo recreates the video and it flashes black, then
+                  // starts again.
                   ClipRect(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      heightFactor: promoProgress,
-                      child: SizedBox(
-                        height: promoH,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const SizedBox(height: _catsPromoGap),
-                            Expanded(
-                              child: RepaintBoundary(
-                                child: HomeHeaderPromo(
-                                  // Remount when banner set changes so infinite
-                                  // PageController starts in the virtual middle.
-                                  key: ValueKey(
-                                    banners.isEmpty
-                                        ? 'fallback-${promoProducts.length}'
-                                        : banners
-                                              .map(
-                                                (b) => '${b.id}:${b.bgColor}',
-                                              )
-                                              .join('|'),
-                                  ),
-                                  coupons: coupons,
-                                  banners: banners,
-                                  products: promoProducts,
-                                  announcement: announcement,
-                                  bannerHeight: bannerHeight,
-                                  productStripHeight: bannerProductHeight,
-                                  onBannerTap: onBannerTap,
-                                  onProductTap: onProductTap,
-                                  onShopAll: onShopAll,
-                                  onBannerWashChanged: onBannerWashChanged,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      height: promoH * promoProgress,
+                      width: double.infinity,
+                      child: OverflowBox(
+                        alignment: Alignment.topCenter,
+                        minHeight: promoH,
+                        maxHeight: promoH,
+                        child: SizedBox(
+                          height: promoH,
+                          width: double.infinity,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: _promoTopGap),
+                            child: _promoSlot ??= RepaintBoundary(
+                              child: HomeHeaderPromo(
+                                // Remount when banner set changes so infinite
+                                // PageController starts in the virtual middle.
+                                key: ValueKey(
+                                  banners.isEmpty
+                                      ? 'fallback-${promoProducts.length}'
+                                      : banners
+                                            .map(
+                                              (b) =>
+                                                  '${b.id}:${b.layout}:${b.bgColor}:${b.products.length}',
+                                            )
+                                            .join('|'),
                                 ),
+                                coupons: coupons,
+                                banners: banners,
+                                products: promoProducts,
+                                announcement: announcement,
+                                bannerHeight: bannerHeight,
+                                productStripHeight: bannerProductHeight,
+                                viewportFraction: ((bannerWidth ?? 88) / 100)
+                                    .clamp(0.70, 1.0),
+                                onBannerTap: onBannerTap,
+                                onProductTap: onProductTap,
+                                onShopAll: onShopAll,
+                                onBannerWashChanged: onBannerWashChanged,
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
               ],
             ),
+            if (showRain) const HomeHeaderRain(),
+            if (showNavratri)
+              const Positioned.fill(
+                child: ClipRect(child: FallingMarigolds()),
+              ),
           ],
         ),
       ),
@@ -1560,52 +1828,18 @@ class _PinnedHomeHeader extends SliverPersistentHeaderDelegate {
         locationLabel != oldDelegate.locationLabel ||
         profileInitial != oldDelegate.profileInitial ||
         walletBalance != oldDelegate.walletBalance ||
-        selectedTab != oldDelegate.selectedTab ||
         washColor != oldDelegate.washColor ||
         washStyle != oldDelegate.washStyle ||
         showPromo != oldDelegate.showPromo ||
         coupons != oldDelegate.coupons ||
         banners != oldDelegate.banners ||
-        categories != oldDelegate.categories ||
         bannerHeight != oldDelegate.bannerHeight ||
+        bannerWidth != oldDelegate.bannerWidth ||
         bannerProductHeight != oldDelegate.bannerProductHeight ||
-        showAiAssistant != oldDelegate.showAiAssistant;
-  }
-}
-
-/// Category image thumb for the home header strip.
-class _CategoryHeaderThumb extends StatelessWidget {
-  const _CategoryHeaderThumb({
-    required this.url,
-    required this.size,
-    required this.fallbackIcon,
-    required this.fallbackColor,
-  });
-
-  final String url;
-  final double size;
-  final IconData fallbackIcon;
-  final Color fallbackColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipOval(
-      child: ProgressiveNetworkImage(
-        url: url,
-        fit: BoxFit.cover,
-        width: size,
-        height: size,
-        progressive: false,
-        enableBlur: false,
-        fadeDuration: Duration.zero,
-        placeholder: const SizedBox.shrink(),
-        errorWidget: Icon(
-          fallbackIcon,
-          size: size * 0.45,
-          color: fallbackColor,
-        ),
-      ),
-    );
+        showAiAssistant != oldDelegate.showAiAssistant ||
+        showBookmark != oldDelegate.showBookmark ||
+        showRain != oldDelegate.showRain ||
+        festivalMode != oldDelegate.festivalMode;
   }
 }
 

@@ -23,11 +23,14 @@ Store builds must be produced with Shorebird (not plain `flutter build`), or pat
 ```bash
 cd upaharo_mobile
 
-# Android App Bundle for Play Console
-shorebird release android --artifact=aab
+# Upaharo Gifts (Play: com.upaharo.upaharo_mobile) — always pass flavor + STORE
+shorebird release android --flavor gifts --dart-define=STORE=gifts --artifact=aab
 
 # Optional: APK for sideload / internal testing
-shorebird release android --artifact=apk
+shorebird release android --flavor gifts --dart-define=STORE=gifts --artifact=apk
+
+# Grooll grocery (separate package) — only after its Shorebird app id is dedicated
+# shorebird release android --flavor grocery --dart-define=STORE=grocery --artifact=aab
 ```
 
 Upload the AAB from the Shorebird release output to Google Play (same signing as usual via `android/key.properties`).
@@ -40,18 +43,18 @@ shorebird preview
 
 ## Push an over-the-air patch
 
-1. Bump nothing in `pubspec.yaml` version for a pure OTA fix (keep the same `1.0.0+2` as the store release you are patching).
+1. Bump nothing in `pubspec.yaml` version for a pure OTA fix (keep the same `1.0.0+9` as the store release you are patching).
 2. Make your Dart changes.
 3. Patch the matching release:
 
 ```bash
 cd upaharo_mobile
 
-# Patch the latest Android release
-shorebird patch android
+# Patch the latest gifts Android release
+shorebird patch android --flavor gifts --dart-define=STORE=gifts
 
 # Or target an exact store version
-shorebird patch android --release-version=1.0.0+2
+shorebird patch android --flavor gifts --dart-define=STORE=gifts --release-version=1.0.0+9
 ```
 
 Users get the patch on the next app launch (background download). The app shows a snackbar when a restart will apply it.
@@ -75,7 +78,7 @@ shorebird login:ci
 Then:
 
 ```bash
-shorebird patch android --release-version=1.0.0+2
+shorebird patch android --flavor gifts --dart-define=STORE=gifts --release-version=1.0.0+9
 ```
 
 with `SHOREBIRD_TOKEN` in the environment.

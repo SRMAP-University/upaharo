@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../../../config/theme.dart';
 import '../../../data/models/product.dart';
 import '../../../data/repositories/product_repository.dart';
-import '../../providers/cart_provider.dart';
-import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/explore_coupons_section.dart';
-import '../../widgets/mini_cart_bar.dart';
+import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_quick_sheet.dart';
 
@@ -20,12 +17,10 @@ class ProductListScreen extends StatelessWidget {
     final categoryId = args?['categoryId'] as String?;
     final title = args?['title'] as String? ?? 'Products';
     final search = args?['search'] as String?;
-    final cartPad =
-        context.watch<CartProvider>().totalItems > 0 ? MiniCartBar.height + 8 : 0.0;
+    final navClear = FloatingBottomChrome.clearance(context);
 
     return Scaffold(
-      // Let cream page show through; avoid Scaffold's default surface strip
-      // behind the floating bottom nav / mini cart.
+      // Body draws behind the docked nav slot so list padding can clear it.
       extendBody: true,
       backgroundColor: AppTheme.cream,
       appBar: AppBar(title: Text(title)),
@@ -56,7 +51,7 @@ class ProductListScreen extends StatelessWidget {
                   padding: EdgeInsets.all(40),
                   child: Center(child: Text('No products found.')),
                 ),
-                SizedBox(height: 110 + cartPad),
+                SizedBox(height: navClear),
               ],
             );
           }
@@ -90,18 +85,12 @@ class ProductListScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              SliverToBoxAdapter(child: SizedBox(height: 110 + cartPad)),
+              SliverToBoxAdapter(child: SizedBox(height: navClear)),
             ],
           );
         },
       ),
-      bottomNavigationBar: const Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          MiniCartBar(),
-          BottomNavBar(currentIndex: 0),
-        ],
-      ),
+      bottomNavigationBar: const FloatingBottomChrome(currentIndex: 0),
     );
   }
 }

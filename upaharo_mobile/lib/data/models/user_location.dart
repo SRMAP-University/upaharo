@@ -96,6 +96,31 @@ class UserLocation {
     return 'Choose location';
   }
 
+  /// Street and area only, once. No saved label, city, state, or pincode.
+  String get headerAddress {
+    final road = street?.trim() ?? '';
+    final area = landmark?.trim() ?? '';
+    final parts = <String>[];
+    if (road.isNotEmpty) parts.add(road);
+    if (area.isNotEmpty && !_overlaps(road, area)) parts.add(area);
+    if (parts.isNotEmpty) return parts.join(', ');
+
+    final chunks = address
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (chunks.isEmpty) return 'Choose location';
+    return chunks.take(2).join(', ');
+  }
+
+  bool _overlaps(String a, String b) {
+    final left = a.toLowerCase();
+    final right = b.toLowerCase();
+    if (left.isEmpty || right.isEmpty) return false;
+    return left == right || left.contains(right) || right.contains(left);
+  }
+
   /// Compact place name for the home header chip.
   String get headerLabel {
     if (!_hasGenericLabel) return label!.trim();

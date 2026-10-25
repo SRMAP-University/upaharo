@@ -47,6 +47,8 @@ class ProductCard extends StatelessWidget {
             ProgressiveNetworkImage(
               url: product.image,
               fit: BoxFit.cover,
+              progressive: false,
+              memCacheLogicalWidth: 180,
               fadeDuration: Duration.zero,
             ),
             Positioned(

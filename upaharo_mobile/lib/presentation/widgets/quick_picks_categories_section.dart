@@ -241,7 +241,9 @@ class _CategoryPickTile extends StatelessWidget {
                             url: resolved,
                             width: imageSize,
                             height: imageSize,
+                            memCacheLogicalWidth: imageSize,
                             fit: BoxFit.cover,
+                            progressive: false,
                             enableBlur: false,
                             fadeDuration: Duration.zero,
                             placeholder: _ImagePlaceholder(

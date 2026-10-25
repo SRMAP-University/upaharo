@@ -17,6 +17,7 @@ import '../../providers/catalog_provider.dart';
 import '../../providers/coupon_provider.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_coupon_chip.dart';
+import '../../widgets/product_social_order_buttons.dart';
 import '../../widgets/progressive_network_image.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -623,7 +624,16 @@ class _BottomCartBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ProductSocialOrderButtons(
+              product: product,
+              quantity: quantity,
+              compact: false,
+            ),
+            const SizedBox(height: 10),
+            Row(
           children: [
             Container(
               decoration: BoxDecoration(
@@ -683,6 +693,8 @@ class _BottomCartBar extends StatelessWidget {
                       )
                     : const Text('Currently Unavailable', style: TextStyle(fontSize: 15)),
               ),
+            ),
+          ],
             ),
           ],
         ),
