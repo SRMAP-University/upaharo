@@ -219,3 +219,10 @@ export async function getFestiveSections(storeId?: string): Promise<FestiveSecti
     },
   ]
 }
+
+/** Stable sort putting Tihar / Bhai Tika products ahead of the rest. */
+export function festiveFirst<T extends { name?: string; category?: string; tags?: string[] }>(products: T[]): T[] {
+  const isFestive = (p: T) =>
+    [p.name || '', p.category || '', ...(Array.isArray(p.tags) ? p.tags : [])].some((text) => isFestiveName(text))
+  return [...products.filter(isFestive), ...products.filter((p) => !isFestive(p))]
+}

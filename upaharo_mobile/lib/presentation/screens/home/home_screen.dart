@@ -31,6 +31,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../widgets/add_to_cart_plus.dart';
 import '../../widgets/bottom_nav_bar.dart';
+import '../../widgets/festive_home_section.dart';
 import '../../widgets/home_feed_banner_carousel.dart';
 import '../../widgets/home_header_category_tile.dart';
 import '../../widgets/home_header_promo.dart';
@@ -728,6 +729,8 @@ class _HomeScreenState extends State<HomeScreen>
     final slivers = <Widget>[
       // Server features (web blocks, characters) placed at the top of Home.
       const SliverToBoxAdapter(child: FeatureSlot(placement: Placements.homeTop)),
+      // Tihar: Bhai Tika card + picks from the shopper's searches (hides itself otherwise).
+      const SliverToBoxAdapter(child: FestiveHomeSection()),
     ];
     for (final section in settings.homeSectionLayout) {
       if (!section.visible) continue;

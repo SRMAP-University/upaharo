@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
 import ProductCard from '@/components/ProductCard'
+import { rememberSearch } from '@/lib/recommendation-session'
 
 const SUGGESTIONS = [
   'Flowers under 2000',
@@ -37,6 +38,7 @@ export default function SearchPage() {
     }
 
     const timer = window.setTimeout(async () => {
+      rememberSearch(normalizedQuery)
       try {
         setLoading(true)
         const res = await fetch('/api/ai/search', {

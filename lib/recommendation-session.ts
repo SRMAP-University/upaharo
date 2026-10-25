@@ -66,3 +66,31 @@ export function rememberViewedProduct(productId: string) {
 
   return nextIds
 }
+
+const RECENT_SEARCHES_KEY = 'ck-recent-searches'
+const MAX_RECENT_SEARCHES = 10
+
+/** Recent search phrases on this device, newest first (personalises the home feed). */
+export function getRecentSearches() {
+  if (isBrowser() === false || !hasPersonalizationConsent()) {
+    return []
+  }
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(RECENT_SEARCHES_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.map((value) => String(value || '')).filter(Boolean) : []
+  } catch {
+    return []
+  }
+}
+
+export function rememberSearch(query: string) {
+  const phrase = query.trim().slice(0, 80)
+  if (!phrase || isBrowser() === false || !hasPersonalizationConsent()) {
+    return
+  }
+  const next = [phrase, ...getRecentSearches().filter((q) => q.toLowerCase() !== phrase.toLowerCase())].slice(
+    0,
+    MAX_RECENT_SEARCHES
+  )
+  window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next))
+}

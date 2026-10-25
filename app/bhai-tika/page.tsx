@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import Header from '@/components/Header'
 import BottomNav from '@/components/BottomNav'
 import ProductCard from '@/components/ProductCard'
+import InAppLinkBridge from '@/components/festive/InAppLinkBridge'
 import {
   DiyaRow,
   FallingPetals,
@@ -99,7 +100,13 @@ function ProductSection({ section }: { section: FestiveSection }) {
   )
 }
 
-export default async function BhaiTikaPage() {
+export default async function BhaiTikaPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  // Opened from the app: no site header or menu, and links go to native screens.
+  const inApp = (await searchParams).inApp === '1'
   const sections = await loadSections()
   const countdown = bhaiTikaCountdown()
   const filled = sections.filter((s) => s.products.length > 0)
@@ -117,8 +124,8 @@ export default async function BhaiTikaPage() {
         : secondary?.title
 
   return (
-    <main className="min-h-screen bg-cream pb-24 lg:pb-0">
-      <Header />
+    <main className={`min-h-screen bg-cream ${inApp ? 'pb-8' : 'pb-24 lg:pb-0'}`}>
+      {inApp ? <InAppLinkBridge /> : <Header />}
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-[radial-gradient(120%_90%_at_50%_0%,#9b2c4f_0%,#5d1d34_55%,#3a0f20_100%)] text-white">
@@ -307,7 +314,7 @@ export default async function BhaiTikaPage() {
         </section>
       </div>
 
-      <BottomNav hideDesktop />
+      {inApp ? null : <BottomNav hideDesktop />}
     </main>
   )
 }

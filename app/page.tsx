@@ -13,6 +13,7 @@ import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
 import AppDownloadCta from '@/components/AppDownloadCta'
 import BhaiTikaEntry from '@/components/home/BhaiTikaEntry'
+import FestivePicksForYou from '@/components/home/FestivePicksForYou'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { getAppSettings, type HomeSectionConfig } from '@/lib/app-settings'
@@ -20,6 +21,7 @@ import { findManyProductsCompat } from '@/lib/product-db'
 import { resolveStoreContext } from '@/lib/store-context'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
+import { festiveFirst } from '@/lib/festive-products'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -60,7 +62,7 @@ async function getHomeData() {
     const [
       categories,
       occasionCategories,
-      products,
+      fetchedProducts,
       banners,
       bannerSections,
       miniBanners,
@@ -144,6 +146,9 @@ async function getHomeData() {
           })
         : Promise.resolve([]),
     ])
+
+    // Festival mode: Tihar / Bhai Tika products lead every home product list.
+    const products = settings.festivalMode !== false ? festiveFirst(fetchedProducts) : fetchedProducts
 
     const groupedCategories = categories
       .map((category) => ({
@@ -552,6 +557,7 @@ export default async function Home() {
       <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
         {/* Admin "festival mode" switches the Bhai Tika entry on and off. */}
         {settings.festivalMode !== false ? <BhaiTikaEntry /> : null}
+        {settings.festivalMode !== false ? <FestivePicksForYou /> : null}
         {visibleSections.map((section) => renderSection(section))}
 
         {extraFeedSections.map((section) => (

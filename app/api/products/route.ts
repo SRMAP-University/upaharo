@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductCardsCompat, findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
 import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
+import { resolveUserId } from '@/lib/request-auth'
+import { recordUserSearch } from '@/lib/search-history'
+import { getAppSettings } from '@/lib/app-settings'
+import { festiveFirst } from '@/lib/festive-products'
 import { resolveStoreContext } from '@/lib/store-context'
 import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
@@ -121,6 +125,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      void resolveUserId(request)
+        .then((userId) => (userId ? recordUserSearch(storeContext.store.id, userId, search) : undefined))
+        .catch(() => undefined)
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
@@ -146,9 +153,15 @@ export async function GET(request: NextRequest) {
       })
     )
 
-    const products = await getOrSetJson(cacheKey, view === 'card' ? 180 : 90, async () =>
+    const listed = await getOrSetJson(cacheKey, view === 'card' ? 180 : 90, async () =>
       view === 'card' ? findManyProductCardsCompat(queryArgs) : findManyProductsCompat(queryArgs)
     )
+    // Festival mode: the plain feed (app home grid) leads with Tihar / Bhai Tika products.
+    const isPlainFeed = !category && !categoryId && !search && !idsParam && !wholesaleOnly
+    const festivalOn = isPlainFeed
+      ? await getAppSettings(storeContext.store).then((s) => s.festivalMode !== false).catch(() => false)
+      : false
+    const products = festivalOn ? festiveFirst(listed as any[]) : listed
 
     return NextResponse.json(
       { products },
