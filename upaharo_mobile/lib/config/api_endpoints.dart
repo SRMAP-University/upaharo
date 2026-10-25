@@ -235,6 +235,10 @@ class ApiEndpoints {
   /// POST/GET -> AI product search { query } → { products, filters, interpretation, source }
   static const String aiSearch = '/api/ai/search';
 
+  /// What the gift-box mascot says about a product.
+  /// GET -> { intro, lines: [...], added: [...], source: 'ai' | 'rules' }
+  static String mascotProduct(String id) => '/api/mascot/product/$id';
+
   /// In-app notification inbox.
   /// GET -> { notifications, unreadCount }
   /// PATCH Body: { ids?: string[], all?: boolean }

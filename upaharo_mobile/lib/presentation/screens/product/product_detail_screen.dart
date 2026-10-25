@@ -12,9 +12,12 @@ import '../../../data/models/product_recommendation_sections.dart';
 import '../../../data/repositories/product_repository.dart';
 
 import '../../../data/models/coupon.dart';
+import '../../../data/models/mascot_script.dart';
+import '../../../data/repositories/ai_repository.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/coupon_provider.dart';
+import '../../widgets/nav_mascot.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_coupon_chip.dart';
 import '../../widgets/progressive_network_image.dart';
@@ -37,6 +40,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _showAddedToast = false;
   bool _descriptionExpanded = false;
   bool _productLoaded = false;
+  String? _productId;
+  MascotScript? _mascotScript;
 
   @override
   void didChangeDependencies() {
@@ -44,8 +49,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     if (_productLoaded) return;
     _productLoaded = true;
     final productId = ModalRoute.of(context)!.settings.arguments as String;
+    _productId = productId;
     _productFuture = _loadProduct(productId);
+    _loadMascotScript(productId);
     context.read<CouponProvider>().load();
+  }
+
+  Future<void> _loadMascotScript(String productId) async {
+    try {
+      final script = await const AiRepository().productMascot(productId);
+      if (mounted) setState(() => _mascotScript = script);
+    } catch (_) {
+      // The buddy still works without product lines.
+    }
   }
 
   Future<Product> _loadProduct(String productId) async {
@@ -229,13 +245,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             appliedCouponCode: appliedCoupon?.code,
           ),
           bottomNavigationBar: snapshot.hasData && !snapshot.hasError
-              ? _BottomCartBar(
-                  product: snapshot.data!,
-                  variantPrice: discountedUnit,
-                  originalUnitPrice: couponDiscount > 0 ? unitPrice : null,
-                  quantity: _quantity,
-                  onQuantityChanged: (value) => setState(() => _quantity = value),
-                  onAddToCart: () => _addToCart(snapshot.data!),
+              ? Stack(
+                  children: [
+                    // The gift buddy peeks over the cart bar and chats about this product.
+                    Positioned(
+                      left: 18,
+                      top: 0,
+                      child: NavMascot(script: _mascotScript, scriptKey: _productId),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 30),
+                      child: _BottomCartBar(
+                        product: snapshot.data!,
+                        variantPrice: discountedUnit,
+                        originalUnitPrice: couponDiscount > 0 ? unitPrice : null,
+                        quantity: _quantity,
+                        onQuantityChanged: (value) => setState(() => _quantity = value),
+                        onAddToCart: () => _addToCart(snapshot.data!),
+                      ),
+                    ),
+                  ],
                 )
               : null,
         );

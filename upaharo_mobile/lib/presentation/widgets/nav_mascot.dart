@@ -2,26 +2,38 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../../data/models/mascot_script.dart';
+import '../providers/cart_provider.dart';
 
 /// Gift-box buddy that lives in the bottom nav and reacts when tapped.
 ///
-/// Mirrors the web `NavMascot`: taps cycle jump → wiggle → lid pop, and five
-/// quick taps make it dizzy. Hearts, sparkles and the speech bubble render in
-/// the overlay so the nav's clip doesn't cut them off.
+/// Mirrors the web `NavMascot`: taps cycle jump → wiggle → lid pop (every
+/// other tap shares a line from [script]), five quick taps make it dizzy, and
+/// it celebrates cart additions. On its own it glances at your taps, looks
+/// around, hops, stretches, shares the odd tip and naps when the app is left
+/// alone. Hearts, sparkles, Zzz and the speech bubble render in the overlay so
+/// the nav's clip doesn't cut them off.
 class NavMascot extends StatefulWidget {
-  const NavMascot({super.key, this.size = 38});
+  const NavMascot({super.key, this.size = 38, this.script, this.scriptKey});
 
   final double size;
+
+  /// Lines for the current screen; its `intro` plays once per [scriptKey].
+  final MascotScript? script;
+  final Object? scriptKey;
 
   @override
   State<NavMascot> createState() => _NavMascotState();
 }
 
-enum _Reaction { jump, wiggle, pop, dizzy }
+enum _Move { jump, wiggle, pop, dizzy, love, wake, hop, stretch }
 
-enum _Face { idle, happy, wink, surprised, dizzy }
+enum _Face { idle, happy, wink, surprised, dizzy, love, sleep, yawn }
 
 const _ink = Color(0xFF2B1D22);
 const _blush = Color(0xFFE85A8C);
@@ -34,27 +46,37 @@ const _tongue = Color(0xFFFF8FB1);
 const _wine = Color(0xFF7C2A47);
 
 // Taps rotate through these so back-to-back taps never feel the same.
-const _cycle = [_Reaction.jump, _Reaction.wiggle, _Reaction.pop];
+const _cycle = [_Move.jump, _Move.wiggle, _Move.pop];
+
+const _defaultAdded = ['Yay! Added to your cart!', 'Ooh, great pick! 💝', 'Into the cart it goes! 🛒'];
 
 const _lines = {
-  _Reaction.jump: ['Yay!', 'Hi there!', 'Boing!'],
-  _Reaction.wiggle: ['Hehe, that tickles!', 'Wheee!'],
-  _Reaction.pop: ['Surprise!', 'Gift time!'],
-  _Reaction.dizzy: ['Whoa… so dizzy!'],
+  _Move.jump: ['Yay!', 'Hi there!', 'Boing!'],
+  _Move.wiggle: ['Hehe, that tickles!', 'Wheee!'],
+  _Move.pop: ['Surprise!', 'Gift time!'],
+  _Move.dizzy: ['Whoa… so dizzy!'],
+  _Move.love: _defaultAdded,
+  _Move.wake: ['Huh? I’m awake! 😳', 'Five more minutes… okay, I’m up!'],
 };
 
 const _faces = {
-  _Reaction.jump: _Face.happy,
-  _Reaction.wiggle: _Face.wink,
-  _Reaction.pop: _Face.surprised,
-  _Reaction.dizzy: _Face.dizzy,
+  _Move.jump: _Face.happy,
+  _Move.wiggle: _Face.wink,
+  _Move.pop: _Face.surprised,
+  _Move.dizzy: _Face.dizzy,
+  _Move.love: _Face.love,
+  _Move.wake: _Face.surprised,
 };
 
 const _durations = {
-  _Reaction.jump: Duration(milliseconds: 800),
-  _Reaction.wiggle: Duration(milliseconds: 700),
-  _Reaction.pop: Duration(milliseconds: 750),
-  _Reaction.dizzy: Duration(milliseconds: 900),
+  _Move.jump: Duration(milliseconds: 800),
+  _Move.wiggle: Duration(milliseconds: 700),
+  _Move.pop: Duration(milliseconds: 750),
+  _Move.dizzy: Duration(milliseconds: 900),
+  _Move.love: Duration(milliseconds: 1100),
+  _Move.wake: Duration(milliseconds: 550),
+  _Move.hop: Duration(milliseconds: 600),
+  _Move.stretch: Duration(milliseconds: 1300),
 };
 
 // Five quick taps inside this window make the buddy dizzy.
@@ -62,9 +84,15 @@ const _dizzyTaps = 5;
 const _dizzyWindow = Duration(milliseconds: 2500);
 const _dizzyHold = Duration(milliseconds: 1600);
 
+// Nobody has touched the app for this long → nap time.
+const _sleepAfter = Duration(seconds: 40);
+// Unprompted tips stay rare so the buddy doesn't nag.
+const _tipGap = Duration(seconds: 45);
+const _maxTipsPerScreen = 2;
+
 // Overlay canvas around the mascot; the mascot's top-left sits at [_anchor].
-const _stageSize = Size(300, 130);
-const _anchor = Offset(100, 90);
+const _stageSize = Size(320, 150);
+const _anchor = Offset(100, 110);
 
 /// Piecewise keyframes with [curve] applied inside each segment.
 double _frames(
@@ -88,6 +116,26 @@ double _frames(
   }
   return values.last;
 }
+
+/// Long lines stay up longer so they can be read.
+Duration _lineDuration(String text) =>
+    Duration(milliseconds: (1800 + (text.length - 18) * 55).clamp(1800, 4800));
+
+String _greeting(int hour) {
+  if (hour >= 5 && hour < 12) return 'Good morning! Ready to make someone smile? ☀️';
+  if (hour >= 12 && hour < 17) return 'Good afternoon! Gift hunting? 🎁';
+  if (hour >= 17 && hour < 22) return 'Good evening! Let’s find something lovely ✨';
+  return 'Up late? Midnight surprises are the best 🌙';
+}
+
+/// Hello for the first screen the buddy appears on in this app run.
+String? takeMascotGreeting() {
+  if (_greeted) return null;
+  _greeted = true;
+  return _greeting(DateTime.now().hour);
+}
+
+bool _greeted = false;
 
 class _Particle {
   const _Particle({
@@ -122,55 +170,122 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     vsync: this,
     duration: const Duration(milliseconds: 1300),
   );
+  late final AnimationController _gaze = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+  );
+  // Drives the Zzz and slow breathing while asleep.
+  late final AnimationController _snooze = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  );
   final _overlay = OverlayPortalController();
   final _link = LayerLink();
   final _rng = math.Random();
   final _taps = <DateTime>[];
 
-  _Reaction _reaction = _Reaction.jump;
+  _Move _move = _Move.jump;
   _Face _face = _Face.idle;
   bool _blink = false;
+  bool _asleep = false;
   String? _line;
   int _lineId = 0;
   int _cycleIndex = 0;
+  int _tapCount = 0;
+  int _scriptIndex = 0;
+  int _tips = 0;
+  Offset _gazeFrom = Offset.zero;
+  Offset _gazeTo = Offset.zero;
   DateTime _dizzyUntil = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _busyUntil = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastActivity = DateTime.now();
+  DateTime _lastTip = DateTime.now();
   List<_Particle> _particles = const [];
+  Object? _introKey;
+  CartProvider? _cart;
+  int _cartCount = 0;
+  final DateTime _cartWarmUntil = DateTime.now().add(const Duration(milliseconds: 1500));
+  final _timers = <Timer>{};
   Timer? _blinkTimer;
   Timer? _faceTimer;
   Timer? _lineTimer;
+  Timer? _idleTimer;
+  Timer? _lookTimer;
+
+  bool get _reduceMotion => MediaQuery.of(context).disableAnimations;
 
   @override
   void initState() {
     super.initState();
     _bubble.addStatusListener((status) {
-      if (status == AnimationStatus.dismissed) _maybeHideOverlay();
+      if (status == AnimationStatus.dismissed) _syncOverlay();
     });
     _burst.addStatusListener((status) {
-      if (status == AnimationStatus.completed) _maybeHideOverlay();
+      if (status == AnimationStatus.completed) _syncOverlay();
     });
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_onGlobalPointer);
     _scheduleBlink();
+    _scheduleIdle();
+    _later(const Duration(milliseconds: 300), _maybeIntro);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_cart != null) return;
+    try {
+      _cart = context.read<CartProvider>();
+      _cartCount = _cart!.totalItems;
+      _cart!.addListener(_onCartChanged);
+    } on ProviderNotFoundException {
+      // No cart above us (e.g. previews): skip the celebrations.
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant NavMascot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.scriptKey != oldWidget.scriptKey) {
+      _scriptIndex = 0;
+      _tips = 0;
+    }
+    if (widget.script?.intro != oldWidget.script?.intro ||
+        widget.scriptKey != oldWidget.scriptKey) {
+      _later(const Duration(milliseconds: 300), _maybeIntro);
+    }
   }
 
   @override
   void dispose() {
-    _blinkTimer?.cancel();
-    _faceTimer?.cancel();
-    _lineTimer?.cancel();
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_onGlobalPointer);
+    _cart?.removeListener(_onCartChanged);
+    for (final t in [..._timers, _blinkTimer, _faceTimer, _lineTimer, _idleTimer, _lookTimer]) {
+      t?.cancel();
+    }
     _react.dispose();
     _burst.dispose();
     _bubble.dispose();
     _breath.dispose();
+    _gaze.dispose();
+    _snooze.dispose();
     super.dispose();
   }
 
-  bool get _reduceMotion => MediaQuery.of(context).disableAnimations;
+  void _later(Duration delay, VoidCallback fn) {
+    late final Timer timer;
+    timer = Timer(delay, () {
+      _timers.remove(timer);
+      if (mounted) fn();
+    });
+    _timers.add(timer);
+  }
 
   void _scheduleBlink() {
     _blinkTimer?.cancel();
     final wait = 2500 + _rng.nextInt(3000);
     _blinkTimer = Timer(Duration(milliseconds: wait), () {
       if (!mounted) return;
-      if (_face == _Face.idle) {
+      if (_face == _Face.idle && !_asleep) {
         setState(() => _blink = true);
         if (!_reduceMotion) _breath.forward(from: 0);
         _blinkTimer = Timer(const Duration(milliseconds: 140), () {
@@ -184,17 +299,118 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     });
   }
 
-  void _maybeHideOverlay() {
-    if (!mounted || _line != null || _burst.isAnimating) return;
-    if (_bubble.isAnimating) return;
-    _overlay.hide();
+  void _syncOverlay() {
+    if (!mounted) return;
+    final show = _line != null || _burst.isAnimating || _bubble.isAnimating || _asleep;
+    if (show && !_overlay.isShowing) _overlay.show();
+    if (!show && _overlay.isShowing) _overlay.hide();
   }
 
-  List<_Particle> _makeBurst(_Reaction reaction) {
-    final heart = reaction == _Reaction.jump || reaction == _Reaction.wiggle;
-    final count = switch (reaction) {
-      _Reaction.wiggle => 3,
-      _Reaction.dizzy => 4,
+  Offset get _gazeNow =>
+      Offset.lerp(_gazeFrom, _gazeTo, Curves.easeOut.transform(_gaze.value))!;
+
+  void _lookAt(Offset target) {
+    if (_reduceMotion) return;
+    _gazeFrom = _gazeNow;
+    _gazeTo = target;
+    _gaze.forward(from: 0);
+  }
+
+  void _onGlobalPointer(PointerEvent event) {
+    if (event is! PointerDownEvent || !mounted) return;
+    _lastActivity = DateTime.now();
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached) return;
+    final center = box.localToGlobal(box.size.center(Offset.zero));
+    final delta = event.position - center;
+    final onMe = delta.distance < widget.size / 2;
+    if (_asleep && !onMe) {
+      _wake(quietly: true);
+      return;
+    }
+    if (onMe || _asleep) return;
+    // Glance at whatever was tapped, then look back.
+    final reach = math.min(1.0, delta.distance / 140);
+    final dir = delta / delta.distance;
+    _lookAt(Offset(dir.dx * 1.4 * reach, dir.dy * 1.1 * reach));
+    _lookTimer?.cancel();
+    _lookTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) _lookAt(Offset.zero);
+    });
+  }
+
+  void _onCartChanged() {
+    final count = _cart?.totalItems ?? 0;
+    final grew = count > _cartCount;
+    _cartCount = count;
+    if (!grew || DateTime.now().isBefore(_cartWarmUntil) || !mounted) return;
+    if (_asleep) _setAsleep(false);
+    _lastActivity = DateTime.now();
+    final added = widget.script?.added ?? const [];
+    final lines = added.isNotEmpty ? added : _defaultAdded;
+    _reactTo(_Move.love, lines[_rng.nextInt(lines.length)]);
+  }
+
+  void _maybeIntro() {
+    final intro = widget.script?.intro;
+    final key = widget.scriptKey ?? intro;
+    if (intro == null || intro.isEmpty || _introKey == key) return;
+    _introKey = key;
+    if (_asleep) _setAsleep(false);
+    _lastActivity = DateTime.now();
+    _lastTip = DateTime.now();
+    _reactTo(_Move.pop, intro);
+  }
+
+  String? _nextScriptLine() {
+    final lines = widget.script?.lines ?? const [];
+    if (lines.isEmpty) return null;
+    final text = lines[_scriptIndex % lines.length];
+    _scriptIndex++;
+    return text;
+  }
+
+  void _setFaceFor(_Face face, Duration hold) {
+    setState(() => _face = face);
+    _faceTimer?.cancel();
+    _faceTimer = Timer(hold, () {
+      if (mounted) setState(() => _face = _asleep ? _Face.sleep : _Face.idle);
+    });
+  }
+
+  void _say(String text) {
+    final hold = _lineDuration(text);
+    setState(() {
+      _line = text;
+      _lineId++;
+    });
+    final until = DateTime.now().add(hold);
+    if (until.isAfter(_busyUntil)) _busyUntil = until;
+    _lineTimer?.cancel();
+    _lineTimer = Timer(hold, () {
+      if (!mounted) return;
+      setState(() => _line = null);
+      _bubble.reverse();
+    });
+    _syncOverlay();
+    _bubble.forward();
+  }
+
+  void _play(_Move move) {
+    if (_reduceMotion) return;
+    _breath.stop();
+    _breath.value = 0;
+    _move = move;
+    _react.duration = _durations[move];
+    _react.forward(from: 0);
+  }
+
+  List<_Particle> _makeBurst(_Move move) {
+    final heart = move == _Move.jump || move == _Move.wiggle || move == _Move.love;
+    final count = switch (move) {
+      _Move.love => 7,
+      _Move.wiggle || _Move.wake => 3,
+      _Move.dizzy => 4,
       _ => 5,
     };
     return List.generate(count, (i) {
@@ -214,62 +430,118 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     });
   }
 
+  void _reactTo(_Move move, [String? text]) {
+    if (move != _Move.love) HapticFeedback.lightImpact();
+    final hold = switch (move) {
+      _Move.dizzy => _dizzyHold,
+      _Move.love => const Duration(milliseconds: 1500),
+      _ => const Duration(milliseconds: 1100),
+    };
+    _setFaceFor(_faces[move]!, hold);
+    _blink = false;
+    final options = _lines[move]!;
+    _say(text ?? options[_rng.nextInt(options.length)]);
+
+    if (_reduceMotion) return;
+    setState(() => _particles = _makeBurst(move));
+    _burst.forward(from: 0);
+    _syncOverlay();
+    _play(move);
+  }
+
+  void _setAsleep(bool value) {
+    if (_asleep == value) return;
+    setState(() {
+      _asleep = value;
+      if (value) _face = _Face.sleep;
+    });
+    if (value && !_reduceMotion) {
+      _snooze.repeat();
+    } else {
+      _snooze.stop();
+    }
+    _syncOverlay();
+  }
+
+  void _wake({required bool quietly}) {
+    _setAsleep(false);
+    _lastActivity = DateTime.now();
+    if (quietly) {
+      _setFaceFor(_Face.yawn, const Duration(milliseconds: 900));
+      _play(_Move.stretch);
+    } else {
+      _reactTo(_Move.wake);
+    }
+  }
+
   void _onTap() {
     final now = DateTime.now();
+    _lastActivity = now;
+    if (_asleep) {
+      _wake(quietly: false);
+      return;
+    }
     // Let the dizzy spell play out instead of cutting it short.
     if (now.isBefore(_dizzyUntil)) return;
     _taps
       ..removeWhere((t) => now.difference(t) >= _dizzyWindow)
       ..add(now);
 
-    final _Reaction reaction;
     if (_taps.length >= _dizzyTaps) {
-      reaction = _Reaction.dizzy;
       _taps.clear();
       _dizzyUntil = now.add(_dizzyHold);
-    } else {
-      reaction = _cycle[_cycleIndex % _cycle.length];
-      _cycleIndex++;
+      _reactTo(_Move.dizzy);
+      return;
     }
 
-    HapticFeedback.lightImpact();
-    final lines = _lines[reaction]!;
+    final move = _cycle[_cycleIndex % _cycle.length];
+    _cycleIndex++;
+    // Every other tap shares something about the screen instead of a squeak.
+    final scripted = _tapCount.isEven ? _nextScriptLine() : null;
+    _tapCount++;
+    _reactTo(move, scripted);
+  }
 
-    setState(() {
-      _reaction = reaction;
-      _face = _faces[reaction]!;
-      _blink = false;
-      _line = lines[_rng.nextInt(lines.length)];
-      _lineId++;
-      if (!_reduceMotion) _particles = _makeBurst(reaction);
-    });
-
-    _faceTimer?.cancel();
-    _faceTimer = Timer(
-      reaction == _Reaction.dizzy
-          ? _dizzyHold
-          : const Duration(milliseconds: 1100),
-      () {
-        if (mounted) setState(() => _face = _Face.idle);
-      },
-    );
-
-    _lineTimer?.cancel();
-    _lineTimer = Timer(const Duration(milliseconds: 1800), () {
+  // Little things it does on its own: look around, hop, stretch, nap, share a tip.
+  void _scheduleIdle() {
+    _idleTimer?.cancel();
+    _idleTimer = Timer(Duration(milliseconds: 8000 + _rng.nextInt(7000)), () {
       if (!mounted) return;
-      setState(() => _line = null);
-      _bubble.reverse();
+      final now = DateTime.now();
+      final visible = TickerMode.of(context);
+      final quiet = !visible || _asleep || now.isBefore(_busyUntil);
+      if (!quiet) {
+        final idleFor = now.difference(_lastActivity);
+        if (idleFor > _sleepAfter) {
+          _lookAt(Offset.zero);
+          _setAsleep(true);
+        } else {
+          final roll = _rng.nextDouble();
+          final canTip = (widget.script?.lines.isNotEmpty ?? false) &&
+              _tips < _maxTipsPerScreen &&
+              now.difference(_lastTip) > _tipGap;
+          if (canTip && roll < 0.35) {
+            _tips++;
+            _lastTip = now;
+            final text = _nextScriptLine();
+            _setFaceFor(_Face.happy, const Duration(milliseconds: 1200));
+            if (text != null) _say(text);
+            _play(_Move.hop);
+          } else if (roll < 0.7) {
+            // Glance left, then right, then back.
+            _lookAt(const Offset(-1.5, -0.2));
+            _later(const Duration(milliseconds: 650), () => _lookAt(const Offset(1.5, -0.2)));
+            _later(const Duration(milliseconds: 1350), () => _lookAt(Offset.zero));
+          } else if (idleFor > const Duration(seconds: 15)) {
+            _setFaceFor(_Face.yawn, const Duration(milliseconds: 1200));
+            _play(_Move.stretch);
+          } else {
+            _play(_Move.hop);
+          }
+        }
+      }
+      _scheduleIdle();
     });
-
-    _overlay.show();
-    _bubble.forward();
-    if (_reduceMotion) return;
-
-    _breath.stop();
-    _breath.value = 0;
-    _react.duration = _durations[reaction];
-    _react.forward(from: 0);
-    _burst.forward(from: 0);
   }
 
   @override
@@ -277,8 +549,10 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     final size = widget.size;
     return Semantics(
       button: true,
-      label: 'Gift buddy',
-      hint: 'Tap to say hi',
+      label: _asleep ? 'Gift buddy is napping' : 'Gift buddy',
+      hint: _asleep ? 'Tap to wake it' : 'Tap to say hi',
+      liveRegion: _line != null,
+      value: _line,
       child: GestureDetector(
         onTap: _onTap,
         behavior: HitTestBehavior.opaque,
@@ -290,7 +564,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
             child: SizedBox.square(
               dimension: size,
               child: AnimatedBuilder(
-                animation: Listenable.merge([_react, _breath]),
+                animation: Listenable.merge([_react, _breath, _gaze, _snooze]),
                 builder: (context, _) => _buildBuddy(size),
               ),
             ),
@@ -302,7 +576,9 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
 
   Widget _buildBuddy(double size) {
     final t = _react.isAnimating ? _react.value : 1.0;
-    var dy = -1.5 * math.sin(_breath.value * math.pi);
+    var dy = _asleep
+        ? 0.8 * math.sin(_snooze.value * 2 * math.pi)
+        : -1.5 * math.sin(_breath.value * math.pi);
     var scaleX = 1.0;
     var scaleY = 1.0;
     var rock = 0.0;
@@ -311,13 +587,17 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     var lidTilt = 0.0;
 
     if (_react.isAnimating) {
-      switch (_reaction) {
-        case _Reaction.jump:
+      switch (_move) {
+        case _Move.jump:
           const times = [0.0, 0.12, 0.4, 0.65, 0.82, 1.0];
           dy = _frames(t, [0, 3, -16, 0, -4, 0], times: times);
           scaleX = _frames(t, [1, 1.15, 0.9, 1.1, 0.98, 1], times: times);
           scaleY = _frames(t, [1, 0.82, 1.12, 0.9, 1.03, 1], times: times);
-        case _Reaction.wiggle:
+        case _Move.love:
+          dy = _frames(t, [0, 3, -16, 0, -6, 0, -2, 0]);
+          scaleX = _frames(t, [1, 1.15, 0.9, 1.1, 0.96, 1.04, 1, 1]);
+          scaleY = _frames(t, [1, 0.82, 1.14, 0.9, 1.05, 0.97, 1, 1]);
+        case _Move.wiggle:
           rock = _frames(
                 t,
                 [0, -14, 12, -10, 7, -3, 0],
@@ -325,7 +605,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
               ) *
               math.pi /
               180;
-        case _Reaction.pop:
+        case _Move.pop:
           // Body settles in 600ms; the lid keeps flying for the full 750ms.
           final b = (t * 750 / 600).clamp(0.0, 1.0);
           dy = _frames(b, [0, 2, -6, 0]);
@@ -335,11 +615,24 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
           lidLift = _frames(t, [0, -11, -11, 0], times: lidTimes);
           lidTilt =
               _frames(t, [0, -16, 8, 0], times: lidTimes) * math.pi / 180;
-        case _Reaction.dizzy:
+        case _Move.wake:
+          dy = _frames(t, [0, -10, 0, -3, 0]);
+          const lidTimes = [0.0, 0.3, 0.6, 1.0];
+          lidLift = _frames(t, [0, -6, -6, 0], times: lidTimes);
+          lidTilt = _frames(t, [0, 10, -4, 0], times: lidTimes) * math.pi / 180;
+        case _Move.dizzy:
           dy = _frames(t, [0, -14, 0], curve: Curves.easeInOut);
           spin = Curves.easeInOut.transform(t) * 2 * math.pi;
+        case _Move.hop:
+          dy = _frames(t, [0, 1.5, -7, 0, -2, 0]);
+        case _Move.stretch:
+          const times = [0.0, 0.3, 0.65, 0.85, 1.0];
+          scaleY = _frames(t, [1, 1.14, 1.14, 0.94, 1], times: times, curve: Curves.easeInOut);
+          scaleX = _frames(t, [1, 0.93, 0.93, 1.05, 1], times: times, curve: Curves.easeInOut);
       }
     }
+
+    final shownFace = _asleep && _face == _Face.idle ? _Face.sleep : _face;
 
     return Transform.translate(
       offset: Offset(0, dy),
@@ -352,8 +645,9 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
           child: CustomPaint(
             size: Size.square(size),
             painter: _GiftBuddyPainter(
-              face: _face,
+              face: shownFace,
               blink: _blink,
+              gaze: _gazeNow,
               lidLift: lidLift,
               lidTilt: lidTilt,
             ),
@@ -390,6 +684,8 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
+                if (_asleep)
+                  for (var i = 0; i < 3; i++) _buildZ(i, size),
                 // Sits above the buddy's head so it clears the nav tabs.
                 Positioned(
                   left: _anchor.dx + size * 0.75,
@@ -398,6 +694,34 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildZ(int i, double size) {
+    return AnimatedBuilder(
+      animation: _snooze,
+      builder: (context, child) {
+        final phase = (_snooze.value + (2 - i) / 3) % 1.0;
+        final still = _reduceMotion;
+        final opacity = still ? 0.8 : _frames(phase, [0, 1, 0]);
+        return Positioned(
+          left: _anchor.dx + size * 0.7 + (still ? i * 6 : phase * (6 + i * 3)),
+          top: _anchor.dy - 4 - (still ? i * 8 : phase * (16 + i * 6)),
+          child: Opacity(opacity: opacity.clamp(0.0, 1.0), child: child),
+        );
+      },
+      child: Material(
+        type: MaterialType.transparency,
+        child: Text(
+          'z',
+          style: TextStyle(
+            fontSize: 9.0 + i * 2,
+            fontWeight: FontWeight.w600,
+            color: _wine.withAlpha(180),
+            decoration: TextDecoration.none,
           ),
         ),
       ),
@@ -422,6 +746,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
       child: Material(
         type: MaterialType.transparency,
         child: Container(
+          constraints: const BoxConstraints(maxWidth: 200),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -441,7 +766,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
               ),
             ],
           ),
-          // Re-keyed per tap so a new line pops in place.
+          // Re-keyed per line so a new one pops in place.
           child: TweenAnimationBuilder<double>(
             key: ValueKey(_lineId),
             tween: Tween(begin: 0.85, end: 1),
@@ -451,10 +776,10 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
                 Transform.scale(scale: scale, child: child),
             child: Text(
               text ?? '',
-              maxLines: 1,
-              softWrap: false,
+              maxLines: 3,
               style: const TextStyle(
                 fontSize: 11,
+                height: 1.3,
                 fontWeight: FontWeight.w600,
                 color: _ink,
                 decoration: TextDecoration.none,
@@ -472,12 +797,14 @@ class _GiftBuddyPainter extends CustomPainter {
   const _GiftBuddyPainter({
     required this.face,
     required this.blink,
+    required this.gaze,
     required this.lidLift,
     required this.lidTilt,
   });
 
   final _Face face;
   final bool blink;
+  final Offset gaze;
   final double lidLift;
   final double lidTilt;
 
@@ -520,17 +847,42 @@ class _GiftBuddyPainter extends CustomPainter {
 
   void _eye(Canvas canvas, double cx, {required bool right}) {
     const cy = 30.6;
-    if (face == _Face.dizzy) {
-      _stroke(
-        canvas,
-        Path()
-          ..moveTo(cx - 2, cy - 2)
-          ..lineTo(cx + 2, cy + 2)
-          ..moveTo(cx + 2, cy - 2)
-          ..lineTo(cx - 2, cy + 2),
-        1.6,
-      );
-      return;
+    switch (face) {
+      case _Face.dizzy:
+        _stroke(
+          canvas,
+          Path()
+            ..moveTo(cx - 2, cy - 2)
+            ..lineTo(cx + 2, cy + 2)
+            ..moveTo(cx + 2, cy - 2)
+            ..lineTo(cx - 2, cy + 2),
+          1.6,
+        );
+        return;
+      case _Face.love:
+        canvas.drawPath(
+          Path()
+            ..moveTo(cx, cy + 2.4)
+            ..cubicTo(cx - 3.4, cy, cx - 2.9, cy - 2.6, cx - 1.4, cy - 2.3)
+            ..cubicTo(cx - 0.6, cy - 2.1, cx, cy - 1.3, cx, cy - 1.3)
+            ..cubicTo(cx, cy - 1.3, cx + 0.6, cy - 2.1, cx + 1.4, cy - 2.3)
+            ..cubicTo(cx + 2.9, cy - 2.6, cx + 3.4, cy, cx, cy + 2.4)
+            ..close(),
+          _fill..color = _wine,
+        );
+        return;
+      case _Face.sleep:
+      case _Face.yawn:
+        _stroke(
+          canvas,
+          Path()
+            ..moveTo(cx - 2.2, cy - 0.4)
+            ..quadraticBezierTo(cx, cy + 1.8, cx + 2.2, cy - 0.4),
+          1.6,
+        );
+        return;
+      default:
+        break;
     }
     if (face == _Face.happy || (face == _Face.wink && right)) {
       _stroke(
@@ -564,6 +916,7 @@ class _GiftBuddyPainter extends CustomPainter {
   void _mouth(Canvas canvas) {
     switch (face) {
       case _Face.happy:
+      case _Face.love:
         canvas.drawPath(
           Path()
             ..moveTo(20.8, 33.8)
@@ -574,6 +927,10 @@ class _GiftBuddyPainter extends CustomPainter {
         _oval(canvas, 24, 35.6, 1.6, 0.8, _tongue);
       case _Face.surprised:
         _oval(canvas, 24, 35.3, 1.6, 2, _ink);
+      case _Face.yawn:
+        _oval(canvas, 24, 35.4, 2.2, 2.6, _ink);
+      case _Face.sleep:
+        _oval(canvas, 24, 35, 0.9, 1.1, _ink);
       case _Face.dizzy:
         _stroke(
           canvas,
@@ -615,8 +972,11 @@ class _GiftBuddyPainter extends CustomPainter {
         Colors.white.withAlpha(71));
     _oval(canvas, 15.6, 34.2, 2.4, 1.5, _cheek.withAlpha(217));
     _oval(canvas, 32.4, 34.2, 2.4, 1.5, _cheek.withAlpha(217));
+    canvas.save();
+    canvas.translate(gaze.dx, gaze.dy);
     _eye(canvas, 19, right: false);
     _eye(canvas, 29, right: true);
+    canvas.restore();
     _mouth(canvas);
 
     // Lid + bow pivot on the lid's bottom centre when it pops.
@@ -659,6 +1019,7 @@ class _GiftBuddyPainter extends CustomPainter {
   bool shouldRepaint(_GiftBuddyPainter old) =>
       old.face != face ||
       old.blink != blink ||
+      old.gaze != gaze ||
       old.lidLift != lidLift ||
       old.lidTilt != lidTilt;
 }
