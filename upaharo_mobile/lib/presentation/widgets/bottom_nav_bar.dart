@@ -4,25 +4,9 @@ import 'package:provider/provider.dart';
 import '../../config/flavor.dart';
 import '../../config/routes.dart';
 import '../../config/theme.dart';
-import '../../data/models/mascot_script.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
-import 'nav_mascot.dart';
-
-/// Hello for the main nav on Home; claimed once per app run.
-final String? _homeGreeting = takeMascotGreeting();
-
-/// What the gift buddy says on each tab.
-MascotScript _mascotScript(int tab, {required bool inShell}) {
-  final lines = switch (tab) {
-    0 => const ['Psst… try AI search. Just tell me who it’s for!', 'Need ideas? Flowers + chocolate never miss 💐🍫'],
-    1 => const ['So many lovely things in here!'],
-    2 => const ['Your gifts are in good hands 🛵', 'I’m keeping an eye on your orders 👀'],
-    _ => const ['Deals! My favourite kind of surprise 🎉'],
-  };
-  return MascotScript(intro: tab == 0 && inShell ? _homeGreeting : null, lines: lines);
-}
 
 /// Docked bar: Home · Categories · Orders · Promo.
 class BottomNavBar extends StatelessWidget {
@@ -94,8 +78,9 @@ class BottomNavBar extends StatelessWidget {
     final home = items.first;
     final rest = items.sublist(1);
     final safe = MediaQuery.paddingOf(context).bottom;
-    final inShell = context.findAncestorWidgetOfExactType<MainShell>() != null;
-    final onHomeTab = inShell && currentIndex == 0;
+    final onHomeTab =
+        context.findAncestorWidgetOfExactType<MainShell>() != null &&
+            currentIndex == 0;
 
     return Material(
       color: Colors.transparent,
@@ -122,13 +107,6 @@ class BottomNavBar extends StatelessWidget {
                 startIndex: 1,
                 currentIndex: currentIndex,
                 onTap: (index) => _onTap(context, index),
-                // The gift buddy lives at the end of the bar (gifts store only).
-                trailing: FlavorConfig.isGifts
-                    ? NavMascot(
-                        script: _mascotScript(currentIndex, inShell: inShell),
-                        scriptKey: currentIndex,
-                      )
-                    : null,
               ),
             ),
             Positioned(
@@ -219,14 +197,12 @@ class _CurvedMenu extends StatelessWidget {
     required this.startIndex,
     required this.currentIndex,
     required this.onTap,
-    this.trailing,
   });
 
   final List<_NavItem> items;
   final int startIndex;
   final int currentIndex;
   final ValueChanged<int> onTap;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -265,11 +241,6 @@ class _CurvedMenu extends StatelessWidget {
                         selected: currentIndex == startIndex + i,
                         onTap: () => onTap(startIndex + i),
                       ),
-              ),
-            if (trailing != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 2, right: 12),
-                child: trailing,
               ),
           ],
           ),

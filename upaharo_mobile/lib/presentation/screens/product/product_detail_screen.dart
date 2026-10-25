@@ -248,9 +248,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           bottomNavigationBar: snapshot.hasData && !snapshot.hasError
               ? Stack(
                   children: [
-                    // The gift buddy peeks over the cart bar and chats about this product.
+                    // The gift buddy peeks over the Add to Cart button and chats about this product.
                     Positioned(
-                      left: 18,
+                      right: 34,
                       top: 0,
                       child: NavMascot(script: _mascotScript, scriptKey: _productId),
                     ),
