@@ -6,7 +6,7 @@ import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveUserId } from '@/lib/request-auth'
 import { recordUserSearch } from '@/lib/search-history'
 import { getAppSettings } from '@/lib/app-settings'
-import { festiveFirst } from '@/lib/festive-products'
+import { festiveFirst, festiveLeadingFeed } from '@/lib/festive-products'
 import { resolveStoreContext } from '@/lib/store-context'
 import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
@@ -161,7 +161,10 @@ export async function GET(request: NextRequest) {
     const festivalOn = isPlainFeed
       ? await getAppSettings(storeContext.store).then((s) => s.festivalMode !== false).catch(() => false)
       : false
-    const products = festivalOn ? festiveFirst(listed as any[]) : listed
+    const feedLimit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 60) : (listed as any[]).length
+    const products = festivalOn
+      ? await festiveLeadingFeed(storeContext.store.id, listed as any[], feedLimit).catch(() => festiveFirst(listed as any[]))
+      : listed
 
     return NextResponse.json(
       { products },

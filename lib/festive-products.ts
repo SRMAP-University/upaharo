@@ -226,3 +226,21 @@ export function festiveFirst<T extends { name?: string; category?: string; tags?
     [p.name || '', p.category || '', ...(Array.isArray(p.tags) ? p.tags : [])].some((text) => isFestiveName(text))
   return [...products.filter(isFestive), ...products.filter((p) => !isFestive(p))]
 }
+
+/**
+ * Festival-mode feed: every festive product first (from the Bhai Tika page's
+ * sections), then the usual list, trimmed to `limit`. Cached briefly.
+ */
+export async function festiveLeadingFeed<T extends { id: string }>(storeId: string, base: T[], limit: number): Promise<T[]> {
+  const { getOrSetJson } = await import('@/lib/redis')
+  const festive = await getOrSetJson(`festive-feed:${storeId}`, 120, async () => {
+    const sections = await getFestiveSections(storeId)
+    const seen = new Set<string>()
+    return sections
+      .filter((s) => s.id !== 'under-999')
+      .flatMap((s) => s.products)
+      .filter((p: any) => (seen.has(p.id) ? false : (seen.add(p.id), true)))
+  })
+  const ids = new Set((festive as any[]).map((p) => p.id))
+  return [...(festive as T[]), ...base.filter((p) => !ids.has(p.id))].slice(0, limit)
+}

@@ -21,7 +21,7 @@ import { findManyProductsCompat } from '@/lib/product-db'
 import { resolveStoreContext } from '@/lib/store-context'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
-import { festiveFirst } from '@/lib/festive-products'
+import { festiveFirst, festiveLeadingFeed } from '@/lib/festive-products'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -148,7 +148,10 @@ async function getHomeData() {
     ])
 
     // Festival mode: Tihar / Bhai Tika products lead every home product list.
-    const products = settings.festivalMode !== false ? festiveFirst(fetchedProducts) : fetchedProducts
+    const products =
+      settings.festivalMode !== false && storeId
+        ? await festiveLeadingFeed(storeId, fetchedProducts, 60).catch(() => festiveFirst(fetchedProducts))
+        : fetchedProducts
 
     const groupedCategories = categories
       .map((category) => ({
