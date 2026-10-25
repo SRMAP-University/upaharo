@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.upaharo.upaharo_mobile",
+      "sha256_cert_fingerprints": [
+        "99:04:47:6E:7E:FD:49:86:99:B8:6C:A4:6F:F7:35:08:17:45:59:4C:3C:13:F3:14:F1:9F:18:B1:F9:8F:3D:9E"
+      ]
+    }
+  }
+]
