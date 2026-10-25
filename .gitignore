@@ -65,3 +65,6 @@ cloudflare-env.d.ts
 
 # Local Netlify folder
 .netlify
+
+# Local keys (Play service account, etc.)
+.secrets/
