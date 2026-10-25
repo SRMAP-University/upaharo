@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLocationStore } from '@/lib/store/location'
@@ -12,6 +12,43 @@ interface LocationModalProps {
   isOpen: boolean
   onClose: () => void
   onSaved?: (address: any) => void
+}
+
+const PENDING_ADDRESS_TEXT = ['Resolving exact address...', 'Fetching exact address...']
+
+function Field({
+  label,
+  optional,
+  ...inputProps
+}: { label: string; optional?: boolean } & InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-medium text-ink">
+        {label}
+        {optional ? <span className="font-normal text-ink/40"> (optional)</span> : null}
+      </span>
+      <input
+        {...inputProps}
+        className="h-12 w-full rounded-2xl border border-ink/15 bg-white px-4 text-[15px] text-ink outline-none transition placeholder:text-ink/35 focus:border-wine/50 focus:ring-2 focus:ring-wine/15"
+      />
+    </label>
+  )
+}
+
+function PinBadge() {
+  return (
+    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-rose-soft text-wine">
+      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 1 1 9.9 9.9L10 18.9l-4.95-4.95a7 7 0 0 1 0-9.9ZM10 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" clipRule="evenodd" />
+      </svg>
+    </span>
+  )
+}
+
+const LABEL_ICONS: Record<string, string> = {
+  Home: 'M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75',
+  Work: 'M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0',
+  Other: 'M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z',
 }
 
 export default function LocationModal({ isOpen, onClose, onSaved }: LocationModalProps) {
@@ -27,6 +64,22 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Escape closes; the page behind stays still while the sheet is open.
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [isOpen, onClose])
+
   const [selectedAddress, setSelectedAddress] = useState('')
   const latestLookupId = useRef(0)
   const [formData, setFormData] = useState({
@@ -38,8 +91,6 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
     state: '',
     pincode: '',
   })
-
-  const selectedSummary = [formData.apartment, formData.city, formData.state].filter(Boolean).join(', ')
 
   const hydrateFromAddress = (address: string) => {
     const parts = address
@@ -128,7 +179,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
       if (data.address) {
         setSelectedAddress(data.address)
       }
-      
+
       if (data.parsed) {
         applyParsedAddress(data.parsed)
       } else {
@@ -140,7 +191,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
         if (formattedAddress) {
           setSelectedAddress(formattedAddress)
         }
-        
+
         let city = '', state = '', pincode = ''
         addressComponents.forEach((component: any) => {
           if (component.types.includes('locality')) {
@@ -153,7 +204,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
             pincode = component.long_name
           }
         })
-        
+
         setFormData((prev) => ({
           ...prev,
           street,
@@ -166,7 +217,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
     } catch (err) {
       console.error('Error parsing address:', err)
       if (!parsed?.street && !parsed?.city && !parsed?.state) {
-        setSelectedAddress(address && address !== 'Resolving exact address...' ? address : 'Move the pin slightly to retry address detection')
+        setSelectedAddress(address && address !== 'Resolving exact address...' ? address : 'Move the map slightly to retry address detection')
       }
     } finally {
       if (latestLookupId.current === lookupId) {
@@ -196,6 +247,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
   }
 
   const handleBackToMap = () => {
+    setError(null)
     setStep('select')
   }
 
@@ -242,7 +294,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
             isDefault: true, // Set as default address
           }),
         })
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || 'Failed to save address')
@@ -264,11 +316,23 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
 
   if (!mounted) return null
 
+  const addressPending = Boolean(selectedAddress) && (PENDING_ADDRESS_TEXT.includes(selectedAddress) || isResolvingAddress)
+  const [addressTitle, ...addressRestParts] = selectedAddress.split(',').map((part) => part.trim()).filter(Boolean)
+  const addressRest = addressRestParts.join(', ')
+
+  const errorBanner = error ? (
+    <div className="flex items-start gap-2 rounded-2xl bg-red-50 px-3.5 py-3 text-sm text-red-700" role="alert">
+      <svg className="mt-0.5 h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+      </svg>
+      <span>{error}</span>
+    </div>
+  ) : null
+
   return createPortal(
     <AnimatePresence mode="wait">
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -277,7 +341,6 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
             className="fixed inset-0 z-[120] bg-ink/55 backdrop-blur-sm"
           />
 
-          {/* Modal container */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -289,246 +352,215 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
               initial={{ opacity: 0, y: 48 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 48 }}
-              transition={{ type: "spring", damping: 32, stiffness: 320 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 320 }}
               onClick={(e) => e.stopPropagation()}
-              className="flex h-[100dvh] w-full flex-col overflow-hidden rounded-t-[28px] bg-cream shadow-[0_-30px_80px_-40px_rgba(43,29,34,0.6)] lg:h-auto lg:max-h-[88vh] lg:max-w-2xl lg:rounded-[28px] lg:border lg:border-wine/10 lg:shadow-[0_40px_90px_-50px_rgba(43,29,34,0.7)]"
+              role="dialog"
+              aria-modal="true"
+              aria-label={step === 'select' ? 'Choose delivery location' : 'Address details'}
+              className="flex h-[100dvh] w-full flex-col overflow-hidden bg-cream lg:h-[min(760px,90vh)] lg:max-w-xl lg:rounded-[28px] lg:shadow-[0_40px_90px_-50px_rgba(43,29,34,0.7)]"
             >
-              {/* Drag Handle - Mobile Only */}
-              <div className="lg:hidden flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-wine/20 rounded-full"></div>
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-wine/10">
-                <div className="flex items-center gap-3">
-                  {step === 'form' && (
-                    <button
-                      onClick={handleBackToMap}
-                      className="p-2 hover:bg-cream-deep rounded-full transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-ink/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                    </button>
-                  )}
-                  <h2 className="font-display text-xl font-semibold text-ink">
-                    {step === 'select' ? 'Choose Location' : 'Complete Address'}
-                  </h2>
-                </div>
+              <div className="flex flex-shrink-0 items-center gap-2 border-b border-ink/10 bg-white px-3 py-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] lg:pt-2.5">
                 <button
-                  onClick={onClose}
-                  className="p-2 hover:bg-cream-deep rounded-full transition-colors"
+                  type="button"
+                  onClick={step === 'form' ? handleBackToMap : onClose}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-ink transition hover:bg-cream-deep"
+                  aria-label={step === 'form' ? 'Back to map' : 'Close'}
                 >
-                  <svg className="w-5 h-5 text-ink/55" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  {step === 'form' ? (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
                 </button>
+                <div className="min-w-0 flex-1">
+                  <h2 className="truncate text-[17px] font-semibold text-ink">
+                    {step === 'select' ? 'Choose delivery location' : 'Address details'}
+                  </h2>
+                  {step === 'select' ? (
+                    <p className="truncate text-xs text-ink/50">We deliver across Kathmandu Valley</p>
+                  ) : null}
+                </div>
+                {step === 'form' ? (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-ink/55 transition hover:bg-cream-deep"
+                    aria-label="Close"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                ) : null}
               </div>
 
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-red-50 text-red-600 p-3 mx-5 mt-4 rounded-xl text-sm flex items-start gap-2"
-                >
-                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  <span>{error}</span>
-                </motion.div>
-              )}
-
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto">{step === 'select' ? (
-                  <div className="space-y-4 py-4">
-                    <div className="mx-4 flex items-center gap-2 rounded-full border border-gold/30 bg-gold-soft/60 px-4 py-2 text-xs font-medium text-ink/70">
-                      <svg className="h-3.5 w-3.5 flex-shrink-0 text-gold" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5.05 4.05a7 7 0 1 1 9.9 9.9L10 18.9l-4.95-4.95a7 7 0 0 1 0-9.9ZM10 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" clipRule="evenodd" />
-                      </svg>
-                      Delivery is currently available only inside Kathmandu Valley.
-                    </div>
-
-                    <div className="relative mx-4 h-[calc(100dvh-260px)] min-h-[380px] overflow-hidden rounded-[22px] border border-wine/10 bg-cream-deep lg:h-[420px]">
-                      <MapPicker 
-                        onLocationSelect={handleLocationSelect}
-                        initialLat={deliveryAddress?.latitude}
-                        initialLng={deliveryAddress?.longitude}
-                      />
-
-                      <div className="pointer-events-none absolute left-4 right-4 top-20 z-20">
-                        <motion.div
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="pointer-events-auto rounded-2xl bg-white/95 px-4 py-3 shadow-xl shadow-black/10 backdrop-blur"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink/55">
-                                Selected Location
-                              </p>
-                              <p className="mt-1 line-clamp-2 text-sm font-medium text-ink">
-                                {selectedAddress || 'Tap on the map to choose your delivery location'}
-                              </p>
-                              {selectedSummary ? (
-                                <p className="mt-1 line-clamp-1 text-xs text-ink/60">{selectedSummary}</p>
-                              ) : null}
-                            </div>
-                            {isResolvingAddress ? (
-                              <span className="shrink-0 rounded-full bg-rose-soft px-2.5 py-1 text-[11px] font-semibold text-wine">
-                                Fetching...
-                              </span>
-                            ) : null}
-                          </div>
-                        </motion.div>
-                      </div>
-                    </div>
+              {step === 'select' ? (
+                <>
+                  <div className="relative min-h-0 flex-1">
+                    <MapPicker
+                      onLocationSelect={handleLocationSelect}
+                      // Coming back from the address form reopens on the chosen point.
+                      initialLat={coords?.lat ?? deliveryAddress?.latitude}
+                      initialLng={coords?.lng ?? deliveryAddress?.longitude}
+                    />
                   </div>
 
-                ) : (
-                  <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
-                    {/* Address Type */}
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/55 mb-3 uppercase tracking-wider">
-                        Save As
-                      </label>
+                  <div className="relative z-10 -mt-5 flex-shrink-0 rounded-t-[28px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 shadow-[0_-16px_40px_-24px_rgba(43,29,34,0.45)] lg:pb-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">Deliver to</p>
+                    <div className="mt-2.5 flex items-start gap-3">
+                      <PinBadge />
+                      <div className="min-w-0 flex-1 pt-0.5" aria-live="polite">
+                        {!selectedAddress ? (
+                          <p className="pt-2 text-sm text-ink/55">Search or move the map to choose a spot</p>
+                        ) : addressPending ? (
+                          <div className="space-y-2 pt-1">
+                            <div className="h-4 w-3/5 animate-pulse rounded-full bg-cream-deep" />
+                            <div className="h-3 w-4/5 animate-pulse rounded-full bg-cream-deep" />
+                          </div>
+                        ) : (
+                          <>
+                            <p className="truncate text-base font-semibold text-ink">{addressTitle}</p>
+                            {addressRest ? (
+                              <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-ink/55">{addressRest}</p>
+                            ) : null}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {errorBanner ? <div className="mt-4">{errorBanner}</div> : null}
+
+                    <button
+                      type="button"
+                      onClick={handleProceedToForm}
+                      disabled={!coords}
+                      className="mt-5 flex h-[52px] w-full items-center justify-center rounded-2xl bg-wine text-base font-semibold text-white transition hover:bg-wine-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-ink/15 disabled:text-ink/40"
+                    >
+                      Confirm location
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                  <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+                    <div className="flex items-start gap-3 rounded-2xl border border-ink/10 bg-white p-3.5">
+                      <PinBadge />
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <p className="truncate text-[15px] font-semibold text-ink">{addressTitle || 'Selected location'}</p>
+                        {addressRest ? <p className="line-clamp-2 text-xs leading-snug text-ink/55">{addressRest}</p> : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleBackToMap}
+                        className="flex-shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold text-wine transition hover:bg-rose-soft"
+                      >
+                        Change
+                      </button>
+                    </div>
+
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium text-ink">Save as</legend>
                       <div className="flex gap-2">
-                        {['Home', 'Work', 'Other'].map((type) => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, label: type })}
-                            className={`flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-                              formData.label === type
-                                ? 'bg-wine text-white shadow-sm'
-                                : 'bg-white text-ink/70 border border-wine/10 hover:bg-cream-deep'
-                            }`}
-                          >
-                            {type}
-                          </button>
-                        ))}
+                        {['Home', 'Work', 'Other'].map((type) => {
+                          const selected = formData.label === type
+                          return (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, label: type })}
+                              aria-pressed={selected}
+                              className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition ${
+                                selected
+                                  ? 'border-wine bg-wine text-white'
+                                  : 'border-ink/15 bg-white text-ink/70 hover:border-wine/40'
+                              }`}
+                            >
+                              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={LABEL_ICONS[type]} />
+                              </svg>
+                              {type}
+                            </button>
+                          )
+                        })}
                       </div>
-                    </div>
+                    </fieldset>
 
-                    {/* Street Address */}
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                        House/Flat No. <span className="text-wine">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.street}
-                        onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                        placeholder="e.g. A-101"
-                      />
-                    </div>
-
-                    {/* Apartment/Building */}
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                        Apartment/Road/Area
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.apartment}
-                        onChange={(e) => setFormData({ ...formData, apartment: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                        placeholder="Area, road or place"
-                      />
-                    </div>
-
-                    {/* Landmark */}
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                        Landmark
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.landmark}
-                        onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                        placeholder="Nearby landmark"
-                      />
-                    </div>
-
-                    {/* City, Province, Postal Code */}
+                    <Field
+                      label="House / flat / building"
+                      required
+                      value={formData.street}
+                      onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                      placeholder="e.g. House 12, Sunrise Apartments"
+                      autoComplete="address-line1"
+                    />
+                    <Field
+                      label="Area / road"
+                      optional
+                      value={formData.apartment}
+                      onChange={(e) => setFormData({ ...formData, apartment: e.target.value })}
+                      placeholder="e.g. Baneshwor, Ring Road"
+                      autoComplete="address-line2"
+                    />
+                    <Field
+                      label="Landmark"
+                      optional
+                      value={formData.landmark}
+                      onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
+                      placeholder="e.g. Opposite Bhatbhateni"
+                    />
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                          City <span className="text-wine">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                          placeholder="City"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                          Postal Code <span className="text-wine">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={formData.pincode}
-                          onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
-                          className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                          placeholder="44600"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-ink/55 mb-2 uppercase tracking-wider">
-                        Province <span className="text-wine">*</span>
-                      </label>
-                      <input
-                        type="text"
+                      <Field
+                        label="City"
                         required
-                        value={formData.state}
-                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                        className="w-full px-4 py-3 bg-white border border-wine/15 rounded-xl focus:ring-2 focus:ring-wine/20 focus:border-wine/40 text-ink transition-all"
-                        placeholder="Province"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        placeholder="Kathmandu"
+                        autoComplete="address-level2"
+                      />
+                      <Field
+                        label="Postal code"
+                        required
+                        value={formData.pincode}
+                        onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                        placeholder="44600"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
                       />
                     </div>
-                  </form>
-                )}
-              </div>
+                    <Field
+                      label="Province"
+                      required
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      placeholder="Bagmati"
+                      autoComplete="address-level1"
+                    />
 
-              {/* Fixed Bottom Button */}
-              <div className="px-5 py-4 border-t border-wine/10 bg-cream/85 backdrop-blur">
-                {step === 'select' ? (
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleProceedToForm}
-                    disabled={!coords}
-                    className="w-full bg-wine text-white px-6 py-4 rounded-full font-bold hover:bg-wine-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_18px_38px_-22px_rgba(124,42,71,0.95)]"
-                  >
-                    Confirm & Continue
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    whileTap={{ scale: 0.98 }}
-                    type="submit"
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="w-full bg-wine text-white px-6 py-4 rounded-full font-bold hover:bg-wine-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_18px_38px_-22px_rgba(124,42,71,0.95)]"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                        <span>Saving...</span>
-                      </div>
-                    ) : (
-                      'Save Address'
-                    )}
-                  </motion.button>
-                )}
-              </div>
+                    {errorBanner}
+                  </div>
+
+                  <div className="flex-shrink-0 border-t border-ink/10 bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 lg:pb-4">
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-wine text-base font-semibold text-white transition hover:bg-wine-deep active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isLoading ? (
+                        <>
+                          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          Saving…
+                        </>
+                      ) : (
+                        'Save address'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </motion.div>
         </>

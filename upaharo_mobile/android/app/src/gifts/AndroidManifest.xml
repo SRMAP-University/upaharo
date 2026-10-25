@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".MainActivity">
+            <!-- Product links shared from the website open in the app.
+                 The site vouches for the app in /.well-known/assetlinks.json;
+                 lib/core/navigation/deep_links.dart opens the product. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:host="www.upaharo.com" />
+                <data android:host="upaharo.com" />
+                <data android:pathPrefix="/products/" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

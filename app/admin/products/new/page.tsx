@@ -10,6 +10,7 @@ import ProductGalleryFields from '@/components/admin/ProductGalleryFields'
 import ProductInventoryFields from '@/components/admin/ProductInventoryFields'
 import SubProductSelector from '@/components/admin/SubProductSelector'
 import ProductPickupFields from '@/components/admin/ProductPickupFields'
+import ProductSellerField from '@/components/admin/ProductSellerField'
 import { uploadProductImage } from '@/lib/upload-image'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
@@ -73,6 +74,7 @@ export default function NewProduct() {
     pickupLatitude: null as number | null,
     pickupLongitude: null as number | null,
     pickupAddress: '',
+    sellerId: '',
   })
 
   useEffect(() => {
@@ -451,6 +453,13 @@ export default function NewProduct() {
                   <p className="mt-1 text-xs text-ink/55">Shown on product page as: {formatTime(formData.prepTime)}</p>
                 </div>
               </div>
+            </section>
+
+            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+              <ProductSellerField
+                value={formData.sellerId}
+                onChange={(sellerId) => setFormData((prev) => ({ ...prev, sellerId }))}
+              />
             </section>
 
             <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">

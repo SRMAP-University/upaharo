@@ -1,0 +1,198 @@
+/* Tihar / Bhai Tika decorations. CSS-only so they render on the server. */
+
+.petals {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.petal {
+  position: absolute;
+  top: -40px;
+  animation: petalFall var(--dur, 11s) linear var(--delay, 0s) infinite;
+  will-change: transform;
+}
+
+.petal > span {
+  display: block;
+  animation: petalSway var(--sway, 3s) ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+@keyframes petalFall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--drift, 30px), var(--fall, 900px), 0) rotate(var(--spin, 260deg));
+    opacity: 0;
+  }
+}
+
+@keyframes petalSway {
+  from {
+    transform: translateX(-14px) rotate(-18deg);
+  }
+  to {
+    transform: translateX(14px) rotate(18deg);
+  }
+}
+
+.strand {
+  transform-origin: top center;
+  animation: strandSway 4.5s ease-in-out var(--delay, 0s) infinite alternate;
+}
+
+@keyframes strandSway {
+  from {
+    transform: rotate(-3.5deg);
+  }
+  to {
+    transform: rotate(3.5deg);
+  }
+}
+
+.flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: flameFlicker 1.6s ease-in-out var(--delay, 0s) infinite;
+}
+
+.glow {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: glowPulse 2.4s ease-in-out var(--delay, 0s) infinite;
+}
+
+@keyframes flameFlicker {
+  0%,
+  100% {
+    transform: scale(1, 1) skewX(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(0.94, 1.08) skewX(-3deg);
+  }
+  50% {
+    transform: scale(1.04, 0.95) skewX(2deg);
+    opacity: 0.92;
+  }
+  75% {
+    transform: scale(0.97, 1.05) skewX(-1deg);
+  }
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+.sparkle {
+  position: absolute;
+  animation: twinkle var(--dur, 3s) ease-in-out var(--delay, 0s) infinite;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.rangoli {
+  animation: slowSpin 140s linear infinite;
+}
+
+@keyframes slowSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tikaDot {
+  animation: tikaPop 3.5s ease-in-out var(--delay, 0s) infinite;
+}
+
+@keyframes tikaPop {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  80% {
+    transform: translateY(-6px) scale(1.15);
+  }
+}
+
+.rise {
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--delay, 0s);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.shimmerText {
+  background: linear-gradient(100deg, #fde68a 0%, #ffffff 35%, #fbbf24 55%, #fde68a 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .petals {
+    display: none;
+  }
+  .strand,
+  .flame,
+  .glow,
+  .sparkle,
+  .rangoli,
+  .tikaDot,
+  .rise,
+  .shimmerText {
+    animation: none;
+  }
+  .sparkle {
+    opacity: 0.6;
+  }
+}

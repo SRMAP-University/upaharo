@@ -44,6 +44,23 @@ class _SearchScreenState extends State<SearchScreen> {
     'Anniversary roses',
   ];
 
+  bool _argsRead = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_argsRead) return;
+    _argsRead = true;
+    // Server features and links can open search with a question already asked.
+    final args = ModalRoute.of(context)?.settings.arguments;
+    final query = args is Map ? (args['query']?.toString().trim() ?? '') : '';
+    if (query.isEmpty) return;
+    _controller.text = query;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _runSearch(query);
+    });
+  }
+
   @override
   void dispose() {
     _debounce?.cancel();

@@ -26,6 +26,7 @@ import 'presentation/providers/settings_provider.dart';
 import 'presentation/providers/shell_tab_controller.dart';
 import 'presentation/providers/weather_provider.dart';
 import 'presentation/providers/wishlist_provider.dart';
+import 'runtime/feature_runtime.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +50,14 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => AiChatProvider()),
         ChangeNotifierProvider(create: (_) => ShellTabController()),
         ChangeNotifierProvider(create: (_) => WishlistProvider()),
+        // Server-driven features (characters, web blocks, pop-ups, update prompts).
+        ChangeNotifierProvider(
+          lazy: false,
+          create: (context) => FeatureRuntime(
+            cart: context.read<CartProvider>(),
+            tabs: context.read<ShellTabController>(),
+          )..start(),
+        ),
       ],
       child: const UpaharoApp(),
     ),

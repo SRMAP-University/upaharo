@@ -7,6 +7,8 @@ import '../../../core/utils/price_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/progressive_network_image.dart';
+import '../../../runtime/feature.dart';
+import '../../../runtime/feature_slot.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -44,6 +46,8 @@ class CartScreen extends StatelessWidget {
             )
           : Column(
               children: [
+                // Server features placed above the cart items.
+                const FeatureSlot(placement: Placements.cartTop),
                 Expanded(
                   child: ListView.separated(
                     itemCount: cart.items.length,

@@ -177,7 +177,7 @@ select:focus {
 
   /* Premium typography + surfaces */
   .font-display {
-    font-family: var(--font-display), 'Times New Roman', serif;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   }
 
   .text-balance {

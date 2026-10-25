@@ -32,6 +32,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/shell_tab_controller.dart';
 import '../../providers/weather_provider.dart';
 import '../../widgets/add_to_cart_plus.dart';
+import '../../widgets/festive_home_section.dart';
 import '../../widgets/floating_bottom_chrome.dart';
 import '../../widgets/home_feed_banner_carousel.dart';
 import '../../widgets/home_header_category_tile.dart';
@@ -43,6 +44,8 @@ import '../../widgets/progressive_network_image.dart';
 import '../../widgets/quick_picks_categories_section.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/value_deals_section.dart';
+import '../../../runtime/feature.dart';
+import '../../../runtime/feature_slot.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.showBottomNav = true});
@@ -683,7 +686,12 @@ class _HomeScreenState extends State<HomeScreen>
             ],
     };
 
-    final slivers = <Widget>[];
+    final slivers = <Widget>[
+      // Server features (web blocks, characters) placed at the top of Home.
+      const SliverToBoxAdapter(child: FeatureSlot(placement: Placements.homeTop)),
+      // Tihar: Bhai Tika card + picks from the shopper's searches (hides itself otherwise).
+      const SliverToBoxAdapter(child: FestiveHomeSection()),
+    ];
     for (final section in settings.homeSectionLayout) {
       if (!section.visible) continue;
       slivers.addAll(builders[section.id]?.call(section) ?? const []);

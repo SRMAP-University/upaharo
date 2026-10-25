@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
+import { bannerBgGradientWrite } from '@/lib/banner-bg-gradient'
 import {
   attachProductsToBanners,
   normalizeBannerCategory,
@@ -59,7 +59,7 @@ export async function PATCH(
           ? { bgColor: body.bgColor?.trim() || null }
           : {}),
         ...(body.bgGradient !== undefined
-          ? { bgGradient: normalizeBannerBgGradient(body.bgGradient) }
+          ? { bgGradient: bannerBgGradientWrite(body.bgGradient) }
           : {}),
         ...(body.layout !== undefined
           ? { layout: normalizeBannerLayout(body.layout) }

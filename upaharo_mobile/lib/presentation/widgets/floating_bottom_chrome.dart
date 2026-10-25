@@ -1,30 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../config/flavor.dart';
-import '../../data/models/mascot_script.dart';
+import '../../runtime/feature.dart';
+import '../../runtime/feature_slot.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/orders_provider.dart';
-import '../screens/main_shell.dart';
 import 'active_order_bar.dart';
 import 'bottom_nav_bar.dart';
 import 'mini_cart_bar.dart';
-import 'nav_mascot.dart';
 
-/// Hello for the main nav on Home; claimed once per app run.
-final String? _homeGreeting = takeMascotGreeting();
-
-/// What the gift buddy says on each tab.
-MascotScript _mascotScript(int tab, {required bool inShell}) {
-  final lines = switch (tab) {
-    0 => const ['Psst… try AI search. Just tell me who it’s for!', 'Need ideas? Flowers + chocolate never miss 💐🍫'],
-    1 => const ['So many lovely things in here!'],
-    2 => const ['Your gifts are in good hands 🛵', 'I’m keeping an eye on your orders 👀'],
-    _ => const ['Deals! My favourite kind of surprise 🎉'],
-  };
-  return MascotScript(intro: tab == 0 && inShell ? _homeGreeting : null, lines: lines);
-}
+const _tabNames = ['home', 'categories', 'orders', 'promo'];
 
 /// Hides the bottom of the buddy so it looks tucked behind the nav's bar,
 /// while leaving room above it for jumps.
@@ -79,8 +65,9 @@ class FloatingBottomChrome extends StatelessWidget {
     return chipGap + chip + navHeight + safe + 8;
   }
 
-  // The gift buddy perches on the right of the nav: its bottom tucks
-  // behind the white bar, which starts 14px below the nav's top edge.
+  // Server features at bottom_nav.start (the gift buddy by default) perch on
+  // the right of the nav: the bottom tucks behind the white bar, which
+  // starts 14px below the nav's top edge.
   static const double _mascotSize = 38;
   static const double _mascotRight = 20;
   static const double _barTop = 14;
@@ -88,7 +75,7 @@ class FloatingBottomChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mascot = FlavorConfig.isGifts;
+    final mascot = FeatureSlot.hasContent(context, Placements.bottomNavStart);
     final hasChip = includeCart && showsChip(context);
     // Without a chip row above the nav, make room for the buddy's head.
     final headRoom = mascot && !hasChip ? _mascotSize - _barTop - _tuck : 0.0;
@@ -124,7 +111,6 @@ class FloatingBottomChrome extends StatelessWidget {
     if (!mascot) return column;
 
     final safe = MediaQuery.paddingOf(context).bottom;
-    final inShell = context.findAncestorWidgetOfExactType<MainShell>() != null;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -134,10 +120,9 @@ class FloatingBottomChrome extends StatelessWidget {
           bottom: BottomNavBar.height + safe - _barTop - _tuck,
           child: ClipRect(
             clipper: const _TuckClipper(_tuck),
-            child: NavMascot(
-              size: _mascotSize,
-              script: _mascotScript(currentIndex, inShell: inShell),
-              scriptKey: currentIndex,
+            child: FeatureSlot(
+              placement: Placements.bottomNavStart,
+              slotContext: {'tab': _tabNames[currentIndex.clamp(0, _tabNames.length - 1)]},
             ),
           ),
         ),

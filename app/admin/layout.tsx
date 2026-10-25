@@ -233,6 +233,7 @@ export default function AdminLayout({
       { icon: <SparklesIcon className="w-5 h-5" />, label: 'Occasions', href: '/admin/occasions' },
       { icon: <TicketIcon className="w-5 h-5" />, label: 'Coupons', href: '/admin/coupons' },
       { icon: <BellIcon className="w-5 h-5" />, label: 'Push / Marketing', shortLabel: 'Push', href: '/admin/notifications' },
+      { icon: <SparklesIcon className="w-5 h-5" />, label: 'App Features', shortLabel: 'Features', href: '/admin/features' },
       { icon: <CogIcon className="w-5 h-5" />, label: 'Settings', href: '/admin/settings' },
     ],
     []

@@ -282,7 +282,7 @@ function B2BRegisterForm() {
             <div className="border-b border-wine/10 px-4 py-3">
               <h2 className="text-sm font-semibold text-ink">Pin your shop location</h2>
               <p className="text-xs text-ink/45">
-                Search or drag the pin — we deliver in the Kathmandu Valley.
+                Search or move the map under the pin — we deliver in the Kathmandu Valley.
               </p>
             </div>
             <div className="h-[340px]">

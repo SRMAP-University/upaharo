@@ -1,5 +1,7 @@
 /** Per-banner scroll/header wash: solid (null) or multi-stop linear gradient. */
 
+import { Prisma } from '@prisma/client'
+
 export type BannerBgStop = {
   color: string
   /** 0–1 position; omitted stops are spaced evenly. */
@@ -85,6 +87,15 @@ export function normalizeBannerBgGradient(raw: unknown): BannerBgGradient | null
   }
 
   return { mode: 'gradient', angle, stops }
+}
+
+/** Prisma Json columns reject plain null; SQL NULL clears a solid banner. */
+export function bannerBgGradientWrite(
+  raw: unknown
+): Prisma.InputJsonValue | typeof Prisma.DbNull {
+  const value = normalizeBannerBgGradient(raw)
+  if (!value) return Prisma.DbNull
+  return value as Prisma.InputJsonValue
 }
 
 /** CSS background value for header wash preview / storefront. */
