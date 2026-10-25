@@ -395,7 +395,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
   const finalPrice = variantHasOwnPrice ? (selectedVariant!.price as number) : basePrice
   // A variant's own price has no "was" price to compare against.
   const showSavings = product.discount > 0 && !variantHasOwnPrice
-  const discountPercent = Math.round(product.discount || 0)
   const descriptionHtml = String(product.description || '').trim()
     ? renderProductDescriptionMarkdown(product.description)
     : ''
@@ -494,14 +493,25 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                 ))}
               </div>
 
-              {discountPercent > 0 ? (
-                <span className="absolute bottom-4 left-4 rounded-full bg-wine px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                  {discountPercent}% off
-                </span>
-              ) : null}
-
               {galleryImages.length > 1 ? (
                 <>
+                  {/* Thumbnails sit on the photo; the price line already shows the saving. */}
+                  <div className="absolute bottom-3 left-3 right-16 flex gap-1.5 overflow-x-auto scrollbar-hide lg:bottom-4 lg:left-4 lg:gap-2">
+                    {galleryImages.map((img, idx) => (
+                      <button
+                        key={img}
+                        type="button"
+                        onClick={() => scrollToImage(idx)}
+                        aria-label={`Show photo ${idx + 1}`}
+                        aria-current={activeIndex === idx}
+                        className={`relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border-2 bg-cream-deep shadow-[0_4px_12px_-4px_rgba(43,29,34,0.45)] transition lg:h-16 lg:w-16 lg:rounded-2xl ${
+                          activeIndex === idx ? 'border-white' : 'border-white/40 opacity-80 hover:opacity-100'
+                        }`}
+                      >
+                        <Image unoptimized src={img} alt="" fill sizes="64px" className="object-cover" />
+                      </button>
+                    ))}
+                  </div>
                   <span className="absolute bottom-4 right-4 rounded-full bg-ink/60 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
                     {activeIndex + 1} / {galleryImages.length}
                   </span>
@@ -531,23 +541,6 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
               ) : null}
             </div>
 
-            {galleryImages.length > 1 ? (
-              <div className="mt-3 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide lg:px-0">
-                {galleryImages.map((img, idx) => (
-                  <button
-                    key={img}
-                    type="button"
-                    onClick={() => scrollToImage(idx)}
-                    aria-label={`Show photo ${idx + 1}`}
-                    className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border-2 bg-cream-deep transition lg:h-20 lg:w-20 ${
-                      activeIndex === idx ? 'border-wine' : 'border-transparent opacity-70 hover:opacity-100'
-                    }`}
-                  >
-                    <Image unoptimized src={img} alt="" fill sizes="80px" className="object-cover" />
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
 
           {/* Details */}
