@@ -5,27 +5,70 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 
 import '../../data/models/mascot_script.dart';
-import '../providers/cart_provider.dart';
+
+/// Lets the feature runtime make the buddy talk and move.
+class NavMascotController {
+  _NavMascotState? _state;
+
+  void say(String text) => _state?._sayFromOutside(text);
+
+  /// `jump`, `wiggle`, `pop`, `dizzy`, `love`, `wake`, `hop`, `stretch`,
+  /// `sleep` or `look`; anything else is ignored.
+  void play(String name) => _state?._playByName(name);
+
+  /// False while another screen covers the buddy.
+  bool get visible {
+    final state = _state;
+    return state != null && state.mounted && TickerMode.of(state.context);
+  }
+}
 
 /// Gift-box buddy that lives in the bottom nav and reacts when tapped.
 ///
-/// Mirrors the web `NavMascot`: taps cycle jump → wiggle → lid pop (every
-/// other tap shares a line from [script]), five quick taps make it dizzy, and
-/// it celebrates cart additions. On its own it glances at your taps, looks
-/// around, hops, stretches, shares the odd tip and naps when the app is left
-/// alone. Hearts, sparkles, Zzz and the speech bubble render in the overlay so
-/// the nav's clip doesn't cut them off.
+/// The built-in `gift_buddy` character of the feature runtime: the server's
+/// feature config decides where it appears, what it says and which of its
+/// habits are on. Taps cycle jump → wiggle → lid pop (every other tap shares
+/// a line from [script]) and five quick taps make it dizzy. On its own it
+/// glances at your taps, looks around, hops, stretches, shares the odd tip
+/// and naps when the app is left alone. Hearts, sparkles, Zzz and the speech
+/// bubble render in the overlay so the nav's clip doesn't cut them off.
 class NavMascot extends StatefulWidget {
-  const NavMascot({super.key, this.size = 38, this.script, this.scriptKey});
+  const NavMascot({
+    super.key,
+    this.size = 38,
+    this.script,
+    this.scriptKey,
+    this.controller,
+    this.onTap,
+    this.tapCycle = true,
+    this.idleActivities = true,
+    this.glance = true,
+    this.sleepAfter = const Duration(seconds: 40),
+  });
 
   final double size;
 
   /// Lines for the current screen; its `intro` plays once per [scriptKey].
   final MascotScript? script;
   final Object? scriptKey;
+  final NavMascotController? controller;
+
+  /// Runs on every tap (after waking it up if it was asleep).
+  final VoidCallback? onTap;
+
+  /// Whether taps play the built-in jump/wiggle/pop reactions.
+  final bool tapCycle;
+
+  /// Looking around, hopping, stretching and idle tips.
+  final bool idleActivities;
+
+  /// Glancing toward taps elsewhere on screen.
+  final bool glance;
+
+  /// Nap after this long without any touches; null never naps.
+  final Duration? sleepAfter;
 
   @override
   State<NavMascot> createState() => _NavMascotState();
@@ -84,8 +127,6 @@ const _dizzyTaps = 5;
 const _dizzyWindow = Duration(milliseconds: 2500);
 const _dizzyHold = Duration(milliseconds: 1600);
 
-// Nobody has touched the app for this long → nap time.
-const _sleepAfter = Duration(seconds: 40);
 // Unprompted tips stay rare so the buddy doesn't nag.
 const _tipGap = Duration(seconds: 45);
 const _maxTipsPerScreen = 2;
@@ -120,22 +161,6 @@ double _frames(
 /// Long lines stay up longer so they can be read.
 Duration _lineDuration(String text) =>
     Duration(milliseconds: (1800 + (text.length - 18) * 55).clamp(1800, 4800));
-
-String _greeting(int hour) {
-  if (hour >= 5 && hour < 12) return 'Good morning! Ready to make someone smile? ☀️';
-  if (hour >= 12 && hour < 17) return 'Good afternoon! Gift hunting? 🎁';
-  if (hour >= 17 && hour < 22) return 'Good evening! Let’s find something lovely ✨';
-  return 'Up late? Midnight surprises are the best 🌙';
-}
-
-/// Hello for the first screen the buddy appears on in this app run.
-String? takeMascotGreeting() {
-  if (_greeted) return null;
-  _greeted = true;
-  return _greeting(DateTime.now().hour);
-}
-
-bool _greeted = false;
 
 class _Particle {
   const _Particle({
@@ -202,9 +227,6 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
   DateTime _lastTip = DateTime.now();
   List<_Particle> _particles = const [];
   Object? _introKey;
-  CartProvider? _cart;
-  int _cartCount = 0;
-  final DateTime _cartWarmUntil = DateTime.now().add(const Duration(milliseconds: 1500));
   final _timers = <Timer>{};
   Timer? _blinkTimer;
   Timer? _faceTimer;
@@ -224,27 +246,19 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
       if (status == AnimationStatus.completed) _syncOverlay();
     });
     GestureBinding.instance.pointerRouter.addGlobalRoute(_onGlobalPointer);
+    widget.controller?._state = this;
     _scheduleBlink();
     _scheduleIdle();
     _later(const Duration(milliseconds: 300), _maybeIntro);
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_cart != null) return;
-    try {
-      _cart = context.read<CartProvider>();
-      _cartCount = _cart!.totalItems;
-      _cart!.addListener(_onCartChanged);
-    } on ProviderNotFoundException {
-      // No cart above us (e.g. previews): skip the celebrations.
-    }
-  }
-
-  @override
   void didUpdateWidget(covariant NavMascot oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      if (oldWidget.controller?._state == this) oldWidget.controller?._state = null;
+      widget.controller?._state = this;
+    }
     if (widget.scriptKey != oldWidget.scriptKey) {
       _scriptIndex = 0;
       _tips = 0;
@@ -258,7 +272,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
   @override
   void dispose() {
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_onGlobalPointer);
-    _cart?.removeListener(_onCartChanged);
+    if (widget.controller?._state == this) widget.controller?._state = null;
     for (final t in [..._timers, _blinkTimer, _faceTimer, _lineTimer, _idleTimer, _lookTimer]) {
       t?.cancel();
     }
@@ -328,7 +342,7 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
       _wake(quietly: true);
       return;
     }
-    if (onMe || _asleep) return;
+    if (onMe || _asleep || !widget.glance) return;
     // Glance at whatever was tapped, then look back.
     final reach = math.min(1.0, delta.distance / 140);
     final dir = delta / delta.distance;
@@ -339,16 +353,44 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
     });
   }
 
-  void _onCartChanged() {
-    final count = _cart?.totalItems ?? 0;
-    final grew = count > _cartCount;
-    _cartCount = count;
-    if (!grew || DateTime.now().isBefore(_cartWarmUntil) || !mounted) return;
+  void _sayFromOutside(String text) {
+    if (!mounted) return;
     if (_asleep) _setAsleep(false);
     _lastActivity = DateTime.now();
-    final added = widget.script?.added ?? const [];
-    final lines = added.isNotEmpty ? added : _defaultAdded;
-    _reactTo(_Move.love, lines[_rng.nextInt(lines.length)]);
+    if (_face == _Face.idle) _setFaceFor(_Face.happy, const Duration(milliseconds: 1200));
+    _say(text);
+  }
+
+  void _playByName(String name) {
+    if (!mounted) return;
+    switch (name) {
+      case 'sleep':
+        _lookAt(Offset.zero);
+        _setAsleep(true);
+        return;
+      case 'look':
+        _lookAt(const Offset(-1.5, -0.2));
+        _later(const Duration(milliseconds: 650), () => _lookAt(const Offset(1.5, -0.2)));
+        _later(const Duration(milliseconds: 1350), () => _lookAt(Offset.zero));
+        return;
+    }
+    final move = _Move.values.where((m) => m.name == name).firstOrNull;
+    if (move == null) return;
+    if (_asleep) _setAsleep(false);
+    _lastActivity = DateTime.now();
+    final face = _faces[move];
+    if (face != null) {
+      _setFaceFor(face, move == _Move.love ? const Duration(milliseconds: 1500) : const Duration(milliseconds: 1100));
+    } else if (move == _Move.stretch) {
+      _setFaceFor(_Face.yawn, const Duration(milliseconds: 1200));
+    }
+    if (_reduceMotion) return;
+    if (face != null) {
+      setState(() => _particles = _makeBurst(move));
+      _burst.forward(from: 0);
+      _syncOverlay();
+    }
+    _play(move);
   }
 
   void _maybeIntro() {
@@ -481,6 +523,8 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
       _wake(quietly: false);
       return;
     }
+    widget.onTap?.call();
+    if (!widget.tapCycle) return;
     // Let the dizzy spell play out instead of cutting it short.
     if (now.isBefore(_dizzyUntil)) return;
     _taps
@@ -512,10 +556,11 @@ class _NavMascotState extends State<NavMascot> with TickerProviderStateMixin {
       final quiet = !visible || _asleep || now.isBefore(_busyUntil);
       if (!quiet) {
         final idleFor = now.difference(_lastActivity);
-        if (idleFor > _sleepAfter) {
+        final sleepAfter = widget.sleepAfter;
+        if (sleepAfter != null && idleFor > sleepAfter) {
           _lookAt(Offset.zero);
           _setAsleep(true);
-        } else {
+        } else if (widget.idleActivities) {
           final roll = _rng.nextDouble();
           final canTip = (widget.script?.lines.isNotEmpty ?? false) &&
               _tips < _maxTipsPerScreen &&

@@ -2,7 +2,6 @@ import '../../config/api_endpoints.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/network/dio_client.dart';
 import '../models/ai_message.dart';
-import '../models/mascot_script.dart';
 import '../models/product.dart';
 
 class AiSearchResult {
@@ -82,29 +81,6 @@ class AiRepository {
       products: _parseProducts(data['products']),
       interpretation: data['interpretation'] as String?,
       source: data['source'] as String? ?? 'keyword',
-    );
-  }
-
-  /// Lines the gift-box mascot says on a product page (AI with rule fallback).
-  Future<MascotScript> productMascot(String productId) async {
-    final data = await DioClient.request<Map<String, dynamic>>(
-      ApiEndpoints.mascotProduct(productId),
-      receiveTimeout: const Duration(seconds: 20),
-      parser: (json) {
-        if (json is! Map<String, dynamic>) {
-          throw const ServerException(message: 'Mascot returned an unexpected response.');
-        }
-        return json;
-      },
-    );
-
-    List<String> strings(dynamic raw) =>
-        raw is List ? raw.whereType<String>().where((s) => s.trim().isNotEmpty).toList() : const [];
-
-    return MascotScript(
-      intro: data['intro'] as String?,
-      lines: strings(data['lines']),
-      added: strings(data['added']),
     );
   }
 

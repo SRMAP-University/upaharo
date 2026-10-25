@@ -12,12 +12,11 @@ import '../../../data/models/product_recommendation_sections.dart';
 import '../../../data/repositories/product_repository.dart';
 
 import '../../../data/models/coupon.dart';
-import '../../../data/models/mascot_script.dart';
-import '../../../data/repositories/ai_repository.dart';
 import '../../providers/cart_provider.dart';
 import '../../providers/catalog_provider.dart';
 import '../../providers/coupon_provider.dart';
-import '../../widgets/nav_mascot.dart';
+import '../../../runtime/feature.dart';
+import '../../../runtime/feature_slot.dart';
 import '../../widgets/product_card.dart';
 import '../../widgets/product_coupon_chip.dart';
 import '../../widgets/progressive_network_image.dart';
@@ -41,7 +40,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _descriptionExpanded = false;
   bool _productLoaded = false;
   String? _productId;
-  MascotScript? _mascotScript;
 
   @override
   void didChangeDependencies() {
@@ -51,17 +49,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final productId = ModalRoute.of(context)!.settings.arguments as String;
     _productId = productId;
     _productFuture = _loadProduct(productId);
-    _loadMascotScript(productId);
     context.read<CouponProvider>().load();
-  }
-
-  Future<void> _loadMascotScript(String productId) async {
-    try {
-      final script = await const AiRepository().productMascot(productId);
-      if (mounted) setState(() => _mascotScript = script);
-    } catch (_) {
-      // The buddy still works without product lines.
-    }
   }
 
   Future<Product> _loadProduct(String productId) async {
@@ -247,14 +235,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           bottomNavigationBar: snapshot.hasData && !snapshot.hasError
               ? Stack(
                   children: [
-                    // The gift buddy peeks over the cart bar and chats about this product.
+                    // Server features (the gift buddy by default) peek over the cart bar.
                     Positioned(
                       left: 18,
                       top: 0,
-                      child: NavMascot(script: _mascotScript, scriptKey: _productId),
+                      child: FeatureSlot(
+                        placement: Placements.productCartBar,
+                        slotContext: {'productId': _productId},
+                      ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 30),
+                      padding: EdgeInsets.only(
+                        top: FeatureSlot.hasContent(context, Placements.productCartBar) ? 30 : 0,
+                      ),
                       child: _BottomCartBar(
                         product: snapshot.data!,
                         variantPrice: discountedUnit,
@@ -580,6 +573,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
 
               const SizedBox(height: 24),
+
+              // Server features placed under the product details.
+              FeatureSlot(
+                placement: Placements.productDetails,
+                slotContext: {'productId': product.id},
+              ),
 
               // Recommendations
               _ProductRecommendations(

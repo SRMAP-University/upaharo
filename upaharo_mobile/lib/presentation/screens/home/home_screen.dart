@@ -40,6 +40,8 @@ import '../../widgets/progressive_network_image.dart';
 import '../../widgets/quick_picks_categories_section.dart';
 import '../../widgets/skeleton.dart';
 import '../../widgets/value_deals_section.dart';
+import '../../../runtime/feature.dart';
+import '../../../runtime/feature_slot.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.showBottomNav = true});
@@ -723,7 +725,10 @@ class _HomeScreenState extends State<HomeScreen>
             ],
     };
 
-    final slivers = <Widget>[];
+    final slivers = <Widget>[
+      // Server features (web blocks, characters) placed at the top of Home.
+      const SliverToBoxAdapter(child: FeatureSlot(placement: Placements.homeTop)),
+    ];
     for (final section in settings.homeSectionLayout) {
       if (!section.visible) continue;
       slivers.addAll(builders[section.id]?.call(section) ?? const []);

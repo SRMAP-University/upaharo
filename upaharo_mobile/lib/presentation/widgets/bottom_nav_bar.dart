@@ -7,11 +7,11 @@ import 'package:provider/provider.dart';
 import '../../config/flavor.dart';
 import '../../config/routes.dart';
 import '../../config/theme.dart';
-import '../../data/models/mascot_script.dart';
+import '../../runtime/feature.dart';
+import '../../runtime/feature_slot.dart';
 import '../providers/settings_provider.dart';
 import '../providers/shell_tab_controller.dart';
 import '../screens/main_shell.dart';
-import 'nav_mascot.dart';
 
 /// Compact bar: Home · Categories · Orders + circular Promo orb.
 class BottomNavBar extends StatefulWidget {
@@ -98,19 +98,7 @@ class _BottomNavBarState extends State<BottomNavBar>
     );
   }
 
-  // Claimed lazily, so only a bar that opens on Home says hello (once per run).
-  late final String? _greeting = takeMascotGreeting();
-
-  /// What the gift buddy says on each tab.
-  MascotScript _mascotScript(int tab) {
-    final lines = switch (tab) {
-      0 => const ['Psst… try AI search. Just tell me who it’s for!', 'Need ideas? Flowers + chocolate never miss 💐🍫'],
-      1 => const ['So many lovely things in here!'],
-      2 => const ['Your gifts are in good hands 🛵', 'I’m keeping an eye on your orders 👀'],
-      _ => const ['Deals! My favourite kind of surprise 🎉'],
-    };
-    return MascotScript(intro: tab == 0 ? _greeting : null, lines: lines);
-  }
+  static const _tabNames = ['home', 'categories', 'orders', 'promo'];
 
   /// `20% OFF` → big `20%` over small `OFF`; a single word fills the big line.
   static (String, String) _splitOrbLabel(String raw) {
@@ -265,14 +253,15 @@ class _BottomNavBarState extends State<BottomNavBar>
                     ),
                     child: Row(
                       children: [
-                        if (FlavorConfig.isGifts)
-                          Padding(
+                        // Server-driven: the gift buddy (or whatever the admin puts here).
+                        FeatureSlot(
+                          placement: Placements.bottomNavStart,
+                          slotContext: {'tab': _tabNames[widget.currentIndex.clamp(0, 3)]},
+                          builder: (context, child) => Padding(
                             padding: const EdgeInsets.only(left: 8, right: 2),
-                            child: NavMascot(
-                              script: _mascotScript(widget.currentIndex),
-                              scriptKey: widget.currentIndex,
-                            ),
+                            child: child,
                           ),
+                        ),
                         ...List.generate(items.length, (index) {
                           final selected = barActive && index == selectedBar;
                           final item = items[index];

@@ -29,8 +29,12 @@ import 'presentation/screens/search/search_screen.dart';
 import 'presentation/screens/wallet/wallet_screen.dart';
 import 'presentation/screens/welcome/welcome_screen.dart';
 import 'presentation/screens/wishlist/wishlist_screen.dart';
+import 'runtime/feature_runtime.dart';
 
-final List<NavigatorObserver> _navigatorObservers = <NavigatorObserver>[DeepLinks.instance];
+final List<NavigatorObserver> _navigatorObservers = <NavigatorObserver>[
+  DeepLinks.instance,
+  FeatureRouteObserver.instance,
+];
 
 class UpaharoApp extends StatelessWidget {
   const UpaharoApp({super.key});

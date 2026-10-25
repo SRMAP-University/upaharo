@@ -8,6 +8,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../widgets/progressive_network_image.dart';
 import '../../../core/storage/token_storage.dart';
+import '../../../runtime/feature.dart';
+import '../../../runtime/feature_slot.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -23,6 +25,8 @@ class CartScreen extends StatelessWidget {
           ? const Center(child: Text('Your cart is empty.'))
           : Column(
               children: [
+                // Server features placed above the cart items.
+                const FeatureSlot(placement: Placements.cartTop),
                 Expanded(
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
