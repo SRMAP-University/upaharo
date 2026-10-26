@@ -70,7 +70,7 @@ export function MobilePreview({ form }: { form: SettingsForm }) {
               fontWeight: 900,
             }}
           >
-            -{product.discount}%
+            -{Math.round(product.discount)}%
           </span>
         )}
         <span

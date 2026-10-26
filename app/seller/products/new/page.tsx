@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import ProductCategoryFields from '@/components/ProductCategoryFields'
 import ProductFoodTypeFields from '@/components/ProductFoodTypeFields'
+import ProductOfferPriceFields from '@/components/admin/ProductOfferPriceFields'
 import { uploadProductImage } from '@/lib/upload-image'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
@@ -285,7 +286,7 @@ export default function NewProductPage() {
             onOccasionSelectionsChange={setOccasionSelections}
           />
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-ink mb-2">
                 Price (NPR)*
@@ -299,21 +300,6 @@ export default function NewProductPage() {
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 placeholder="0.00"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-ink mb-2">
-                Discount (%)
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={formData.discount}
-                onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                placeholder="0"
               />
             </div>
 
@@ -343,6 +329,12 @@ export default function NewProductPage() {
               <p className="mt-1 text-xs text-ink/55">Shown on product page as: {formatTime(formData.prepTime)}</p>
             </div>
           </div>
+
+          <ProductOfferPriceFields
+            price={formData.price}
+            discount={formData.discount}
+            onDiscountChange={(discount) => setFormData((prev) => ({ ...prev, discount }))}
+          />
 
           <div>
             <label className="block text-sm font-medium text-ink mb-2">

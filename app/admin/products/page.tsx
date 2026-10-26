@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { resolveImageUrl } from '@/lib/image-url'
+import { formatPriceCompact } from '@/lib/utils'
 import {
   adminProductEditHref,
   adminProductsListPath,
@@ -14,6 +15,7 @@ interface Product {
   id: string
   name: string
   price: number
+  discount?: number | null
   wholesalePrice?: number | null
   image: string
   isAvailable: boolean
@@ -23,6 +25,14 @@ interface Product {
   trackStock?: boolean
   stockQty?: number | null
   sellerId?: string | null
+}
+
+/** Offer price and % off for a discounted product, or null when it sells at full price. */
+function offerLabel(product: Product) {
+  const discount = Number(product.discount) || 0
+  if (discount <= 0 || !(product.price > 0)) return null
+  const offer = product.price - (product.price * discount) / 100
+  return { offer: formatPriceCompact(offer), percent: `${Math.round(discount * 100) / 100}% off` }
 }
 
 function stockLabel(product: Product) {
@@ -516,6 +526,7 @@ function AdminProductsContent() {
                 <tbody className="divide-y divide-wine/10">
                   {products.map((product) => {
                     const stock = stockLabel(product)
+                    const offer = offerLabel(product)
                     return (
                       <tr key={product.id} className="hover:bg-cream/60">
                         <td className="px-4 py-4">
@@ -560,7 +571,16 @@ function AdminProductsContent() {
                         </td>
                         <td className="px-6 py-4 text-sm text-ink/55">{product.category}</td>
                         <td className="px-6 py-4 text-sm font-medium text-ink">
-                          <div>Rs. {product.price}</div>
+                          {offer ? (
+                            <>
+                              <div className="text-wine">{offer.offer}</div>
+                              <div className="text-xs font-normal text-ink/50 mt-0.5">
+                                <span className="line-through">Rs. {product.price}</span> · {offer.percent}
+                              </div>
+                            </>
+                          ) : (
+                            <div>Rs. {product.price}</div>
+                          )}
                           {product.wholesalePrice != null && (
                             <div className="text-xs font-normal text-wine mt-0.5">
                               B2B Rs. {product.wholesalePrice}
@@ -629,6 +649,7 @@ function AdminProductsContent() {
             <div className="md:hidden divide-y divide-wine/10">
               {products.map((product) => {
                 const stock = stockLabel(product)
+                const offer = offerLabel(product)
                 return (
                   <div key={`${product.id}-mobile`} className="p-4">
                     <div className="flex items-start gap-3">
@@ -661,7 +682,16 @@ function AdminProductsContent() {
                           </div>
                         ) : null}
                         <div className="mt-1 text-xs font-semibold text-ink">
-                          Rs. {product.price}
+                          {offer ? (
+                            <>
+                              <span className="text-wine">{offer.offer}</span>
+                              <span className="ml-1.5 font-normal text-ink/50">
+                                <span className="line-through">Rs. {product.price}</span> · {offer.percent}
+                              </span>
+                            </>
+                          ) : (
+                            <>Rs. {product.price}</>
+                          )}
                           {product.wholesalePrice != null && (
                             <span className="ml-1.5 font-normal text-wine">
                               · B2B Rs. {product.wholesalePrice}

@@ -11,6 +11,7 @@ import ProductInventoryFields from '@/components/admin/ProductInventoryFields'
 import SubProductSelector from '@/components/admin/SubProductSelector'
 import ProductPickupFields from '@/components/admin/ProductPickupFields'
 import ProductSellerField from '@/components/admin/ProductSellerField'
+import ProductOfferPriceFields from '@/components/admin/ProductOfferPriceFields'
 import { uploadProductImage } from '@/lib/upload-image'
 import {
   EMPTY_PRODUCT_CATEGORY_GROUPS,
@@ -418,17 +419,13 @@ export default function NewProduct() {
                 </div>
               </div>
 
+              <ProductOfferPriceFields
+                price={formData.price}
+                discount={formData.discount}
+                onDiscountChange={(discount) => setFormData((prev) => ({ ...prev, discount }))}
+              />
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-ink/70 mb-1">Discount (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.discount}
-                    onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
-                  />
-                </div>
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-ink/70 mb-1">Preparation Time*</label>
                   <div className="flex gap-2">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { resolveImageUrl } from '@/lib/image-url'
+import { formatPriceCompact } from '@/lib/utils'
 
 interface Product {
   id: string
@@ -146,9 +147,16 @@ export default function SellerProductsPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex gap-3 text-sm">
-                        <span className="font-semibold text-ink">Rs. {product.price}</span>
-                        {product.discount > 0 && (
-                          <span className="text-green-600">{product.discount}% off</span>
+                        {product.discount > 0 ? (
+                          <>
+                            <span className="font-semibold text-wine">
+                              {formatPriceCompact(product.price - (product.price * product.discount) / 100)}
+                            </span>
+                            <span className="text-ink/45 line-through">Rs. {product.price}</span>
+                            <span className="text-green-600">{Math.round(product.discount * 100) / 100}% off</span>
+                          </>
+                        ) : (
+                          <span className="font-semibold text-ink">Rs. {product.price}</span>
                         )}
                       </div>
                     </div>
