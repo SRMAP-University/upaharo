@@ -17,20 +17,24 @@ function tokens(value: string) {
     .filter((word) => word.length > 1 && !STOP_WORDS.has(word))
 }
 
-export function rankForShopper<T extends { id: string; name?: string; category?: string; tags?: string[]; description?: string }>(
-  products: T[],
-  signals: ShopperSignals
-): T[] {
+type RankableProduct = { id: string; name?: string; category?: string; tags?: string[]; description?: string | null }
+
+/**
+ * How well a product fits this shopper's searches and views, or null when
+ * there is nothing to go on. `pool` is the product set being ranked (products
+ * they opened make their categories count too).
+ */
+export function shopperScorer(pool: RankableProduct[], signals: ShopperSignals) {
   const searchWords = Array.from(new Set(signals.searches.flatMap(tokens))).slice(0, 40)
   const viewed = new Set(signals.viewedProductIds)
   const likedCategories = new Set(signals.viewedCategories.map((c) => c.trim().toLowerCase()))
   // Categories of products they opened count as interest too.
-  for (const p of products) {
+  for (const p of pool) {
     if (viewed.has(p.id) && p.category) likedCategories.add(p.category.trim().toLowerCase())
   }
-  if (searchWords.length === 0 && likedCategories.size === 0) return products
+  if (searchWords.length === 0 && likedCategories.size === 0) return null
 
-  const scored = products.map((product, index) => {
+  return (product: RankableProduct) => {
     const text = [product.name, product.category, ...(product.tags || [])].join(' ').toLowerCase()
     const extra = String(product.description || '').toLowerCase()
     let score = 0
@@ -41,8 +45,15 @@ export function rankForShopper<T extends { id: string; name?: string; category?:
     if (product.category && likedCategories.has(product.category.trim().toLowerCase())) score += 2
     // Already opened: still relevant, but let fresh matches lead.
     if (viewed.has(product.id)) score += 1
-    return { product, score, index }
-  })
+    return score
+  }
+}
+
+export function rankForShopper<T extends RankableProduct>(products: T[], signals: ShopperSignals): T[] {
+  const score = shopperScorer(products, signals)
+  if (!score) return products
+
+  const scored = products.map((product, index) => ({ product, score: score(product), index }))
   scored.sort((a, b) => b.score - a.score || a.index - b.index)
   return scored.map((s) => s.product)
 }

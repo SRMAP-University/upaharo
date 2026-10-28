@@ -6,7 +6,8 @@ import { getOrSetJson, REDIS_KEYS } from '@/lib/redis'
 import { resolveUserId } from '@/lib/request-auth'
 import { recordUserSearch } from '@/lib/search-history'
 import { getAppSettings } from '@/lib/app-settings'
-import { festiveFirst, festiveLeadingFeed } from '@/lib/festive-products'
+import { festiveFirst } from '@/lib/festive-products'
+import { contextLeadingFeed } from '@/lib/context-recommendations'
 import { resolveStoreContext } from '@/lib/store-context'
 import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
@@ -156,14 +157,19 @@ export async function GET(request: NextRequest) {
     const listed = await getOrSetJson(cacheKey, view === 'card' ? 180 : 90, async () =>
       view === 'card' ? findManyProductCardsCompat(queryArgs) : findManyProductsCompat(queryArgs)
     )
-    // Festival mode: the plain feed (app home grid) leads with Tihar / Bhai Tika products.
+    // Festival mode: the plain feed (app home grid) leads with the current
+    // festival or occasion, then nudges up products for the weather and time of day.
     const isPlainFeed = !category && !categoryId && !search && !idsParam && !wholesaleOnly
     const festivalOn = isPlainFeed
       ? await getAppSettings(storeContext.store).then((s) => s.festivalMode !== false).catch(() => false)
       : false
     const feedLimit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 60) : (listed as any[]).length
     const products = festivalOn
-      ? await festiveLeadingFeed(storeContext.store.id, listed as any[], feedLimit).catch(() => festiveFirst(listed as any[]))
+      ? await contextLeadingFeed(storeContext.store.id, listed as any[], feedLimit, {
+          lat: Number(searchParams.get('lat')),
+          lng: Number(searchParams.get('lng')),
+          storeSlug: slug,
+        }).catch(() => festiveFirst(listed as any[]))
       : listed
 
     return NextResponse.json(

@@ -13,7 +13,7 @@ import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
 import AppDownloadCta from '@/components/AppDownloadCta'
 import BhaiTikaEntry from '@/components/home/BhaiTikaEntry'
-import FestivePicksForYou from '@/components/home/FestivePicksForYou'
+import RightNowPicks from '@/components/home/RightNowPicks'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { getAppSettings, type HomeSectionConfig } from '@/lib/app-settings'
@@ -21,7 +21,8 @@ import { findManyProductsCompat } from '@/lib/product-db'
 import { resolveStoreContext } from '@/lib/store-context'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
-import { festiveFirst, festiveLeadingFeed } from '@/lib/festive-products'
+import { festiveFirst } from '@/lib/festive-products'
+import { contextLeadingFeed } from '@/lib/context-recommendations'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -147,10 +148,11 @@ async function getHomeData() {
         : Promise.resolve([]),
     ])
 
-    // Festival mode: Tihar / Bhai Tika products lead every home product list.
+    // Festival mode: the current festival or occasion leads every home product
+    // list, and products for the weather and time of day move up.
     const products =
       settings.festivalMode !== false && storeId
-        ? await festiveLeadingFeed(storeId, fetchedProducts, 60).catch(() => festiveFirst(fetchedProducts))
+        ? await contextLeadingFeed(storeId, fetchedProducts, 60, { storeSlug: storeContext?.slug }).catch(() => festiveFirst(fetchedProducts))
         : fetchedProducts
 
     const groupedCategories = categories
@@ -560,7 +562,7 @@ export default async function Home() {
       <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
         {/* Admin "festival mode" switches the Bhai Tika entry on and off. */}
         {settings.festivalMode !== false ? <BhaiTikaEntry /> : null}
-        {settings.festivalMode !== false ? <FestivePicksForYou /> : null}
+        <RightNowPicks />
         {visibleSections.map((section) => renderSection(section))}
 
         {extraFeedSections.map((section) => (
