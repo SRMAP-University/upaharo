@@ -17,11 +17,31 @@ function poolerSessionUrl(): string | undefined {
     .replace(/[?&]$/, '')
 }
 
+/**
+ * Supabase transaction pooler (6543). The session pooler (5432) allows only
+ * pool_size clients in all (15), and when other clients hold them queries fail
+ * with EMAXCONNSESSION; the transaction pooler shares connections per query.
+ * Prisma needs pgbouncer=true there (no prepared statements).
+ */
+function poolerTransactionUrl(): string | undefined {
+  const pooled = process.env.DATABASE_URL?.trim()
+  if (!pooled?.includes('pooler.supabase.com') || !pooled.includes(':6543/')) return undefined
+  if (/[?&]pgbouncer=true/.test(pooled)) return pooled
+  return `${pooled}${pooled.includes('?') ? '&' : '?'}pgbouncer=true`
+}
+
 function databaseUrl(): string | undefined {
   const direct = process.env.DIRECT_URL?.trim()
   const pooled = process.env.DATABASE_URL?.trim()
 
   if (process.env.NODE_ENV === 'production') {
+    // DATABASE_POOL_MODE=session goes back to the session pooler without a code change.
+    const transaction = process.env.DATABASE_POOL_MODE === 'session' ? undefined : poolerTransactionUrl()
+    if (transaction) {
+      return transaction
+    }
+
+
     const directIsIpv6Host =
       !!direct &&
       direct.includes('.supabase.co') &&
