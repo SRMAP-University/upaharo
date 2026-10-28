@@ -195,6 +195,23 @@ export const FEATURE_TEMPLATES: Array<{ label: string; feature: Omit<AppFeature,
     },
   },
   {
+    label: 'Right now picks (inline): festivals, weather, time of day',
+    feature: {
+      key: 'right-now',
+      name: 'Right now picks',
+      type: 'web',
+      enabled: true,
+      platforms: ['android', 'ios'],
+      minRuntime: 1,
+      minAppVersion: null,
+      maxAppVersion: null,
+      startsAt: null,
+      endsAt: null,
+      priority: 5,
+      config: { url: '/app-features/right-now', presentation: 'inline', placements: ['home.top'], height: 330 },
+    },
+  },
+  {
     label: 'Web pop-up (sheet): gift finder',
     feature: {
       key: 'gift-finder',
