@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, FormEvent } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 
 type PartnerRow = {
   id: string
@@ -135,26 +136,20 @@ export default function PartnersPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-wine">Partners</h1>
-          <p className="text-sm text-wine/60">
-            Merchant (seller) and delivery access for Upaharo & Grooll
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-lg bg-wine px-4 py-2 text-sm font-medium text-white"
-        >
-          Add partner
-        </button>
-      </div>
+    <div className="space-y-4">
+      <AdminPageHeader
+        title="Partner access"
+        description="Merchant (seller) and delivery access for Upaharo & Grooll"
+        actions={
+          <button type="button" onClick={openCreate} className={adminButtonClass.primary}>
+            + Add partner
+          </button>
+        }
+      />
 
-      <div className="overflow-x-auto rounded-xl border border-wine/10 bg-white">
+      <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
         <table className="min-w-full text-sm">
-          <thead className="bg-wine/5 text-left text-wine/70">
+          <thead className="bg-stone-50 text-left text-xs uppercase tracking-wider text-ink/55">
             <tr>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Phone</th>
@@ -265,7 +260,7 @@ export default function PartnersPage() {
                 <span className="text-wine/70">Name</span>
                 <input
                   required
-                  className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                   value={form.name}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, name: e.target.value }))
@@ -278,7 +273,7 @@ export default function PartnersPage() {
                   required
                   type="email"
                   disabled={Boolean(editing)}
-                  className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2 disabled:bg-wine/5"
+                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 disabled:bg-wine/5"
                   value={form.email}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, email: e.target.value }))
@@ -289,7 +284,7 @@ export default function PartnersPage() {
                 <span className="text-wine/70">Phone (Nepal)</span>
                 <input
                   required
-                  className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                   value={form.phone}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, phone: e.target.value }))
@@ -388,14 +383,14 @@ export default function PartnersPage() {
               ) : null}
 
               {form.sellerEnabled && (
-                <div className="space-y-3 rounded-xl border border-wine/10 p-3">
+                <div className="space-y-3 rounded-xl border border-stone-200 p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-wine/50">
                     Merchant
                   </div>
                   <label className="block text-sm">
                     <span className="text-wine/70">Business name</span>
                     <input
-                      className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                       value={form.businessName}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -408,7 +403,7 @@ export default function PartnersPage() {
                   <label className="block text-sm">
                     <span className="text-wine/70">Business address</span>
                     <input
-                      className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                       value={form.businessAddress}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -422,7 +417,7 @@ export default function PartnersPage() {
                     <span className="text-wine/70">Commission %</span>
                     <input
                       type="number"
-                      className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                       value={form.commission}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -449,14 +444,14 @@ export default function PartnersPage() {
               )}
 
               {form.deliveryEnabled && (
-                <div className="space-y-3 rounded-xl border border-wine/10 p-3">
+                <div className="space-y-3 rounded-xl border border-stone-200 p-3">
                   <div className="text-xs font-semibold uppercase tracking-wide text-wine/50">
                     Delivery
                   </div>
                   <label className="block text-sm">
                     <span className="text-wine/70">Vehicle type</span>
                     <input
-                      className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                       value={form.vehicleType}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -469,7 +464,7 @@ export default function PartnersPage() {
                   <label className="block text-sm">
                     <span className="text-wine/70">Vehicle number</span>
                     <input
-                      className="mt-1 w-full rounded-lg border border-wine/15 px-3 py-2"
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2"
                       value={form.vehicleNumber}
                       onChange={(e) =>
                         setForm((f) => ({

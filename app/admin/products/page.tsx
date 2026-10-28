@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -411,14 +412,14 @@ function AdminProductsContent() {
   const pageStart = totalProducts === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1
   const pageEnd = Math.min(currentPage * itemsPerPage, totalProducts)
   const selectClass =
-    'px-3 py-2.5 bg-white border border-wine/15 rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+    'px-3 py-2.5 bg-white border border-stone-300 rounded-xl text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
   return (
     <div className="pb-24">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Products</h1>
-          <p className="text-ink/55 mt-1">
+      <AdminPageHeader
+        title="Products"
+        description={
+          <>
             Manage inventory
             {selectedStoreName ? (
               <>
@@ -429,14 +430,15 @@ function AdminProductsContent() {
             {totalProducts > 0 ? (
               <span className="text-ink/45"> · {totalProducts.toLocaleString()} total</span>
             ) : null}
-          </p>
-          {selectedStore === 'grocery' && (
-            <p className="text-xs text-ink/45 mt-1">
-              Use the store dropdown in the header if you expected a different catalog.
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {selectedStore === 'grocery' ? (
+              <span className="mt-1 block text-xs text-ink/45">
+                Use the store dropdown in the header if you expected a different catalog.
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+        <>
           <input
             ref={importInputRef}
             type="file"
@@ -451,25 +453,19 @@ function AdminProductsContent() {
             type="button"
             onClick={() => importInputRef.current?.click()}
             disabled={importing}
-            className="rounded-full border border-wine/20 bg-white px-4 py-2.5 text-sm font-semibold text-wine hover:bg-cream disabled:opacity-50"
+            className={adminButtonClass.secondary}
           >
             {importing ? 'Importing…' : 'Import CSV'}
           </button>
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="rounded-full border border-wine/20 bg-white px-4 py-2.5 text-sm font-semibold text-wine hover:bg-cream"
-          >
+          <button type="button" onClick={exportCsv} className={adminButtonClass.secondary}>
             Export CSV
           </button>
-          <Link
-            href="/admin/products/new"
-            className="bg-wine hover:bg-wine-deep text-white px-5 py-2.5 rounded-full font-semibold transition-colors text-sm md:text-base w-full sm:w-auto text-center"
-          >
-            + Add Product
+          <Link href="/admin/products/new" className={adminButtonClass.primary}>
+            + Add product
           </Link>
-        </div>
-      </div>
+        </>
+        }
+      />
 
       <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <input
@@ -527,12 +523,12 @@ function AdminProductsContent() {
       )}
 
       {message && (
-        <div className="mb-6 rounded-xl border border-wine/10 bg-white px-4 py-3 text-sm text-ink/70">
+        <div className="mb-6 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-ink/70">
           {message}
         </div>
       )}
 
-      <div className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-ink/55">Loading products...</div>
         ) : products.length === 0 ? (
@@ -548,7 +544,7 @@ function AdminProductsContent() {
           <>
             <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
-                <thead className="bg-cream-deep/50">
+                <thead className="bg-stone-50">
                   <tr>
                     <th className="px-4 py-3 text-left">
                       <input
@@ -575,12 +571,12 @@ function AdminProductsContent() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-wine/10">
+                <tbody className="divide-y divide-stone-200">
                   {products.map((product) => {
                     const stock = stockLabel(product)
                     const offer = offerLabel(product)
                     return (
-                      <tr key={product.id} className="hover:bg-cream/60">
+                      <tr key={product.id} className="hover:bg-stone-50">
                         <td className="px-4 py-4">
                           <input
                             type="checkbox"
@@ -591,7 +587,7 @@ function AdminProductsContent() {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-cream-deep rounded-xl overflow-hidden flex-shrink-0">
+                            <div className="w-12 h-12 bg-stone-100 rounded-xl overflow-hidden flex-shrink-0">
                               <Image
                                 unoptimized
                                 src={resolveImageUrl(product.image)}
@@ -694,7 +690,7 @@ function AdminProductsContent() {
               </table>
             </div>
 
-            <div className="md:hidden divide-y divide-wine/10">
+            <div className="md:hidden divide-y divide-stone-200">
               {products.map((product) => {
                 const stock = stockLabel(product)
                 const offer = offerLabel(product)
@@ -708,7 +704,7 @@ function AdminProductsContent() {
                         onChange={() => toggleSelect(product.id)}
                         aria-label={`Select ${product.name}`}
                       />
-                      <div className="h-14 w-14 overflow-hidden rounded-xl bg-cream-deep">
+                      <div className="h-14 w-14 overflow-hidden rounded-xl bg-stone-100">
                         <Image
                           unoptimized
                           src={resolveImageUrl(product.image)}
@@ -768,7 +764,7 @@ function AdminProductsContent() {
                         <button
                           onClick={() => restoreProduct(product.id)}
                           disabled={bulkBusy}
-                          className="col-span-2 rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-wine hover:bg-cream"
+                          className="col-span-2 rounded-xl border border-stone-300 px-3 py-2 text-center text-xs font-semibold text-wine hover:bg-stone-50"
                         >
                           Restore
                         </button>
@@ -776,13 +772,13 @@ function AdminProductsContent() {
                         <>
                           <button
                             onClick={() => duplicateProduct(product.id)}
-                            className="rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-cream"
+                            className="rounded-xl border border-stone-300 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-stone-50"
                           >
                             Duplicate
                           </button>
                           <Link
                             href={adminProductEditHref(product.id, listFilters)}
-                            className="rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-wine hover:bg-cream"
+                            className="rounded-xl border border-stone-300 px-3 py-2 text-center text-xs font-semibold text-wine hover:bg-stone-50"
                           >
                             Edit
                           </Link>
@@ -800,7 +796,7 @@ function AdminProductsContent() {
               })}
             </div>
 
-            <div className="px-4 md:px-6 py-4 border-t border-wine/10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="px-4 md:px-6 py-4 border-t border-stone-200 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-ink/55">
                 <span>
                   Showing {pageStart} to {pageEnd} of {totalProducts.toLocaleString()} products
@@ -808,7 +804,7 @@ function AdminProductsContent() {
                 <PerPageSelect
                   value={itemsPerPage}
                   onChange={setItemsPerPage}
-                  className="rounded-xl border border-wine/15 bg-white px-2 py-1.5 text-xs md:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15"
+                  className="rounded-xl border border-stone-300 bg-white px-2 py-1.5 text-xs md:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15"
                 />
               </div>
               {totalPages > 1 && (
@@ -816,7 +812,7 @@ function AdminProductsContent() {
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="px-3 py-2 bg-cream-deep text-ink/70 rounded-xl hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
+                    className="px-3 py-2 bg-stone-100 text-ink/70 rounded-xl hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
                   >
                     Previous
                   </button>
@@ -826,7 +822,7 @@ function AdminProductsContent() {
                   <button
                     onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
-                    className="px-3 py-2 bg-cream-deep text-ink/70 rounded-xl hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
+                    className="px-3 py-2 bg-stone-100 text-ink/70 rounded-xl hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed text-xs md:text-sm"
                   >
                     Next
                   </button>
@@ -838,7 +834,7 @@ function AdminProductsContent() {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-wine/15 bg-white/95 backdrop-blur px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:bottom-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:max-w-3xl md:rounded-2xl md:border md:shadow-lg">
+        <div className="fixed inset-x-0 bottom-[calc(3.6rem+env(safe-area-inset-bottom))] z-40 border-t border-stone-300 bg-white/95 backdrop-blur px-4 py-3 md:bottom-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:max-w-3xl md:rounded-2xl md:border md:shadow-lg">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm font-semibold text-ink">{selectedIds.length} selected</div>
             <div className="flex flex-wrap gap-2">
@@ -873,7 +869,7 @@ function AdminProductsContent() {
                     <select
                       value={bulkCategory}
                       onChange={(e) => setBulkCategory(e.target.value)}
-                      className="rounded-full border border-wine/20 px-2 py-1 text-xs"
+                      className="rounded-full border border-stone-300 px-2 py-1 text-xs"
                     >
                       <option value="">Move to…</option>
                       {categories.map((name) => (
@@ -886,7 +882,7 @@ function AdminProductsContent() {
                       type="button"
                       disabled={bulkBusy || !bulkCategory}
                       onClick={() => runBulk('setCategory', { category: bulkCategory })}
-                      className="rounded-full border border-wine/20 px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-50"
+                      className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-50"
                     >
                       Apply
                     </button>
@@ -904,7 +900,7 @@ function AdminProductsContent() {
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
-                className="rounded-full border border-wine/15 px-3 py-1.5 text-xs font-semibold text-ink/60"
+                className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-ink/60"
               >
                 Clear
               </button>

@@ -8,7 +8,7 @@ import {
 } from '@/lib/app-settings-schema'
 
 const FIELD_CLASS =
-  'w-full rounded-lg border border-wine/15 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 const HOUR_OPTIONS = Array.from({ length: 25 }, (_, hour) => hour)
 
@@ -66,7 +66,7 @@ export function DeliverySlotsEditor({ slots, onChange }: Props) {
   return (
     <div className="mt-4">
       {slots.length === 0 ? (
-        <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+        <p className="rounded-xl bg-stone-50 px-4 py-3 text-sm text-ink/70">
           No windows configured — customers can only choose “Deliver now”.
         </p>
       ) : (
@@ -78,7 +78,7 @@ export function DeliverySlotsEditor({ slots, onChange }: Props) {
             return (
               <li
                 key={index}
-                className="rounded-2xl border border-wine/10 bg-cream/40 p-4"
+                className="rounded-2xl border border-stone-200 bg-stone-50 p-4"
               >
                 <div className="grid gap-3 md:grid-cols-[7rem_7rem_1fr_auto] md:items-end">
                   <div>
@@ -136,7 +136,7 @@ export function DeliverySlotsEditor({ slots, onChange }: Props) {
                     type="button"
                     onClick={() => remove(index)}
                     aria-label={`Remove ${slot.label} window`}
-                    className="rounded-lg border border-wine/15 px-3 py-1.5 text-xs text-wine hover:bg-wine/5"
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs text-wine hover:bg-wine/5"
                   >
                     Remove
                   </button>
@@ -164,7 +164,7 @@ export function DeliverySlotsEditor({ slots, onChange }: Props) {
         type="button"
         onClick={add}
         disabled={slots.length >= MAX_DELIVERY_SLOTS}
-        className="mt-3 rounded-xl border border-wine/20 px-4 py-2 text-sm font-medium text-wine hover:bg-wine/5 disabled:opacity-40"
+        className="mt-3 rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-wine hover:bg-wine/5 disabled:opacity-40"
       >
         + Add window
       </button>

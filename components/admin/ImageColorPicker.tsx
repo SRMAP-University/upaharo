@@ -164,14 +164,14 @@ export default function ImageColorPicker({ imageUrl, value, onChange }: Props) {
 
   if (!imageUrl.trim()) {
     return (
-      <div className="rounded-xl border border-dashed border-wine/20 bg-cream/40 px-4 py-6 text-center text-sm text-ink/50">
+      <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center text-sm text-ink/50">
         Add an image URL first, then pick a color from the image.
       </div>
     )
   }
 
   return (
-    <div className="space-y-3 rounded-xl border border-wine/10 bg-cream/30 p-3">
+    <div className="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-ink">Pick color from image</p>
@@ -188,7 +188,7 @@ export default function ImageColorPicker({ imageUrl, value, onChange }: Props) {
         </label>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-wine/10 bg-white">
+      <div className="relative overflow-hidden rounded-lg border border-stone-200 bg-white">
         <canvas
           ref={canvasRef}
           className={`max-h-56 w-full cursor-crosshair object-contain ${ready ? '' : 'opacity-40'}`}

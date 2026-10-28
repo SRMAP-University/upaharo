@@ -73,10 +73,10 @@ export default function ProductGalleryFields({
           required
           value={mainImage}
           onChange={(e) => onMainImageUrlChange(e.target.value)}
-          className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+          className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
         />
         {mainImage.trim() ? (
-          <div className="mt-2 h-28 w-28 overflow-hidden rounded-xl bg-cream-deep">
+          <div className="mt-2 h-28 w-28 overflow-hidden rounded-xl bg-stone-100">
             <Image
               unoptimized
               src={resolveImageUrl(mainImage)}
@@ -109,8 +109,8 @@ export default function ProductGalleryFields({
         <p className="text-xs text-ink/50 mb-2">Reorder, set as main, or remove additional images.</p>
         <div className="space-y-2">
           {(gallery.length ? gallery : ['']).map((img, index) => (
-            <div key={`${index}-${img.slice(0, 24)}`} className="flex flex-col gap-2 rounded-xl border border-wine/10 p-3 sm:flex-row sm:items-center">
-              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-cream-deep">
+            <div key={`${index}-${img.slice(0, 24)}`} className="flex flex-col gap-2 rounded-xl border border-stone-200 p-3 sm:flex-row sm:items-center">
+              <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-stone-100">
                 {img.trim() ? (
                   <Image
                     unoptimized
@@ -127,14 +127,14 @@ export default function ProductGalleryFields({
                 value={img}
                 onChange={(e) => updateGalleryUrl(index, e.target.value)}
                 placeholder={`Image ${index + 1} URL`}
-                className="flex-1 px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="flex-1 px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
               <div className="flex flex-wrap gap-1">
                 <button
                   type="button"
                   onClick={() => moveGallery(index, -1)}
                   disabled={index === 0 || !img.trim()}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-wine/15 disabled:opacity-40"
+                  className="px-2 py-1.5 text-xs rounded-lg border border-stone-300 disabled:opacity-40"
                 >
                   ↑
                 </button>
@@ -142,7 +142,7 @@ export default function ProductGalleryFields({
                   type="button"
                   onClick={() => moveGallery(index, 1)}
                   disabled={index >= gallery.length - 1 || !img.trim()}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-wine/15 disabled:opacity-40"
+                  className="px-2 py-1.5 text-xs rounded-lg border border-stone-300 disabled:opacity-40"
                 >
                   ↓
                 </button>
@@ -150,7 +150,7 @@ export default function ProductGalleryFields({
                   type="button"
                   onClick={() => setAsMain(index)}
                   disabled={!img.trim()}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-wine/20 text-wine font-semibold disabled:opacity-40"
+                  className="px-2 py-1.5 text-xs rounded-lg border border-stone-300 text-wine font-semibold disabled:opacity-40"
                 >
                   Set main
                 </button>
@@ -168,11 +168,11 @@ export default function ProductGalleryFields({
         <button
           type="button"
           onClick={() => onImagesChange([...gallery, ''])}
-          className="mt-2 px-4 py-2 border border-wine/20 bg-white text-wine rounded-xl hover:bg-cream text-sm font-medium"
+          className="mt-2 px-4 py-2 border border-stone-300 bg-white text-wine rounded-xl hover:bg-stone-50 text-sm font-medium"
         >
           + Add Another Image
         </button>
-        <div className="mt-3 rounded-xl border border-dashed border-wine/20 p-3">
+        <div className="mt-3 rounded-xl border border-dashed border-stone-300 p-3">
           <ImageDropUpload
             label="Additional gallery image"
             onFileSelect={onAdditionalImageFileSelect}

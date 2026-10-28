@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import {
   FEATURE_ACTIONS,
   FEATURE_EVENTS,
@@ -30,7 +31,7 @@ type FormState = {
 }
 
 const inputClass =
-  'w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 const TYPE_LABELS: Record<AppFeature['type'], string> = {
   character: 'Character',
@@ -207,24 +208,25 @@ export default function AdminFeatures() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">App Features</h1>
-          <p className="mt-1 max-w-xl text-ink/55">
+      <AdminPageHeader
+        title="App features"
+        description={
+          <span className="block max-w-xl">
             Turn on characters, web blocks, pop-ups and update prompts in the app without a Play Store update. Changes
             reach phones within a few minutes. This app runtime understands version {runtime}.
-          </p>
-        </div>
+          </span>
+        }
+        actions={
         <div className="relative">
           <button
             type="button"
             onClick={() => setShowTemplates((v) => !v)}
-            className="rounded-full bg-wine px-6 py-2.5 font-semibold text-white hover:bg-wine-deep"
+            className={adminButtonClass.primary}
           >
             + New feature
           </button>
           {showTemplates ? (
-            <div className="absolute right-0 z-10 mt-2 w-64 overflow-hidden rounded-2xl border border-wine/10 bg-white shadow-xl">
+            <div className="absolute right-0 z-10 mt-2 w-64 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-xl">
               {templates.map((template) => (
                 <button
                   key={template.label}
@@ -242,7 +244,8 @@ export default function AdminFeatures() {
             </div>
           ) : null}
         </div>
-      </div>
+        }
+      />
 
       {!tableReady ? (
         <div className="mb-6 rounded-2xl border border-gold/40 bg-gold-soft px-4 py-3 text-sm text-ink">
@@ -253,7 +256,7 @@ export default function AdminFeatures() {
       ) : null}
 
       {form ? (
-        <div className="mb-6 rounded-[22px] border border-wine/10 bg-white p-6">
+        <div className="mb-6 rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="mb-4 font-display text-xl font-semibold text-ink">
             {form.id ? `Edit ${form.name || form.key}` : 'New feature'}
           </h2>
@@ -418,7 +421,7 @@ export default function AdminFeatures() {
                   setForm(null)
                   setError('')
                 }}
-                className="rounded-full border border-wine/20 px-6 py-2.5 font-semibold text-ink"
+                className="rounded-full border border-stone-300 px-6 py-2.5 font-semibold text-ink"
               >
                 Cancel
               </button>
@@ -431,7 +434,7 @@ export default function AdminFeatures() {
         {features.map((feature) => (
           <div
             key={feature.id}
-            className="flex flex-wrap items-center gap-4 rounded-[22px] border border-wine/10 bg-white p-4 md:p-5"
+            className="flex flex-wrap items-center gap-4 rounded-xl border border-stone-200 bg-white p-4 md:p-5"
           >
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -467,7 +470,7 @@ export default function AdminFeatures() {
                 setForm(toForm(feature))
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="rounded-full border border-wine/20 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-blush-soft"
+              className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-blush-soft"
             >
               Edit
             </button>
@@ -479,13 +482,13 @@ export default function AdminFeatures() {
           </div>
         ))}
         {features.length === 0 ? (
-          <p className="rounded-[22px] border border-dashed border-wine/20 p-8 text-center text-ink/55">
+          <p className="rounded-xl border border-dashed border-stone-300 p-8 text-center text-ink/55">
             No features yet. Start from a template with “New feature”.
           </p>
         ) : null}
       </div>
 
-      <details className="mt-8 rounded-[22px] border border-wine/10 bg-white p-5 text-sm text-ink/70">
+      <details className="mt-8 rounded-xl border border-stone-200 bg-white p-5 text-sm text-ink/70">
         <summary className="cursor-pointer font-semibold text-ink">Building blocks reference</summary>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <div>
@@ -516,8 +519,8 @@ export default function AdminFeatures() {
         </div>
         <p className="mt-4 text-xs">
           Web features can call the app from their page with{' '}
-          <code className="rounded bg-cream px-1">window.UpaharoApp.postMessage(JSON.stringify(&#123; do: &apos;add_to_cart&apos;, productId &#125;))</code>{' '}
-          (see <code className="rounded bg-cream px-1">lib/app-bridge.ts</code>). Only pages on upaharo.com get the bridge.
+          <code className="rounded bg-stone-50 px-1">window.UpaharoApp.postMessage(JSON.stringify(&#123; do: &apos;add_to_cart&apos;, productId &#125;))</code>{' '}
+          (see <code className="rounded bg-stone-50 px-1">lib/app-bridge.ts</code>). Only pages on upaharo.com get the bridge.
         </p>
       </details>
     </div>

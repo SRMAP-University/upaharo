@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import Image from 'next/image'
 import ImageColorPicker from '@/components/admin/ImageColorPicker'
 import { isVideoMediaUrl } from '@/lib/image-url'
@@ -430,22 +431,20 @@ export default function AdminBanners() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Banners</h1>
-          <p className="text-ink/55 mt-1">
-            Header carousel plus extra feed banner sections (great for grocery promos). Reorder sections here; home feed placement is also in Settings → Home.
-          </p>
-        </div>
-        <button
-          onClick={() => (showForm ? resetForm() : openNewBanner())}
-          className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold"
-        >
-          {showForm ? 'Cancel' : '+ Add Banner'}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Banners"
+        description="Header carousel plus extra feed banner sections (great for grocery promos). Reorder sections here; home feed placement is also in Settings → Home."
+        actions={
+          <button
+            onClick={() => (showForm ? resetForm() : openNewBanner())}
+            className={showForm ? adminButtonClass.secondary : adminButtonClass.primary}
+          >
+            {showForm ? 'Cancel' : '+ Add banner'}
+          </button>
+        }
+      />
 
-      <div className="mb-4 rounded-[22px] border border-wine/10 bg-white p-4">
+      <div className="mb-4 rounded-xl border border-stone-200 bg-white p-4">
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[200px] flex-1">
             <label className="mb-1 block text-xs font-medium text-ink/60">New feed banner section</label>
@@ -454,7 +453,7 @@ export default function AdminBanners() {
               value={newSectionTitle}
               onChange={(e) => setNewSectionTitle(e.target.value)}
               placeholder="e.g. Weekend offers"
-              className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+              className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
             />
           </div>
           <button
@@ -474,7 +473,7 @@ export default function AdminBanners() {
             className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
               activeSectionTab === 'header'
                 ? 'bg-wine text-white'
-                : 'border border-wine/15 bg-cream text-ink/70'
+                : 'border border-stone-300 bg-stone-50 text-ink/70'
             }`}
           >
             Header carousel
@@ -489,7 +488,7 @@ export default function AdminBanners() {
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
                     activeSectionTab === section.id
                       ? 'bg-wine text-white'
-                      : 'border border-wine/15 bg-cream text-ink/70'
+                      : 'border border-stone-300 bg-stone-50 text-ink/70'
                   }`}
                 >
                   {section.title}
@@ -499,7 +498,7 @@ export default function AdminBanners() {
                   type="button"
                   disabled={sectionBusy}
                   onClick={() => void moveSection(section.id, -1)}
-                  className="rounded-lg border border-wine/15 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
+                  className="rounded-lg border border-stone-300 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
                   title="Move section up"
                 >
                   ↑
@@ -508,7 +507,7 @@ export default function AdminBanners() {
                   type="button"
                   disabled={sectionBusy}
                   onClick={() => void moveSection(section.id, 1)}
-                  className="rounded-lg border border-wine/15 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
+                  className="rounded-lg border border-stone-300 px-1.5 py-1 text-[10px] text-wine disabled:opacity-40"
                   title="Move section down"
                 >
                   ↓
@@ -527,14 +526,14 @@ export default function AdminBanners() {
         </div>
 
         {activeSectionTab !== 'header' && (
-          <div className="mt-4 grid gap-3 rounded-2xl border border-wine/10 bg-cream/40 p-3 md:grid-cols-[1fr_1fr_120px_auto]">
+          <div className="mt-4 grid gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3 md:grid-cols-[1fr_1fr_120px_auto]">
             <div>
               <label className="mb-1 block text-xs font-medium text-ink/60">Section title</label>
               <input
                 type="text"
                 value={sectionEdit.title}
                 onChange={(e) => setSectionEdit((prev) => ({ ...prev, title: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
               />
             </div>
             <div>
@@ -543,7 +542,7 @@ export default function AdminBanners() {
                 type="text"
                 value={sectionEdit.subtitle}
                 onChange={(e) => setSectionEdit((prev) => ({ ...prev, subtitle: e.target.value }))}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
               />
             </div>
             <div>
@@ -559,7 +558,7 @@ export default function AdminBanners() {
                     height: Math.min(400, Math.max(80, parseInt(e.target.value, 10) || 160)),
                   }))
                 }
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
               />
             </div>
             <div className="flex items-end">
@@ -567,7 +566,7 @@ export default function AdminBanners() {
                 type="button"
                 disabled={sectionBusy}
                 onClick={() => void saveSectionMeta()}
-                className="w-full rounded-full border border-wine/20 bg-white px-4 py-2 text-sm font-semibold text-wine disabled:opacity-50"
+                className="w-full rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-wine disabled:opacity-50"
               >
                 Save section
               </button>
@@ -577,7 +576,7 @@ export default function AdminBanners() {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-[22px] border border-wine/10 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-stone-200 p-6 mb-6">
           <h2 className="font-display text-xl font-semibold text-ink mb-4">
             {editingBanner ? 'Edit Banner' : 'New Banner'}
           </h2>
@@ -588,7 +587,7 @@ export default function AdminBanners() {
                 <select
                   value={formData.sectionId}
                   onChange={(e) => setFormData({ ...formData, sectionId: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 >
                   <option value="">Header carousel (sticky top)</option>
                   {sections.map((section) => (
@@ -603,7 +602,7 @@ export default function AdminBanners() {
                 <select
                   value={formData.layout}
                   onChange={(e) => setFormData({ ...formData, layout: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 >
                   <option value="cover">Photo cover</option>
                   <option value="grid">Offer grid (2×2)</option>
@@ -622,7 +621,7 @@ export default function AdminBanners() {
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -631,7 +630,7 @@ export default function AdminBanners() {
                   type="text"
                   value={formData.subtitle}
                   onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -645,9 +644,9 @@ export default function AdminBanners() {
                     value={formData.image}
                     onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                     placeholder="Paste a URL or upload an MP4"
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
-                  <label className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-wine/20 bg-white px-4 py-2 text-sm font-semibold text-wine hover:bg-cream">
+                  <label className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-wine hover:bg-stone-50">
                     {uploadingMedia ? 'Uploading…' : 'Upload'}
                     <input
                       type="file"
@@ -685,7 +684,7 @@ export default function AdminBanners() {
                   value={formData.link}
                   onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                   placeholder="/products or /products/ID"
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -696,10 +695,10 @@ export default function AdminBanners() {
                   onChange={(e) =>
                     setFormData({ ...formData, order: parseInt(e.target.value) || 0 })
                   }
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
-              <div className="md:col-span-2 space-y-3 rounded-2xl border border-wine/10 bg-cream/30 p-4">
+              <div className="md:col-span-2 space-y-3 rounded-2xl border border-stone-200 bg-stone-50 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <label className="block text-sm font-medium text-ink/70">
@@ -709,7 +708,7 @@ export default function AdminBanners() {
                       Solid tint, or a multi-stop gradient to match the slide more vividly.
                     </p>
                   </div>
-                  <div className="flex gap-1 rounded-full border border-wine/15 bg-white p-0.5">
+                  <div className="flex gap-1 rounded-full border border-stone-300 bg-white p-0.5">
                     {(['solid', 'gradient'] as const).map((mode) => (
                       <button
                         key={mode}
@@ -731,7 +730,7 @@ export default function AdminBanners() {
                         className={`rounded-full px-3 py-1 text-xs font-semibold capitalize ${
                           formData.bgMode === mode
                             ? 'bg-wine text-white'
-                            : 'text-wine/70 hover:bg-cream'
+                            : 'text-wine/70 hover:bg-stone-50'
                         }`}
                       >
                         {mode}
@@ -741,7 +740,7 @@ export default function AdminBanners() {
                 </div>
 
                 <div
-                  className="h-10 w-full rounded-xl border border-wine/10 shadow-inner"
+                  className="h-10 w-full rounded-xl border border-stone-200 shadow-inner"
                   style={{
                     background: bannerGradientPreviewCss(
                       formData.bgColor,
@@ -765,7 +764,7 @@ export default function AdminBanners() {
                       onChange={(e) =>
                         setFormData({ ...formData, bgColor: e.target.value })
                       }
-                      className="h-10 w-14 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                      className="h-10 w-14 cursor-pointer rounded-lg border border-stone-300 bg-white p-1"
                     />
                     <input
                       type="text"
@@ -774,7 +773,7 @@ export default function AdminBanners() {
                         setFormData({ ...formData, bgColor: e.target.value })
                       }
                       placeholder="#FFE0E8"
-                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
                   </div>
                 ) : (
@@ -791,7 +790,7 @@ export default function AdminBanners() {
                             bgAngle: Number(e.target.value) || 180,
                           })
                         }
-                        className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                        className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
                       >
                         <option value={180}>Top → bottom</option>
                         <option value={90}>Left → right</option>
@@ -820,7 +819,7 @@ export default function AdminBanners() {
                                 }
                               })
                             }}
-                            className="h-9 w-12 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                            className="h-9 w-12 cursor-pointer rounded-lg border border-stone-300 bg-white p-1"
                           />
                           <input
                             type="text"
@@ -838,7 +837,7 @@ export default function AdminBanners() {
                                 }
                               })
                             }}
-                            className="min-w-0 flex-1 rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink"
+                            className="min-w-0 flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
                           />
                           <button
                             type="button"
@@ -858,7 +857,7 @@ export default function AdminBanners() {
                                 }
                               })
                             }
-                            className="rounded-lg border border-wine/15 px-2 py-1 text-xs font-semibold text-wine disabled:opacity-30"
+                            className="rounded-lg border border-stone-300 px-2 py-1 text-xs font-semibold text-wine disabled:opacity-30"
                             title="Move up"
                           >
                             ↑
@@ -897,7 +896,7 @@ export default function AdminBanners() {
                           ],
                         }))
                       }
-                      className="rounded-full border border-wine/20 bg-white px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-40"
+                      className="rounded-full border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-40"
                     >
                       + Add color
                     </button>
@@ -934,7 +933,7 @@ export default function AdminBanners() {
               />
             )}
 
-            <div className="rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-3">
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
               <div>
                 <p className="text-sm font-semibold text-ink">Banner products (app)</p>
                 <p className="text-xs text-ink/50 mt-0.5">
@@ -956,7 +955,7 @@ export default function AdminBanners() {
                   className={`rounded-full px-4 py-1.5 text-sm font-semibold border ${
                     formData.spotlightMode === 'products'
                       ? 'bg-wine text-white border-wine'
-                      : 'bg-white text-wine border-wine/20'
+                      : 'bg-white text-wine border-stone-300'
                   }`}
                 >
                   Specific products
@@ -973,7 +972,7 @@ export default function AdminBanners() {
                   className={`rounded-full px-4 py-1.5 text-sm font-semibold border ${
                     formData.spotlightMode === 'category'
                       ? 'bg-wine text-white border-wine'
-                      : 'bg-white text-wine border-wine/20'
+                      : 'bg-white text-wine border-stone-300'
                   }`}
                 >
                   Category
@@ -991,9 +990,9 @@ export default function AdminBanners() {
                           key={p.id}
                           type="button"
                           onClick={() => toggleProduct(p.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-wine/15 bg-white px-2.5 py-1 text-xs font-medium text-ink"
+                          className="inline-flex items-center gap-2 rounded-full border border-stone-300 bg-white px-2.5 py-1 text-xs font-medium text-ink"
                         >
-                          <span className="relative h-6 w-6 overflow-hidden rounded-full bg-cream">
+                          <span className="relative h-6 w-6 overflow-hidden rounded-full bg-stone-50">
                             {p.image ? (
                               <Image unoptimized src={p.image} alt="" fill className="object-cover" />
                             ) : null}
@@ -1009,9 +1008,9 @@ export default function AdminBanners() {
                     value={productQuery}
                     onChange={(e) => setProductQuery(e.target.value)}
                     placeholder="Search products to add…"
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
-                  <div className="max-h-48 overflow-y-auto rounded-xl border border-wine/10 bg-white divide-y divide-wine/5">
+                  <div className="max-h-48 overflow-y-auto rounded-xl border border-stone-200 bg-white divide-y divide-wine/5">
                     {filteredProducts.map((p) => {
                       const selected = formData.productIds.includes(p.id)
                       const full = !selected && formData.productIds.length >= 6
@@ -1022,10 +1021,10 @@ export default function AdminBanners() {
                           disabled={full}
                           onClick={() => toggleProduct(p.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2 text-left text-sm ${
-                            selected ? 'bg-wine/5' : 'hover:bg-cream/80'
+                            selected ? 'bg-wine/5' : 'hover:bg-stone-50'
                           } ${full ? 'opacity-40 cursor-not-allowed' : ''}`}
                         >
-                          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-cream">
+                          <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-stone-50">
                             {p.image ? (
                               <Image unoptimized src={p.image} alt="" fill className="object-cover" />
                             ) : null}
@@ -1059,7 +1058,7 @@ export default function AdminBanners() {
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   >
                     <option value="">Select a category…</option>
                     {categories.map((c) => (
@@ -1082,7 +1081,7 @@ export default function AdminBanners() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2 rounded-full font-semibold"
+                className="border border-stone-300 bg-white hover:bg-stone-50 text-wine px-6 py-2 rounded-full font-semibold"
               >
                 Cancel
               </button>
@@ -1102,9 +1101,9 @@ export default function AdminBanners() {
           filteredBanners.map((banner) => (
             <div
               key={banner.id}
-              className="bg-white rounded-[22px] border border-wine/10 overflow-hidden"
+              className="bg-white rounded-xl border border-stone-200 overflow-hidden"
             >
-              <div className="relative h-36 bg-cream">
+              <div className="relative h-36 bg-stone-50">
                 {banner.image && isVideoMediaUrl(banner.image) ? (
                   <video
                     src={banner.image}
@@ -1152,7 +1151,7 @@ export default function AdminBanners() {
                     {banner.products!.slice(0, 6).map((p) => (
                       <span
                         key={p.id}
-                        className="relative h-10 w-10 overflow-hidden rounded-lg bg-cream border border-wine/10"
+                        className="relative h-10 w-10 overflow-hidden rounded-lg bg-stone-50 border border-stone-200"
                         title={p.name}
                       >
                         {p.image ? (
@@ -1167,7 +1166,7 @@ export default function AdminBanners() {
                     Order: {banner.order}
                     {banner.bgColor || normalizeBannerBgGradient(banner.bgGradient) ? (
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-full border border-wine/10 px-2 py-0.5 text-xs"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-2 py-0.5 text-xs"
                         title={
                           normalizeBannerBgGradient(banner.bgGradient)
                             ? 'Gradient wash'

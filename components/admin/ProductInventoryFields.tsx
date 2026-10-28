@@ -20,7 +20,7 @@ type Props = {
 export default function ProductInventoryFields({ values, emphasizeGrocery, onChange }: Props) {
   return (
     <div className="w-full space-y-4">
-      <div className="rounded-2xl border border-wine/10 bg-cream/40 p-4">
+      <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
         <h3 className="text-sm font-semibold text-ink mb-3">Inventory</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
@@ -30,7 +30,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
               value={values.sku}
               onChange={(e) => onChange({ sku: e.target.value })}
               placeholder="Optional unique code"
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
             />
           </div>
           <div className="flex items-end">
@@ -62,7 +62,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
                   stockQty: e.target.value === '' ? '' : Math.max(0, Math.round(Number(e.target.value) || 0)),
                 })
               }
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 disabled:opacity-50"
+              className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 disabled:opacity-50"
             />
           </div>
         </div>
@@ -70,7 +70,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
 
       <div
         className={`rounded-2xl border p-4 ${
-          emphasizeGrocery ? 'border-wine/25 bg-rose-soft/30' : 'border-wine/10 bg-cream/40'
+          emphasizeGrocery ? 'border-wine/25 bg-rose-soft/30' : 'border-stone-200 bg-stone-50'
         }`}
       >
         <h3 className="text-sm font-semibold text-ink mb-1">
@@ -87,7 +87,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
             <select
               value={values.unit}
               onChange={(e) => onChange({ unit: e.target.value })}
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
             >
               <option value="">None</option>
               {PRODUCT_UNITS.map((u) => (
@@ -110,7 +110,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
                 })
               }
               placeholder="e.g. 500"
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
             />
           </div>
           <div>
@@ -120,7 +120,7 @@ export default function ProductInventoryFields({ values, emphasizeGrocery, onCha
               value={values.aisle}
               onChange={(e) => onChange({ aisle: e.target.value })}
               placeholder="e.g. Aisle 3"
-              className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+              className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
             />
           </div>
         </div>

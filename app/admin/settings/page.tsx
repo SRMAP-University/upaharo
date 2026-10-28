@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import {
   clampFloat,
   clampInt,
@@ -254,19 +255,17 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-7xl">
-      <div className="mb-5 hidden md:mb-6 md:block">
-        <h1 className="font-display text-3xl font-semibold text-ink">Settings</h1>
-        <p className="mt-1 max-w-2xl text-ink/55">
-          Configure your mobile app by category. Changes apply after you save.
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Settings"
+        description="Configure your store and mobile app by category. Changes apply after you save."
+      />
 
       {message && (
         <div
           className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
             message.includes('success')
               ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : 'border-wine/10 bg-white text-ink/70'
+              : 'border-stone-200 bg-white text-ink/70'
           }`}
         >
           {message}
@@ -275,12 +274,12 @@ export default function AdminSettingsPage() {
 
       <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
         {/* Mobile / tablet tabs — stick under header */}
-        <div className="sticky top-12 z-30 -mx-4 border-b border-wine/10 bg-cream/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-cream/90 xl:hidden">
+        <div className="sticky top-14 z-20 -mx-4 border-b border-stone-200 bg-stone-100/95 px-4 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-stone-100/90 xl:hidden">
           <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="horizontal" />
         </div>
 
         {/* Desktop settings menu — stick under header while form scrolls */}
-        <aside className="hidden xl:sticky xl:top-14 xl:block xl:w-56 xl:shrink-0 xl:self-start xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto xl:pb-4">
+        <aside className="hidden xl:sticky xl:top-[4.5rem] xl:block xl:w-56 xl:shrink-0 xl:self-start xl:max-h-[calc(100dvh-5.5rem)] xl:overflow-y-auto xl:pb-4">
           <SettingsTabNav active={activeTab} onChange={setActiveTab} variant="sidebar" />
         </aside>
 
@@ -452,7 +451,7 @@ export default function AdminSettingsPage() {
                     <button
                       type="button"
                       onClick={() => set('homeSectionLayout', DEFAULT_HOME_SECTIONS)}
-                      className="rounded-full border border-wine/20 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-cream"
+                      className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-stone-50"
                     >
                       Reset order
                     </button>
@@ -873,7 +872,7 @@ export default function AdminSettingsPage() {
                     <button
                       type="button"
                       onClick={() => set('deliverySlots', DEFAULT_DELIVERY_SLOTS)}
-                      className="rounded-full border border-wine/20 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-cream"
+                      className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-stone-50"
                     >
                       Reset to defaults
                     </button>
@@ -1092,7 +1091,7 @@ export default function AdminSettingsPage() {
 
         {(activeTab === 'appearance' || activeTab === 'home' || activeTab === 'navigation') && (
           <div className="hidden xl:block xl:w-[300px] xl:shrink-0">
-            <div className="xl:sticky xl:top-14 xl:pb-28">
+            <div className="xl:sticky xl:top-[4.5rem] xl:pb-28">
               <MobilePreview form={formData} />
             </div>
           </div>

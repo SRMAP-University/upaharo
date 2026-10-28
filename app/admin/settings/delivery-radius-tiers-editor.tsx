@@ -8,7 +8,7 @@ import {
 } from '@/lib/app-settings-schema'
 
 const FIELD_CLASS =
-  'w-full rounded-lg border border-wine/15 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 type Props = {
   tiers: DeliveryRadiusTier[]
@@ -69,7 +69,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
   return (
     <div className="mt-4">
       {tiers.length === 0 ? (
-        <p className="rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+        <p className="rounded-xl bg-stone-50 px-4 py-3 text-sm text-ink/70">
           No zones yet — checkout will use the flat delivery fee from the Checkout
           tab. Add rings below to charge by distance from the store pin.
         </p>
@@ -87,7 +87,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
             return (
               <li
                 key={`${tier.id}-${index}`}
-                className="rounded-2xl border border-wine/10 bg-cream/40 p-4"
+                className="rounded-2xl border border-stone-200 bg-stone-50 p-4"
               >
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -199,7 +199,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
                     type="button"
                     onClick={() => remove(index)}
                     aria-label={`Remove zone up to ${tier.maxRadiusKm} km`}
-                    className="rounded-lg border border-wine/15 px-3 py-1.5 text-xs text-wine hover:bg-wine/5"
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-xs text-wine hover:bg-wine/5"
                   >
                     Remove
                   </button>
@@ -226,7 +226,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
         type="button"
         onClick={add}
         disabled={tiers.length >= MAX_DELIVERY_RADIUS_TIERS}
-        className="mt-3 rounded-xl border border-wine/20 px-4 py-2 text-sm font-medium text-wine hover:bg-wine/5 disabled:opacity-40"
+        className="mt-3 rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-wine hover:bg-wine/5 disabled:opacity-40"
       >
         + Add zone
       </button>

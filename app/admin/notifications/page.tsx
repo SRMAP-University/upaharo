@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 
 type Audience = 'devices' | 'all' | 'email'
 type NotifType = 'PROMO' | 'GENERAL'
@@ -105,12 +106,10 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <header>
-        <h1 className="hidden text-2xl font-semibold text-ink md:block">Marketing push</h1>
-        <p className="text-sm text-ink/50 mt-0.5">
-          Send promos, offers, and announcements to the mobile app
-        </p>
-      </header>
+      <AdminPageHeader
+        title="Push notifications"
+        description="Send promos, offers, and announcements to the mobile app"
+      />
 
       <div className="grid grid-cols-3 gap-3">
         <StatCard label="App users" value={stats?.customersWithDevices ?? 0} hint="with device token" />
@@ -127,7 +126,7 @@ export default function AdminNotificationsPage() {
 
       <form
         onSubmit={send}
-        className="bg-white rounded-2xl border border-wine/10 p-5 space-y-4"
+        className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <label className="block space-y-1.5">
@@ -135,7 +134,7 @@ export default function AdminNotificationsPage() {
             <select
               value={type}
               onChange={(e) => setType(e.target.value as NotifType)}
-              className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine"
+              className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine"
             >
               <option value="PROMO">Marketing / promo</option>
               <option value="GENERAL">General announcement</option>
@@ -147,7 +146,7 @@ export default function AdminNotificationsPage() {
             <select
               value={audience}
               onChange={(e) => setAudience(e.target.value as Audience)}
-              className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine"
+              className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine"
             >
               <option value="devices">Everyone with the app</option>
               <option value="all">All customers (inbox + push if installed)</option>
@@ -165,7 +164,7 @@ export default function AdminNotificationsPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="customer@example.com"
-              className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine"
+              className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine"
             />
           </label>
         )}
@@ -178,7 +177,7 @@ export default function AdminNotificationsPage() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Weekend gift sale"
-            className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine"
+            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine"
           />
         </label>
 
@@ -191,7 +190,7 @@ export default function AdminNotificationsPage() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Get 15% off flowers & cakes this weekend. Tap to shop."
-            className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine resize-none"
+            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine resize-none"
           />
           <span className="text-xs text-ink/40">{body.length}/200</span>
         </label>
@@ -203,7 +202,7 @@ export default function AdminNotificationsPage() {
           <select
             value={deepLink}
             onChange={(e) => setDeepLink(e.target.value)}
-            className="w-full rounded-xl border border-wine/15 bg-cream/40 px-3 py-2.5 text-sm outline-none focus:border-wine"
+            className="w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none focus:border-wine"
           >
             <option value="/home">Home</option>
             <option value="/main">Main / shop</option>
@@ -232,15 +231,15 @@ export default function AdminNotificationsPage() {
         </button>
       </form>
 
-      <section className="bg-white rounded-2xl border border-wine/10 overflow-hidden">
-        <div className="px-4 py-4 border-b border-wine/10">
+      <section className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="px-4 py-4 border-b border-stone-200">
           <h2 className="font-medium text-ink">Recent marketing messages</h2>
           <p className="text-xs text-ink/45 mt-0.5">Latest inbox rows (one per recipient)</p>
         </div>
         {recent.length === 0 ? (
           <p className="px-4 py-8 text-sm text-ink/45 text-center">No marketing pushes yet</p>
         ) : (
-          <div className="divide-y divide-wine/10 max-h-[420px] overflow-y-auto">
+          <div className="divide-y divide-stone-200 max-h-[420px] overflow-y-auto">
             {recent.map((n) => (
               <div key={n.id} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
@@ -290,7 +289,7 @@ function StatCard({
   hint: string
 }) {
   return (
-    <div className="rounded-2xl border border-wine/10 bg-white px-4 py-3">
+    <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3">
       <p className="text-xs text-ink/45">{label}</p>
       <p className="text-2xl font-semibold text-ink mt-0.5">{value}</p>
       <p className="text-[11px] text-ink/35">{hint}</p>

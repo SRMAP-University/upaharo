@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 
 interface GiftWrap {
   id: string
@@ -98,22 +99,22 @@ export default function AdminGiftWraps() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Gift Wraps</h1>
-          <p className="text-ink/55 mt-1">Manage gift wrapping options</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold"
-        >
-          {showForm ? 'Cancel' : '+ Add Gift Wrap'}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Gift wraps"
+        description="Manage gift wrapping options"
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={showForm ? adminButtonClass.secondary : adminButtonClass.primary}
+          >
+            {showForm ? 'Cancel' : '+ Add gift wrap'}
+          </button>
+        }
+      />
 
       {/* Form */}
       {showForm && (
-        <div className="bg-white rounded-[22px] border border-wine/10 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-stone-200 p-6 mb-6">
           <h2 className="font-display text-xl font-semibold text-ink mb-4">{editingWrap ? 'Edit Gift Wrap' : 'New Gift Wrap'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -124,7 +125,7 @@ export default function AdminGiftWraps() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -135,7 +136,7 @@ export default function AdminGiftWraps() {
                   step="0.01"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div className="col-span-2">
@@ -144,7 +145,7 @@ export default function AdminGiftWraps() {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -154,7 +155,7 @@ export default function AdminGiftWraps() {
                   required
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -162,7 +163,7 @@ export default function AdminGiftWraps() {
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 >
                   <option value="premium">Premium</option>
                   <option value="eco-friendly">Eco-Friendly</option>
@@ -186,7 +187,7 @@ export default function AdminGiftWraps() {
               <button type="submit" className="bg-wine hover:bg-wine-deep text-white px-6 py-2 rounded-full font-semibold">
                 {editingWrap ? 'Update' : 'Create'} Gift Wrap
               </button>
-              <button type="button" onClick={resetForm} className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2 rounded-full font-semibold">
+              <button type="button" onClick={resetForm} className="border border-stone-300 bg-white hover:bg-stone-50 text-wine px-6 py-2 rounded-full font-semibold">
                 Cancel
               </button>
             </div>
@@ -202,7 +203,7 @@ export default function AdminGiftWraps() {
           <div className="col-span-3 p-8 text-center text-ink/55">No gift wraps yet</div>
         ) : (
           giftWraps.map((wrap) => (
-            <div key={wrap.id} className="bg-white rounded-[22px] border border-wine/10 p-4">
+            <div key={wrap.id} className="bg-white rounded-xl border border-stone-200 p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-display font-semibold text-ink">{wrap.name}</h3>

@@ -172,20 +172,20 @@ export function DeliveryZonesMap({
   }, [tiers, latitude, longitude, ready])
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-wine/10 bg-cream/30">
-      <div ref={mapRef} className="h-[320px] w-full bg-cream" />
+    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-stone-50">
+      <div ref={mapRef} className="h-[320px] w-full bg-stone-50" />
       {status ? (
-        <p className="border-t border-wine/10 px-4 py-3 text-sm text-ink/65">
+        <p className="border-t border-stone-200 px-4 py-3 text-sm text-ink/65">
           {status}
         </p>
       ) : (
-        <p className="border-t border-wine/10 px-4 py-2 text-xs text-ink/55">
+        <p className="border-t border-stone-200 px-4 py-2 text-xs text-ink/55">
           Click the map or drag the pin to set the store location. Rings show each
           delivery zone.
         </p>
       )}
       {tiers.length > 0 && (
-        <ul className="flex flex-wrap gap-2 border-t border-wine/10 px-4 py-3">
+        <ul className="flex flex-wrap gap-2 border-t border-stone-200 px-4 py-3">
           {[...tiers]
             .sort((a, b) => a.maxRadiusKm - b.maxRadiusKm)
             .map((tier, index) => (

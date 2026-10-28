@@ -62,7 +62,7 @@ export default function ProductSellerField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={loading}
-        className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15 disabled:opacity-60"
+        className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15 disabled:opacity-60"
       >
         <option value="">{loading ? 'Loading sellers…' : 'No seller — sold by the store'}</option>
         {missingSelected ? <option value={value}>Current seller ({value.slice(0, 8)}…)</option> : null}

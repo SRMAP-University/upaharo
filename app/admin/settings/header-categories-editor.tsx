@@ -129,7 +129,7 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
         <button
           type="button"
           onClick={startCustomizing}
-          className="rounded-full border border-wine/20 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-cream"
+          className="rounded-full border border-stone-300 px-4 py-1.5 text-sm font-semibold text-wine hover:bg-stone-50"
         >
           Customize header list
         </button>
@@ -151,7 +151,7 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
         <button
           type="button"
           onClick={useAll}
-          className="ml-auto rounded-full border border-wine/20 px-3 py-1 text-xs font-semibold text-wine hover:bg-cream"
+          className="ml-auto rounded-full border border-stone-300 px-3 py-1 text-xs font-semibold text-wine hover:bg-stone-50"
         >
           Use all (A–Z)
         </button>
@@ -173,8 +173,8 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
                 if (dragIndex !== null) move(dragIndex, index)
                 setDragIndex(null)
               }}
-              className={`flex flex-wrap items-center gap-3 rounded-2xl border bg-cream/40 px-3 py-2.5 transition-colors ${
-                dragging ? 'border-wine/40 opacity-60' : 'border-wine/10'
+              className={`flex flex-wrap items-center gap-3 rounded-2xl border bg-stone-50 px-3 py-2.5 transition-colors ${
+                dragging ? 'border-wine/40 opacity-60' : 'border-stone-200'
               }`}
             >
               <span
@@ -209,7 +209,7 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
                   onClick={() => move(index, index - 1)}
                   disabled={index === 0}
                   aria-label={`Move ${label} up`}
-                  className="rounded-lg border border-wine/15 px-2 py-1 text-xs text-wine disabled:opacity-30"
+                  className="rounded-lg border border-stone-300 px-2 py-1 text-xs text-wine disabled:opacity-30"
                 >
                   ↑
                 </button>
@@ -218,14 +218,14 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
                   onClick={() => move(index, index + 1)}
                   disabled={index === visible.length - 1}
                   aria-label={`Move ${label} down`}
-                  className="rounded-lg border border-wine/15 px-2 py-1 text-xs text-wine disabled:opacity-30"
+                  className="rounded-lg border border-stone-300 px-2 py-1 text-xs text-wine disabled:opacity-30"
                 >
                   ↓
                 </button>
                 <button
                   type="button"
                   onClick={() => removeAt(index)}
-                  className="rounded-lg border border-wine/15 px-2 py-1 text-xs font-semibold text-ink/55 hover:border-wine/30 hover:text-wine"
+                  className="rounded-lg border border-stone-300 px-2 py-1 text-xs font-semibold text-ink/55 hover:border-wine/30 hover:text-wine"
                 >
                   Hide
                 </button>
@@ -236,7 +236,7 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
       </ul>
 
       {visible.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-wine/20 bg-cream/30 px-3 py-3 text-sm text-ink/55">
+        <p className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-3 py-3 text-sm text-ink/55">
           No categories in the header. Add some below, or switch back to all (A–Z).
         </p>
       ) : null}
@@ -254,7 +254,7 @@ export function HeaderCategoriesEditor({ headerCategoryIds, onChange }: Props) {
                   <button
                     type="button"
                     onClick={() => addId(cat.id)}
-                    className="rounded-full border border-wine/15 bg-white px-3 py-1 text-xs font-semibold text-ink/70 hover:border-wine/30 hover:text-wine"
+                    className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs font-semibold text-ink/70 hover:border-wine/30 hover:text-wine"
                   >
                     + {label}
                   </button>

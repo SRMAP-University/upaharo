@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import Image from 'next/image'
 import { resolveImageUrl } from '@/lib/image-url'
 
@@ -32,7 +33,7 @@ interface CategoryRow {
 }
 
 const INPUT_CLASS =
-  'w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 const emptyForm = {
   title: '',
@@ -209,23 +210,20 @@ export default function AdminMiniBanners() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Mini banners</h1>
-          <p className="mt-1 text-ink/55">
-            Small tiles shown side by side in the app&apos;s home row. Each links to a
-            product or a category.
-          </p>
-        </div>
-        <button
-          onClick={() => (showForm ? resetForm() : setShowForm(true))}
-          className="rounded-full bg-wine px-6 py-2.5 font-semibold text-white hover:bg-wine-deep"
-        >
-          {showForm ? 'Cancel' : '+ Add Mini Banner'}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Mini banners"
+        description="Small tiles shown side by side in the app’s home row. Each links to a product or a category."
+        actions={
+          <button
+            onClick={() => (showForm ? resetForm() : setShowForm(true))}
+            className={showForm ? adminButtonClass.secondary : adminButtonClass.primary}
+          >
+            {showForm ? 'Cancel' : '+ Add mini banner'}
+          </button>
+        }
+      />
 
-      <p className="mb-6 rounded-xl bg-cream px-4 py-3 text-sm text-ink/70">
+      <p className="mb-6 rounded-xl bg-stone-50 px-4 py-3 text-sm text-ink/70">
         {activeCount} active tile{activeCount === 1 ? '' : 's'}. The row shows as many
         as the “tiles per row” setting allows and scrolls sideways beyond that — set
         the count and height in{' '}
@@ -236,7 +234,7 @@ export default function AdminMiniBanners() {
       </p>
 
       {showForm && (
-        <div className="mb-6 rounded-[22px] border border-wine/10 bg-white p-6">
+        <div className="mb-6 rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="mb-4 font-display text-xl font-semibold text-ink">
             {editing ? 'Edit mini banner' : 'New mini banner'}
           </h2>
@@ -304,7 +302,7 @@ export default function AdminMiniBanners() {
             </div>
 
             {formData.image && (
-              <div className="flex items-center gap-3 rounded-2xl border border-wine/10 bg-cream/40 p-3">
+              <div className="flex items-center gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-3">
                 <div className="relative h-16 w-24 overflow-hidden rounded-xl bg-white">
                   <Image
                     src={resolveImageUrl(formData.image)}
@@ -318,7 +316,7 @@ export default function AdminMiniBanners() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-wine/10 bg-cream/40 p-4">
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
               <p className="mb-3 text-sm font-medium text-ink/70">Tapping opens</p>
               <div className="flex flex-wrap gap-2">
                 {(['CATEGORY', 'PRODUCT', 'NONE'] as LinkType[]).map((type) => (
@@ -331,7 +329,7 @@ export default function AdminMiniBanners() {
                     className={`rounded-full px-4 py-1.5 text-sm font-medium ${
                       formData.linkType === type
                         ? 'bg-wine text-white'
-                        : 'border border-wine/15 text-ink/70 hover:bg-wine/5'
+                        : 'border border-stone-300 text-ink/70 hover:bg-wine/5'
                     }`}
                   >
                     {type === 'CATEGORY'
@@ -433,7 +431,7 @@ export default function AdminMiniBanners() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-full border border-wine/20 px-6 py-2.5 font-semibold text-ink/70 hover:bg-wine/5"
+                className="rounded-full border border-stone-300 px-6 py-2.5 font-semibold text-ink/70 hover:bg-wine/5"
               >
                 Cancel
               </button>
@@ -445,7 +443,7 @@ export default function AdminMiniBanners() {
       {loading ? (
         <p className="text-ink/55">Loading mini banners…</p>
       ) : banners.length === 0 ? (
-        <div className="rounded-[22px] border border-dashed border-wine/20 bg-white p-10 text-center">
+        <div className="rounded-xl border border-dashed border-stone-300 bg-white p-10 text-center">
           <p className="text-ink/55">
             No mini banners yet. Add one to show the row on the app home screen.
           </p>
@@ -455,9 +453,9 @@ export default function AdminMiniBanners() {
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className="overflow-hidden rounded-[22px] border border-wine/10 bg-white"
+              className="overflow-hidden rounded-xl border border-stone-200 bg-white"
             >
-              <div className="relative h-32 w-full bg-cream">
+              <div className="relative h-32 w-full bg-stone-50">
                 <Image
                   src={resolveImageUrl(banner.image)}
                   alt={banner.title}
@@ -488,7 +486,7 @@ export default function AdminMiniBanners() {
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={() => editBanner(banner)}
-                    className="rounded-lg border border-wine/15 px-3 py-1.5 text-sm text-wine hover:bg-wine/5"
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-wine hover:bg-wine/5"
                   >
                     Edit
                   </button>

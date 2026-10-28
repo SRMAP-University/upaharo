@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 
 interface Coupon {
   id: string
@@ -210,21 +211,21 @@ export default function AdminCoupons() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Coupons</h1>
-          <p className="text-ink/55 mt-1">Create discount codes for customers</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold"
-        >
-          {showForm ? 'Cancel' : '+ Add Coupon'}
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Coupons"
+        description="Create discount codes for customers"
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={showForm ? adminButtonClass.secondary : adminButtonClass.primary}
+          >
+            {showForm ? 'Cancel' : '+ Add coupon'}
+          </button>
+        }
+      />
 
       {showForm && (
-        <div className="bg-white rounded-[22px] border border-wine/10 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-stone-200 p-6 mb-6">
           <h2 className="font-display text-xl font-semibold text-ink mb-4">
             {editingCoupon ? 'Edit Coupon' : 'New Coupon'}
           </h2>
@@ -237,7 +238,7 @@ export default function AdminCoupons() {
                   required
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 uppercase"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 uppercase"
                   placeholder="SAVE20"
                 />
               </div>
@@ -247,7 +248,7 @@ export default function AdminCoupons() {
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   placeholder="20% off all orders"
                 />
               </div>
@@ -256,7 +257,7 @@ export default function AdminCoupons() {
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 >
                   {COUPON_TYPES.map((type) => (
                     <option key={type} value={type}>{type}</option>
@@ -274,7 +275,7 @@ export default function AdminCoupons() {
                   step="0.01"
                   value={formData.value}
                   onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -285,7 +286,7 @@ export default function AdminCoupons() {
                   step="0.01"
                   value={formData.minOrderAmount}
                   onChange={(e) => setFormData({ ...formData, minOrderAmount: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -298,7 +299,7 @@ export default function AdminCoupons() {
                   step="0.01"
                   value={formData.maxDiscount}
                   onChange={(e) => setFormData({ ...formData, maxDiscount: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -309,7 +310,7 @@ export default function AdminCoupons() {
                   step="1"
                   value={formData.usageLimit}
                   onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   placeholder="Unlimited if empty"
                 />
               </div>
@@ -318,7 +319,7 @@ export default function AdminCoupons() {
                 <select
                   value={formData.applicability}
                   onChange={(e) => setFormData({ ...formData, applicability: e.target.value as any })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 >
                   {APPLICABILITY_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
@@ -331,7 +332,7 @@ export default function AdminCoupons() {
                   type="datetime-local"
                   value={formData.startAt}
                   onChange={(e) => setFormData({ ...formData, startAt: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
               <div>
@@ -340,7 +341,7 @@ export default function AdminCoupons() {
                   type="datetime-local"
                   value={formData.endAt}
                   onChange={(e) => setFormData({ ...formData, endAt: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
             </div>
@@ -355,7 +356,7 @@ export default function AdminCoupons() {
                       className={`cursor-pointer px-3 py-1.5 rounded-full text-sm border transition-colors ${
                         formData.applicableCategoryIds.includes(cat.name)
                           ? 'bg-wine text-white border-wine'
-                          : 'bg-white text-ink/70 border-wine/15 hover:bg-cream'
+                          : 'bg-white text-ink/70 border-stone-300 hover:bg-stone-50'
                       }`}
                     >
                       <input
@@ -374,11 +375,11 @@ export default function AdminCoupons() {
             {formData.applicability === 'PRODUCTS' && (
               <div>
                 <label className="block text-sm font-medium text-ink/70 mb-2">Applicable Products</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border border-wine/10 rounded-xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto p-2 border border-stone-200 rounded-xl">
                   {products.map((product) => (
                     <label
                       key={product.id}
-                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-cream cursor-pointer"
+                      className="flex items-center gap-2 p-2 rounded-lg hover:bg-stone-50 cursor-pointer"
                     >
                       <input
                         type="checkbox"
@@ -415,7 +416,7 @@ export default function AdminCoupons() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2 rounded-full font-semibold"
+                className="border border-stone-300 bg-white hover:bg-stone-50 text-wine px-6 py-2 rounded-full font-semibold"
               >
                 Cancel
               </button>
@@ -428,7 +429,7 @@ export default function AdminCoupons() {
         {coupons.map((coupon) => (
           <div
             key={coupon.id}
-            className="bg-white rounded-[22px] border border-wine/10 p-5 flex flex-col"
+            className="bg-white rounded-xl border border-stone-200 p-5 flex flex-col"
           >
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -483,7 +484,7 @@ export default function AdminCoupons() {
               )}
             </div>
 
-            <div className="flex gap-2 pt-3 border-t border-wine/10">
+            <div className="flex gap-2 pt-3 border-t border-stone-200">
               <button
                 onClick={() => editCoupon(coupon)}
                 className="text-wine hover:text-wine-deep text-sm font-semibold"

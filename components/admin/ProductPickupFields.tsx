@@ -25,7 +25,7 @@ export default function ProductPickupFields({ value, onChange }: ProductPickupFi
   const hasPin = value.pickupLatitude !== null && value.pickupLongitude !== null
 
   return (
-    <div className="rounded-xl border border-wine/10 bg-cream/50 p-4">
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
       <label className="flex cursor-pointer items-center gap-2">
         <input
           type="checkbox"
@@ -42,7 +42,7 @@ export default function ProductPickupFields({ value, onChange }: ProductPickupFi
 
       {value.pickupEnabled && (
         <div className="mt-4 space-y-3">
-          <div className="h-[380px] overflow-hidden rounded-xl border border-wine/10">
+          <div className="h-[380px] overflow-hidden rounded-xl border border-stone-200">
             <MapPicker
               initialLat={value.pickupLatitude ?? undefined}
               initialLng={value.pickupLongitude ?? undefined}
@@ -64,7 +64,7 @@ export default function ProductPickupFields({ value, onChange }: ProductPickupFi
               value={value.pickupAddress}
               onChange={(e) => onChange({ ...value, pickupAddress: e.target.value })}
               placeholder="e.g. Upaharo Store, Jhamsikhel, Lalitpur"
-              className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
+              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
             />
           </div>
 

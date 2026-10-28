@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import { CATEGORY_ICON_KEYS, CATEGORY_WASH_PRESETS } from '@/lib/category-style'
 import { uploadCategoryImage } from '@/lib/upload-image'
 
@@ -19,7 +20,7 @@ interface Category {
 const CATEGORY_TYPES = ['PRODUCT', 'RECIPIENT', 'OCCASION']
 
 const INPUT_CLASS =
-  'w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 const EMPTY_FORM = {
   name: '',
@@ -186,10 +187,10 @@ export default function AdminCategories() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="hidden font-display text-3xl font-semibold text-ink md:block">Categories</h1>
-          <p className="text-ink/55 mt-1">
+      <AdminPageHeader
+        title="Categories"
+        description={
+          <>
             Manage product, recipient & occasion categories
             {selectedStoreName ? (
               <>
@@ -197,23 +198,25 @@ export default function AdminCategories() {
                 for <span className="font-semibold text-ink">{selectedStoreName}</span>
               </>
             ) : null}
-          </p>
-          {isGrocery && (
-            <p className="text-xs text-ink/45 mt-1">
-              Home header uses short names plus an icon or uploaded image (R2).
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-wine hover:bg-wine-deep text-white px-6 py-2.5 rounded-full font-semibold"
-        >
-          {showForm ? 'Cancel' : '+ Add Category'}
-        </button>
-      </div>
+            {isGrocery ? (
+              <span className="mt-1 block text-xs text-ink/45">
+                Home header uses short names plus an icon or uploaded image (R2).
+              </span>
+            ) : null}
+          </>
+        }
+        actions={
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className={showForm ? adminButtonClass.secondary : adminButtonClass.primary}
+          >
+            {showForm ? 'Cancel' : '+ Add category'}
+          </button>
+        }
+      />
 
       {showForm && (
-        <div className="bg-white rounded-[22px] border border-wine/10 p-6 mb-6">
+        <div className="bg-white rounded-xl border border-stone-200 p-6 mb-6">
           <h2 className="font-display text-xl font-semibold text-ink mb-4">
             {editingCategory ? 'Edit Category' : 'New Category'}
           </h2>
@@ -285,7 +288,7 @@ export default function AdminCategories() {
             </div>
 
             {/* Home header visual */}
-            <div className="rounded-2xl border border-wine/10 bg-cream/40 p-4 space-y-3">
+            <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4 space-y-3">
               <p className="text-sm font-semibold text-ink">Home header chip</p>
               <div className="flex gap-2">
                 {(['icon', 'image'] as const).map((mode) => (
@@ -302,7 +305,7 @@ export default function AdminCategories() {
                     className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
                       formData.headerVisual === mode
                         ? 'bg-wine text-white'
-                        : 'bg-white border border-wine/15 text-ink/70'
+                        : 'bg-white border border-stone-300 text-ink/70'
                     }`}
                   >
                     {mode === 'icon' ? 'Icon' : 'Upload image'}
@@ -322,7 +325,7 @@ export default function AdminCategories() {
                         className={`rounded-xl border px-3 py-1.5 text-xs font-medium capitalize ${
                           formData.iconName === key
                             ? 'border-wine bg-wine/10 text-wine'
-                            : 'border-wine/15 bg-white text-ink/70 hover:border-wine/30'
+                            : 'border-stone-300 bg-white text-ink/70 hover:border-wine/30'
                         }`}
                       >
                         {key}
@@ -344,7 +347,7 @@ export default function AdminCategories() {
                       type="button"
                       disabled={uploadingImage}
                       onClick={() => fileInputRef.current?.click()}
-                      className="rounded-full border border-wine/20 bg-white px-4 py-2 text-sm font-semibold text-wine disabled:opacity-50"
+                      className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-wine disabled:opacity-50"
                     >
                       {uploadingImage ? 'Uploading…' : 'Upload to R2'}
                     </button>
@@ -363,7 +366,7 @@ export default function AdminCategories() {
                       <img
                         src={formData.image}
                         alt="Header preview"
-                        className="h-16 w-16 rounded-full object-cover border border-wine/10"
+                        className="h-16 w-16 rounded-full object-cover border border-stone-200"
                       />
                       <p className="text-xs text-ink/45 break-all">{formData.image}</p>
                     </div>
@@ -390,7 +393,7 @@ export default function AdminCategories() {
                     onChange={(e) =>
                       setFormData({ ...formData, washColor: e.target.value.toUpperCase() })
                     }
-                    className="h-10 w-12 cursor-pointer rounded-lg border border-wine/15 bg-white p-1"
+                    className="h-10 w-12 cursor-pointer rounded-lg border border-stone-300 bg-white p-1"
                     aria-label="Header tint"
                   />
                   <input
@@ -402,13 +405,13 @@ export default function AdminCategories() {
                     placeholder="Auto from name"
                     maxLength={7}
                     spellCheck={false}
-                    className="w-full px-3 py-2 border border-wine/15 rounded-xl bg-white font-mono text-sm uppercase text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-3 py-2 border border-stone-300 rounded-xl bg-white font-mono text-sm uppercase text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
                   {formData.washColor && (
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, washColor: '' })}
-                      className="shrink-0 rounded-lg border border-wine/15 px-2 py-2 text-xs text-wine"
+                      className="shrink-0 rounded-lg border border-stone-300 px-2 py-2 text-xs text-wine"
                     >
                       Clear
                     </button>
@@ -452,7 +455,7 @@ export default function AdminCategories() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2 rounded-full font-semibold"
+                className="border border-stone-300 bg-white hover:bg-stone-50 text-wine px-6 py-2 rounded-full font-semibold"
               >
                 Cancel
               </button>
@@ -468,7 +471,7 @@ export default function AdminCategories() {
       )}
 
       {loading ? (
-        <div className="rounded-[22px] border border-wine/10 bg-white px-6 py-12 text-center text-ink/55">
+        <div className="rounded-xl border border-stone-200 bg-white px-6 py-12 text-center text-ink/55">
           Loading categories…
         </div>
       ) : null}
@@ -479,7 +482,7 @@ export default function AdminCategories() {
             <h2 className="font-display text-xl font-semibold mb-3 text-ink">{type} Categories</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {categories.filter((cat) => cat.type === type).length === 0 && !loading && (
-                <div className="col-span-full rounded-[18px] border border-dashed border-wine/15 bg-white px-4 py-8 text-center text-sm text-ink/50">
+                <div className="col-span-full rounded-[18px] border border-dashed border-stone-300 bg-white px-4 py-8 text-center text-sm text-ink/50">
                   No {type.toLowerCase()} categories for {selectedStoreName || 'this store'} yet.
                 </div>
               )}
@@ -488,7 +491,7 @@ export default function AdminCategories() {
                 .map((category) => (
                   <div
                     key={category.id}
-                    className="bg-white rounded-[22px] border border-wine/10 overflow-hidden"
+                    className="bg-white rounded-xl border border-stone-200 overflow-hidden"
                   >
                     <div
                       className="h-2"
@@ -497,7 +500,7 @@ export default function AdminCategories() {
                     />
                     <div className="p-4">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 bg-cream-deep rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
+                        <div className="w-12 h-12 bg-stone-100 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center">
                           {category.image?.trim() ? (
                             <img
                               src={category.image}

@@ -48,7 +48,7 @@ const SECTION_META: Record<
 }
 
 const FIELD_CLASS =
-  'w-full rounded-lg border border-wine/15 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
+  'w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40'
 
 type BannerSectionRow = {
   id: string
@@ -165,10 +165,10 @@ export function SectionLayoutEditor({
   return (
     <div className="mt-4 space-y-3">
       {/* Sticky header — separate control from feed carousels */}
-      <div className="rounded-2xl border border-wine/20 bg-white p-4">
+      <div className="rounded-2xl border border-stone-300 bg-white p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="font-display text-sm font-semibold text-ink">Sticky header carousel</span>
-          <span className="rounded-full bg-cream px-2 py-0.5 text-[10px] font-medium text-ink/50">
+          <span className="rounded-full bg-stone-50 px-2 py-0.5 text-[10px] font-medium text-ink/50">
             Top of home
           </span>
           <label className="ml-auto flex items-center gap-2 text-xs text-ink/70">
@@ -214,8 +214,8 @@ export function SectionLayoutEditor({
                 if (dragIndex !== null) move(dragIndex, index)
                 setDragIndex(null)
               }}
-              className={`rounded-2xl border bg-cream/40 p-4 transition-colors ${
-                dragging ? 'border-wine/40 opacity-60' : 'border-wine/10'
+              className={`rounded-2xl border bg-stone-50 p-4 transition-colors ${
+                dragging ? 'border-wine/40 opacity-60' : 'border-stone-200'
               }`}
             >
               <div className="flex flex-wrap items-center gap-3">
@@ -240,7 +240,7 @@ export function SectionLayoutEditor({
                     onClick={() => move(index, index - 1)}
                     disabled={index === 0}
                     aria-label={`Move ${meta.label} up`}
-                    className="rounded-lg border border-wine/15 px-2 py-1 text-xs text-wine disabled:opacity-30"
+                    className="rounded-lg border border-stone-300 px-2 py-1 text-xs text-wine disabled:opacity-30"
                   >
                     ↑
                   </button>
@@ -249,7 +249,7 @@ export function SectionLayoutEditor({
                     onClick={() => move(index, index + 1)}
                     disabled={index === sections.length - 1}
                     aria-label={`Move ${meta.label} down`}
-                    className="rounded-lg border border-wine/15 px-2 py-1 text-xs text-wine disabled:opacity-30"
+                    className="rounded-lg border border-stone-300 px-2 py-1 text-xs text-wine disabled:opacity-30"
                   >
                     ↓
                   </button>
@@ -355,7 +355,7 @@ export function SectionLayoutEditor({
                 key={section.id}
                 type="button"
                 onClick={() => addExistingToLayout(section)}
-                className="rounded-full border border-wine/20 bg-cream px-3 py-1 text-xs font-semibold text-wine"
+                className="rounded-full border border-stone-300 bg-stone-50 px-3 py-1 text-xs font-semibold text-wine"
               >
                 + {section.title}
               </button>

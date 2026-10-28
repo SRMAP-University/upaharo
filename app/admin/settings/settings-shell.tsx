@@ -21,7 +21,7 @@ export function ColorField({
           type="color"
           value={hex}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="h-11 w-14 cursor-pointer rounded-xl border border-wine/15 bg-white p-1"
+          className="h-11 w-14 cursor-pointer rounded-xl border border-stone-300 bg-white p-1"
           aria-label={label}
         />
         <input
@@ -29,7 +29,7 @@ export function ColorField({
           value={value}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
           spellCheck={false}
-          className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2.5 font-mono text-sm uppercase text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
+          className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 font-mono text-sm uppercase text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
           placeholder="#RRGGBB"
           maxLength={7}
         />
@@ -56,7 +56,7 @@ export function RangeField({
   onChange: (value: number) => void
 }) {
   return (
-    <div className="rounded-2xl border border-wine/10 bg-cream/30 p-4">
+    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <label className="text-sm font-medium text-ink/80">{label}</label>
         <span className="shrink-0 rounded-lg bg-white px-2 py-0.5 font-mono text-xs text-ink/60">
@@ -88,7 +88,7 @@ export function Toggle({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-wine/10 bg-white p-4 transition-colors hover:border-wine/20">
+    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-stone-200 bg-white p-4 transition-colors hover:border-stone-300">
       <input
         type="checkbox"
         checked={checked}
@@ -132,7 +132,7 @@ export function TextField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2.5 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
+        className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
       />
       {hint && <p className="mt-2 text-xs leading-relaxed text-ink/50">{hint}</p>}
     </div>
@@ -173,7 +173,7 @@ export function SettingsTabNav({
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
                 selected
                   ? 'bg-wine text-white shadow-sm'
-                  : 'border border-wine/15 bg-white text-ink/70'
+                  : 'border border-stone-300 bg-white text-ink/70'
               }`}
             >
               {tab.label}
@@ -196,7 +196,7 @@ export function SettingsTabNav({
             className={`rounded-2xl px-4 py-3 text-left transition-colors ${
               selected
                 ? 'bg-wine text-white shadow-sm'
-                : 'bg-white/70 text-ink/70 hover:bg-cream hover:text-ink'
+                : 'bg-white/70 text-ink/70 hover:bg-stone-50 hover:text-ink'
             }`}
           >
             <span className="block text-sm font-semibold">{tab.label}</span>
@@ -226,8 +226,8 @@ export function SettingsPanel({
   children: ReactNode
 }) {
   return (
-    <section className="overflow-hidden rounded-[24px] border border-wine/10 bg-white shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-wine/8 bg-cream/25 px-6 py-5">
+    <section className="overflow-hidden rounded-[24px] border border-stone-200 bg-white shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-wine/8 bg-stone-50 px-6 py-5">
         <div>
           <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
           {description && (
@@ -285,7 +285,7 @@ export function SettingsSubPanel({
   children: ReactNode
 }) {
   return (
-    <div className="space-y-5 rounded-2xl border border-wine/10 bg-cream/35 p-5">
+    <div className="space-y-5 rounded-2xl border border-stone-200 bg-stone-50 p-5">
       <div>
         <h4 className="text-sm font-semibold text-ink">{title}</h4>
         {description && (
@@ -299,7 +299,7 @@ export function SettingsSubPanel({
 
 export function InfoBanner({ children }: { children: ReactNode }) {
   return (
-    <p className="rounded-2xl border border-wine/10 bg-cream/60 px-4 py-3 text-sm leading-relaxed text-ink/70">
+    <p className="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm leading-relaxed text-ink/70">
       {children}
     </p>
   )
@@ -319,11 +319,11 @@ export function SettingsAccordion({
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-wine/10 bg-white">
+    <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-start justify-between gap-3 px-5 py-4 text-left hover:bg-cream/40"
+        className="flex w-full items-start justify-between gap-3 px-5 py-4 text-left hover:bg-stone-50"
       >
         <div>
           <span className="block text-sm font-semibold text-ink">{title}</span>
@@ -347,7 +347,7 @@ export function StickySaveBar({
   return (
     <>
       <div className="h-20 md:h-16" aria-hidden />
-      <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-wine/10 bg-white/95 px-4 py-2.5 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5">
+      <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-stone-200 bg-white/95 px-4 py-2.5 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5">
         <div className="mx-auto flex w-full max-w-[1600px] justify-end md:pl-[4.5rem]">
           <button
             type="submit"

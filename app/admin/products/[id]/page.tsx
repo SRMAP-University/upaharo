@@ -1,6 +1,7 @@
 'use client'
 
 import { Suspense, use, useEffect, useRef, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ProductCategoryFields from '@/components/ProductCategoryFields'
@@ -403,27 +404,21 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="w-full">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <Link href={productsListHref} className="text-wine hover:text-wine-deep text-sm font-semibold mb-2 inline-block">
-            ← Back to Products
-          </Link>
-          <h1 className="font-display text-2xl font-semibold text-ink md:text-3xl">Edit Product</h1>
-        </div>
-        <button
-          type="button"
-          onClick={applyCakeQuickSetup}
-          className="rounded-full border border-gold/40 bg-gold-soft/50 px-4 py-2 text-xs font-semibold text-ink hover:bg-gold-soft"
-        >
-          Apply Cake Starter
-        </button>
-      </div>
+      <AdminPageHeader
+        title="Edit product"
+        back={{ href: productsListHref, label: 'Products' }}
+        actions={
+          <button type="button" onClick={applyCakeQuickSetup} className={adminButtonClass.secondary}>
+            Apply cake starter
+          </button>
+        }
+      />
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-12 xl:items-start">
           {/* Left: details */}
           <div className="space-y-5 xl:col-span-7">
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Basics</h2>
               <div className="space-y-4">
                 <div>
@@ -433,7 +428,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
                 </div>
 
@@ -443,7 +438,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                     type="text"
                     value={formData.miniDescription}
                     onChange={(e) => setFormData({ ...formData, miniDescription: e.target.value })}
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     placeholder="Short one-line text shown above price"
                   />
                 </div>
@@ -456,11 +451,11 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                       rows={10}
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                       placeholder="# Product Highlights&#10;- Freshly baked&#10;- Same day delivery&#10;&#10;**Storage:** Keep refrigerated."
                     />
                   </div>
-                  <div className="rounded-xl border border-wine/10 bg-cream p-3">
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-gold">Preview</p>
                     <div
                       className="space-y-3 text-sm leading-7 text-ink/70 [&_a]:text-wine [&_h1]:text-xl [&_h2]:text-lg"
@@ -471,7 +466,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </section>
 
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6 space-y-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6 space-y-4">
               <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Category & pricing</h2>
               <ProductCategoryFields
                 categories={categoryGroups}
@@ -499,7 +494,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                     step="0.01"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
                 </div>
                 <div>
@@ -516,7 +511,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                       })
                     }
                     placeholder="Leave empty if not for B2B"
-                    className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                    className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                   />
                   <p className="mt-1 text-xs text-ink/40">Shown on /b2b for local businesses</p>
                 </div>
@@ -539,12 +534,12 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                       step={prepTimeUnit === 'days' ? '0.25' : '1'}
                       value={prepTimeInputValue}
                       onChange={(e) => handlePrepTimeValueChange(e.target.value)}
-                      className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
                     <select
                       value={prepTimeUnit}
                       onChange={(e) => setPrepTimeUnit(e.target.value as PrepTimeUnit)}
-                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="px-3 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     >
                       <option value="minutes">Minutes</option>
                       <option value="days">Days</option>
@@ -555,14 +550,14 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </section>
 
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6">
               <ProductSellerField
                 value={formData.sellerId}
                 onChange={(sellerId) => setFormData((prev) => ({ ...prev, sellerId }))}
               />
             </section>
 
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6">
               <ProductInventoryFields
                 emphasizeGrocery={storeSlug === 'grocery'}
                 values={{
@@ -577,7 +572,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
               />
             </section>
 
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6 space-y-4">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6 space-y-4">
               <ProductFoodTypeFields
                 showFoodTypeLabel={formData.showFoodTypeLabel}
                 isVeg={formData.isVeg}
@@ -607,8 +602,8 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
           </div>
 
           {/* Right: media */}
-          <div className="space-y-5 xl:col-span-5 xl:sticky xl:top-14 xl:self-start">
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+          <div className="space-y-5 xl:col-span-5 xl:sticky xl:top-[4.5rem] xl:self-start">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6">
               <h2 className="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Images</h2>
               <ProductGalleryFields
                 mainImage={formData.image}
@@ -630,12 +625,12 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                   type="text"
                   value={formData.imageAlt}
                   onChange={(e) => setFormData({ ...formData, imageAlt: e.target.value })}
-                  className="w-full px-4 py-2 border border-wine/15 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full px-4 py-2 border border-stone-300 rounded-xl bg-white text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
             </section>
 
-            <section className="rounded-[22px] border border-wine/10 bg-white p-5 md:p-6">
+            <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-ink/45">Variants</h2>
                 <button
@@ -647,33 +642,33 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                 </button>
               </div>
               {formData.variants.length === 0 && (
-                <p className="text-xs text-ink/55 border border-dashed border-wine/20 rounded-xl p-3">
+                <p className="text-xs text-ink/55 border border-dashed border-stone-300 rounded-xl p-3">
                   Add color or size variants and upload a specific image for each variant.
                 </p>
               )}
               {formData.variants.map((variant, index) => (
-                <div key={index} className="mb-3 rounded-xl border border-wine/10 p-3">
+                <div key={index} className="mb-3 rounded-xl border border-stone-200 p-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={variant.color}
                       onChange={(e) => updateVariant(index, 'color', e.target.value)}
                       placeholder="Color (e.g., Red)"
-                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="px-3 py-2 border border-stone-300 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
                     <input
                       type="text"
                       value={variant.size}
                       onChange={(e) => updateVariant(index, 'size', e.target.value)}
                       placeholder="Size (e.g., Large)"
-                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="px-3 py-2 border border-stone-300 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
                     <input
                       type="text"
                       value={variant.image}
                       onChange={(e) => updateVariant(index, 'image', e.target.value)}
                       placeholder="Variant Image URL"
-                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
+                      className="px-3 py-2 border border-stone-300 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
                     />
                     <input
                       type="number"
@@ -687,7 +682,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                         )
                       }
                       placeholder="Variant Price"
-                      className="px-3 py-2 border border-wine/15 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
+                      className="px-3 py-2 border border-stone-300 rounded-xl bg-white text-ink text-sm focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 sm:col-span-2"
                     />
                   </div>
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -730,7 +725,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
 
         <>
           <div className="h-24 md:h-20" aria-hidden />
-          <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-wine/10 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5 md:py-3.5">
+          <div className="fixed inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-40 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-10px_40px_-18px_rgba(43,29,34,0.35)] backdrop-blur supports-[backdrop-filter]:bg-white/90 md:bottom-0 md:px-5 md:py-3.5">
             <div className="mx-auto flex w-full max-w-[1600px] flex-wrap gap-3 md:pl-[4.5rem]">
               <button
                 type="submit"
@@ -741,7 +736,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
               </button>
               <Link
                 href={productsListHref}
-                className="border border-wine/20 bg-white hover:bg-cream text-wine px-6 py-2.5 rounded-full font-semibold"
+                className="border border-stone-300 bg-white hover:bg-stone-50 text-wine px-6 py-2.5 rounded-full font-semibold"
               >
                 Cancel
               </Link>

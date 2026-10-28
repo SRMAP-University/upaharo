@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import { useRouter } from 'next/navigation'
 
 interface Seller {
@@ -89,23 +90,20 @@ export default function SellersPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="hidden font-display text-2xl font-semibold text-ink md:block">Sellers Management</h1>
-          <p className="text-ink/55">Manage sellers and their products</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-wine text-white px-5 py-2.5 rounded-full font-semibold hover:bg-wine-deep"
-        >
-          + Add Seller
-        </button>
-      </div>
+    <div>
+      <AdminPageHeader
+        title="Sellers"
+        description="Manage sellers and their products"
+        actions={
+          <button onClick={() => setShowAddModal(true)} className={adminButtonClass.primary}>
+            + Add seller
+          </button>
+        }
+      />
 
-      <div className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
-        <table className="min-w-full divide-y divide-wine/10">
-          <thead className="bg-cream-deep/50">
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+        <table className="min-w-full divide-y divide-stone-200">
+          <thead className="bg-stone-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">
                 Business
@@ -130,9 +128,9 @@ export default function SellersPage() {
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-wine/10">
+          <tbody className="bg-white divide-y divide-stone-200">
             {sellers.map((seller) => (
-              <tr key={seller.id} className="hover:bg-cream/60">
+              <tr key={seller.id} className="hover:bg-stone-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
                     <div className="text-sm font-medium text-ink">
@@ -286,7 +284,7 @@ function SellerModal({
 
   return (
     <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[22px] p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <h2 className="font-display text-xl font-semibold text-ink mb-4">
           {seller ? 'Edit Seller' : 'Add New Seller'}
         </h2>
@@ -303,7 +301,7 @@ function SellerModal({
                 disabled={!!seller}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -316,7 +314,7 @@ function SellerModal({
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -330,7 +328,7 @@ function SellerModal({
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+977 9812345678"
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -344,7 +342,7 @@ function SellerModal({
                   required={!seller}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                  className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 />
               </div>
             )}
@@ -358,7 +356,7 @@ function SellerModal({
                 required
                 value={formData.businessName}
                 onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -374,7 +372,7 @@ function SellerModal({
                 step="0.1"
                 value={formData.commission}
                 onChange={(e) => setFormData({ ...formData, commission: parseFloat(e.target.value) })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -386,7 +384,7 @@ function SellerModal({
                 required
                 value={formData.businessAddress}
                 onChange={(e) => setFormData({ ...formData, businessAddress: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                 rows={2}
               />
             </div>
@@ -399,7 +397,7 @@ function SellerModal({
                 type="text"
                 value={formData.gstin}
                 onChange={(e) => setFormData({ ...formData, gstin: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -411,7 +409,7 @@ function SellerModal({
                 type="text"
                 value={formData.panNumber}
                 onChange={(e) => setFormData({ ...formData, panNumber: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -423,7 +421,7 @@ function SellerModal({
                 type="text"
                 value={formData.bankAccountName}
                 onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -435,7 +433,7 @@ function SellerModal({
                 type="text"
                 value={formData.bankAccountNo}
                 onChange={(e) => setFormData({ ...formData, bankAccountNo: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
 
@@ -447,7 +445,7 @@ function SellerModal({
                 type="text"
                 value={formData.ifscCode}
                 onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })}
-                className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
               />
             </div>
           </div>
@@ -456,7 +454,7 @@ function SellerModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-wine/20 bg-white text-wine rounded-full font-semibold hover:bg-cream"
+              className="px-5 py-2.5 border border-stone-300 bg-white text-wine rounded-full font-semibold hover:bg-stone-50"
             >
               Cancel
             </button>

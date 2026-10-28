@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import { formatPriceNoDecimals } from '@/lib/utils'
 
 interface User {
@@ -215,10 +216,7 @@ export default function AdminUsers() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Users</h1>
-        <p className="text-ink/55 mt-1">Manage customer and admin accounts</p>
-      </div>
+      <AdminPageHeader title="Customers" description="Manage customer and admin accounts" />
 
       {/* Search */}
       <div className="mb-6">
@@ -227,12 +225,12 @@ export default function AdminUsers() {
           placeholder="Search by name or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-3 py-2 md:px-4 md:py-3 border border-wine/15 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink text-sm"
+          className="w-full px-3 py-2 md:px-4 md:py-3 border border-stone-300 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink text-sm"
         />
       </div>
 
       {/* Users List */}
-      <div className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-ink/55">Loading users...</div>
         ) : filteredUsers.length === 0 ? (
@@ -241,7 +239,7 @@ export default function AdminUsers() {
           <>
             <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
-                <thead className="bg-cream-deep/50 border-b border-wine/10">
+                <thead className="bg-stone-50 border-b border-stone-200">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">User</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Contact</th>
@@ -252,9 +250,9 @@ export default function AdminUsers() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-wine/10">
+              <tbody className="divide-y divide-stone-200">
                 {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-cream/60">
+                  <tr key={user.id} className="hover:bg-stone-50">
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-rose-soft flex items-center justify-center">
@@ -315,7 +313,7 @@ export default function AdminUsers() {
               </tbody>
             </table>
             </div>
-            <div className="md:hidden divide-y divide-wine/10">
+            <div className="md:hidden divide-y divide-stone-200">
               {filteredUsers.map((user) => (
                 <div key={`${user.id}-mobile`} className="p-4">
                   <div className="flex items-center justify-between">
@@ -344,7 +342,7 @@ export default function AdminUsers() {
                   <div className="mt-3 flex gap-2">
                     <button
                       onClick={() => openUserDetails(user.id)}
-                      className="flex-1 rounded-xl border border-wine/15 px-3 py-2 text-xs font-semibold text-wine hover:bg-cream"
+                      className="flex-1 rounded-xl border border-stone-300 px-3 py-2 text-xs font-semibold text-wine hover:bg-stone-50"
                     >
                       View
                     </button>
@@ -364,15 +362,15 @@ export default function AdminUsers() {
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-[22px] border border-wine/10 p-4">
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
           <div className="text-sm text-ink/55 mb-1">Total Users</div>
           <div className="font-display text-2xl font-semibold text-ink">{users.length}</div>
         </div>
-        <div className="bg-white rounded-[22px] border border-wine/10 p-4">
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
           <div className="text-sm text-ink/55 mb-1">Admins</div>
           <div className="font-display text-2xl font-semibold text-purple-600">{users.filter(u => u.role === 'ADMIN').length}</div>
         </div>
-        <div className="bg-white rounded-[22px] border border-wine/10 p-4">
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
           <div className="text-sm text-ink/55 mb-1">Customers</div>
           <div className="font-display text-2xl font-semibold text-blue-600">{users.filter(u => u.role === 'CUSTOMER').length}</div>
         </div>
@@ -380,8 +378,8 @@ export default function AdminUsers() {
 
       {selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-white">
-            <div className="sticky top-0 flex items-center justify-between border-b border-wine/10 bg-white p-6">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white">
+            <div className="sticky top-0 flex items-center justify-between border-b border-stone-200 bg-white p-6">
               <div>
                 <h2 className="font-display text-2xl font-semibold text-ink">User Details</h2>
                 <p className="text-sm text-ink/55">{selectedUser.email}</p>
@@ -405,7 +403,7 @@ export default function AdminUsers() {
                 <div className="text-center text-ink/55">Loading details...</div>
               ) : (
                 <>
-                  <section className="rounded-xl border border-wine/10 bg-cream p-4">
+                  <section className="rounded-xl border border-stone-200 bg-stone-50 p-4">
                     <h3 className="mb-3 text-sm font-semibold text-ink">Profile</h3>
                     <div className="grid gap-3 text-sm md:grid-cols-2">
                       <div>
@@ -443,7 +441,7 @@ export default function AdminUsers() {
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-wine/10 bg-cream p-4">
+                  <section className="rounded-xl border border-stone-200 bg-stone-50 p-4">
                     <h3 className="mb-3 text-sm font-semibold text-ink">Wallet</h3>
                     <div className="mb-4 grid gap-3 text-sm sm:grid-cols-2">
                       <div>
@@ -469,7 +467,7 @@ export default function AdminUsers() {
                           value={walletAmount}
                           onChange={(e) => setWalletAmount(e.target.value)}
                           placeholder="e.g. 100"
-                          className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
                         />
                       </label>
                       <label className="text-sm">
@@ -480,7 +478,7 @@ export default function AdminUsers() {
                           onChange={(e) => setWalletNote(e.target.value)}
                           placeholder="Promo credit, support goodwill…"
                           maxLength={160}
-                          className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
+                          className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-ink outline-none focus:border-wine/40"
                         />
                       </label>
                       <div className="flex items-end">
@@ -505,13 +503,13 @@ export default function AdminUsers() {
                   <section>
                     <h3 className="mb-3 text-sm font-semibold text-ink">Saved Addresses</h3>
                     {selectedUser.addresses.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-wine/15 px-4 py-6 text-center text-sm text-ink/55">
+                      <div className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-ink/55">
                         No addresses saved.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {selectedUser.addresses.map((address) => (
-                          <div key={address.id} className="rounded-xl border border-wine/10 p-4 text-sm">
+                          <div key={address.id} className="rounded-xl border border-stone-200 p-4 text-sm">
                             <div className="font-medium text-ink">{address.label}</div>
                             <div className="text-ink/55">{address.street}</div>
                             {address.apartment ? <div className="text-ink/55">Apt: {address.apartment}</div> : null}
@@ -528,13 +526,13 @@ export default function AdminUsers() {
                   <section>
                     <h3 className="mb-3 text-sm font-semibold text-ink">Recent Orders</h3>
                     {selectedUser.orders.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-wine/15 px-4 py-6 text-center text-sm text-ink/55">
+                      <div className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-ink/55">
                         No orders placed yet.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {selectedUser.orders.map((order) => (
-                          <div key={order.id} className="rounded-xl border border-wine/10 p-4 text-sm">
+                          <div key={order.id} className="rounded-xl border border-stone-200 p-4 text-sm">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div>
                                 <div className="font-medium text-ink">{order.orderNumber}</div>
@@ -552,7 +550,7 @@ export default function AdminUsers() {
                               {order.address ? <div>{order.address.city}, {order.address.state}</div> : null}
                             </div>
                             {order.items.length > 0 ? (
-                              <div className="mt-3 space-y-2 rounded-xl border border-wine/10 bg-cream p-3">
+                              <div className="mt-3 space-y-2 rounded-xl border border-stone-200 bg-stone-50 p-3">
                                 {order.items.map((item) => (
                                   <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
                                     <div className="min-w-0">

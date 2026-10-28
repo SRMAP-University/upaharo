@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import AdminPageHeader from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { formatPriceNoDecimals } from '@/lib/utils'
@@ -144,17 +145,13 @@ export default function AdminOfflineOrderPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
-          <Link href="/admin/orders" className="text-sm font-medium text-wine hover:text-wine-deep">
-            ← Orders
-          </Link>
-          <h1 className="mt-2 font-display text-2xl font-semibold text-ink">New offline order</h1>
-          <p className="mt-1 text-sm text-ink/55">{channelHint}</p>
-        </div>
-      </div>
+      <AdminPageHeader
+        title="New offline order"
+        description={channelHint}
+        back={{ href: '/admin/orders', label: 'Orders' }}
+      />
 
-      <form onSubmit={submit} className="space-y-5 rounded-[22px] border border-wine/10 bg-white p-5">
+      <form onSubmit={submit} className="space-y-5 rounded-xl border border-stone-200 bg-white p-5">
         {error ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error}
@@ -171,7 +168,7 @@ export default function AdminOfflineOrderPage() {
                 if (item.id === 'WALK_IN') setFulfillmentType('PICKUP')
               }}
               className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                channel === item.id ? 'bg-wine text-white' : 'bg-cream text-ink/70 hover:bg-cream-deep'
+                channel === item.id ? 'bg-wine text-white' : 'bg-stone-50 text-ink/70 hover:bg-stone-100'
               }`}
             >
               {item.label}
@@ -185,7 +182,7 @@ export default function AdminOfflineOrderPage() {
             <input
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               placeholder="Optional for walk-in"
             />
           </label>
@@ -194,7 +191,7 @@ export default function AdminOfflineOrderPage() {
             <input
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               placeholder="98xxxxxxxx"
             />
           </label>
@@ -207,7 +204,7 @@ export default function AdminOfflineOrderPage() {
               type="button"
               onClick={() => setFulfillmentType(type)}
               className={`rounded-full px-3 py-1.5 text-sm font-semibold ${
-                fulfillmentType === type ? 'bg-blush-soft text-blush' : 'bg-cream text-ink/70'
+                fulfillmentType === type ? 'bg-blush-soft text-blush' : 'bg-stone-50 text-ink/70'
               }`}
             >
               {type === 'DELIVERY' ? 'Delivery' : 'Pickup'}
@@ -223,7 +220,7 @@ export default function AdminOfflineOrderPage() {
                 required
                 value={street}
                 onChange={(e) => setStreet(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm font-medium text-ink">
@@ -232,7 +229,7 @@ export default function AdminOfflineOrderPage() {
                 required
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               />
             </label>
             <label className="text-sm font-medium text-ink">
@@ -240,7 +237,7 @@ export default function AdminOfflineOrderPage() {
               <input
                 value={landmark}
                 onChange={(e) => setLandmark(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               />
             </label>
           </div>
@@ -258,25 +255,25 @@ export default function AdminOfflineOrderPage() {
                   void searchProducts()
                 }
               }}
-              className="w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+              className="w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
               placeholder="Search catalog"
             />
             <button
               type="button"
               onClick={() => void searchProducts()}
-              className="rounded-xl bg-cream px-4 text-sm font-semibold text-ink"
+              className="rounded-xl bg-stone-50 px-4 text-sm font-semibold text-ink"
             >
               {searching ? '…' : 'Search'}
             </button>
           </div>
           {results.length > 0 ? (
-            <div className="mt-2 divide-y divide-wine/10 rounded-xl border border-wine/10">
+            <div className="mt-2 divide-y divide-stone-200 rounded-xl border border-stone-200">
               {results.map((product) => (
                 <button
                   key={product.id}
                   type="button"
                   onClick={() => addProduct(product)}
-                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-cream"
+                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-stone-50"
                 >
                   <span>{product.name}</span>
                   <span className="font-semibold">{formatPriceNoDecimals(unitPrice(product))}</span>
@@ -287,7 +284,7 @@ export default function AdminOfflineOrderPage() {
         </div>
 
         {lines.length > 0 ? (
-          <div className="divide-y divide-wine/10 rounded-xl border border-wine/10">
+          <div className="divide-y divide-stone-200 rounded-xl border border-stone-200">
             {lines.map((line) => (
               <div key={line.productId} className="flex items-center gap-3 px-3 py-2 text-sm">
                 <span className="flex-1">{line.name}</span>
@@ -304,7 +301,7 @@ export default function AdminOfflineOrderPage() {
                         .filter((item) => item.quantity > 0)
                     )
                   }
-                  className="h-7 w-7 rounded-full bg-cream"
+                  className="h-7 w-7 rounded-full bg-stone-50"
                 >
                   −
                 </button>
@@ -320,7 +317,7 @@ export default function AdminOfflineOrderPage() {
                       )
                     )
                   }
-                  className="h-7 w-7 rounded-full bg-cream"
+                  className="h-7 w-7 rounded-full bg-stone-50"
                 >
                   +
                 </button>
@@ -338,7 +335,7 @@ export default function AdminOfflineOrderPage() {
             <input
               value={discount}
               onChange={(e) => setDiscount(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm font-medium text-ink">
@@ -347,7 +344,7 @@ export default function AdminOfflineOrderPage() {
               disabled={fulfillmentType === 'PICKUP'}
               value={fulfillmentType === 'PICKUP' ? '0' : deliveryFee}
               onChange={(e) => setDeliveryFee(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm disabled:opacity-50"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm disabled:opacity-50"
             />
           </label>
           <label className="text-sm font-medium text-ink">
@@ -355,7 +352,7 @@ export default function AdminOfflineOrderPage() {
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as 'CASH' | 'ONLINE' | 'CARD')}
-              className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
             >
               <option value="CASH">Cash</option>
               <option value="ONLINE">Online / UPI</option>
@@ -375,12 +372,12 @@ export default function AdminOfflineOrderPage() {
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
-            className="mt-1 w-full rounded-xl border border-wine/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm"
             placeholder="Optional — e.g. Instagram DM, promised time"
           />
         </label>
 
-        <div className="flex items-center justify-between border-t border-wine/10 pt-4">
+        <div className="flex items-center justify-between border-t border-stone-200 pt-4">
           <p className="text-lg font-bold text-wine">{formatPriceNoDecimals(total)}</p>
           <button
             type="submit"

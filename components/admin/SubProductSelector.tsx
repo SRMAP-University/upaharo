@@ -105,7 +105,7 @@ export default function SubProductSelector({
   }
 
   return (
-    <div className="rounded-xl border border-wine/10 bg-cream/70 p-4 space-y-4">
+    <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-4">
       <div>
         <h3 className="text-sm font-semibold text-ink">{title}</h3>
         <p className="text-xs text-ink/55 mt-1">{hint}</p>
@@ -116,7 +116,7 @@ export default function SubProductSelector({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={searchPlaceholder}
-        className="w-full rounded-xl border border-wine/15 bg-white px-4 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+        className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
       />
 
       <div className="grid gap-2 md:grid-cols-2">
@@ -125,7 +125,7 @@ export default function SubProductSelector({
             key={product.id}
             type="button"
             onClick={() => addSubProduct(product.id)}
-            className="flex items-center gap-3 rounded-xl border border-wine/10 bg-white p-2 text-left hover:border-wine/30"
+            className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white p-2 text-left hover:border-wine/30"
           >
             <img src={resolveImageUrl(product.image)} alt={product.name} className="h-12 w-12 rounded-lg object-cover" />
             <div className="min-w-0 flex-1">
@@ -140,12 +140,12 @@ export default function SubProductSelector({
       <div className="space-y-2">
         <p className="text-xs font-semibold text-ink/70">Selected products ({selectedIds.length})</p>
         {selectedIds.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-wine/20 bg-white px-3 py-3 text-xs text-ink/55">
+          <div className="rounded-xl border border-dashed border-stone-300 bg-white px-3 py-3 text-xs text-ink/55">
             No sub-products selected.
           </div>
         ) : (
           selectedIds.map((id) => (
-            <div key={id} className="flex items-center justify-between rounded-xl border border-wine/10 bg-white px-3 py-2">
+            <div key={id} className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-ink">{selectedProducts[id]?.name || id}</p>
                 {selectedProducts[id] ? (

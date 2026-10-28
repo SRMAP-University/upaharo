@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
+import Link from 'next/link'
 import { formatPriceNoDecimals, formatTime } from '@/lib/utils'
 
 interface Address {
@@ -375,10 +377,10 @@ export default function AdminOrders() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="hidden font-display text-2xl font-semibold text-ink md:block md:text-3xl">Orders</h1>
-          <p className="text-ink/55 mt-1">
+      <AdminPageHeader
+        title="Orders"
+        description={
+          <>
             Manage customer orders and deliveries
             {selectedStoreName ? (
               <>
@@ -386,15 +388,14 @@ export default function AdminOrders() {
                 for <span className="font-semibold text-ink">{selectedStoreName}</span>
               </>
             ) : null}
-          </p>
-        </div>
-        <a
-          href="/admin/orders/offline"
-          className="rounded-full bg-wine px-4 py-2 text-sm font-bold text-white hover:bg-wine-deep"
-        >
-          New offline order
-        </a>
-      </div>
+          </>
+        }
+        actions={
+          <Link href="/admin/orders/offline" className={adminButtonClass.primary}>
+            + New offline order
+          </Link>
+        }
+      />
 
       {loadError && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -422,12 +423,12 @@ export default function AdminOrders() {
           placeholder="Search by order number, customer name or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-3 py-2 md:px-4 md:py-3 border border-wine/15 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink text-sm"
+          className="w-full px-3 py-2 md:px-4 md:py-3 border border-stone-300 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink text-sm"
         />
       </div>
 
       {/* Orders List */}
-      <div className="bg-white rounded-[22px] border border-wine/10 overflow-hidden">
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-ink/55">Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
@@ -441,7 +442,7 @@ export default function AdminOrders() {
           <>
             <div className="overflow-x-auto hidden md:block">
               <table className="w-full">
-                <thead className="bg-cream-deep/50 border-b border-wine/10">
+                <thead className="bg-stone-50 border-b border-stone-200">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Order</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Store</th>
@@ -454,9 +455,9 @@ export default function AdminOrders() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-ink/55 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-wine/10">
+              <tbody className="divide-y divide-stone-200">
                 {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-cream/60">
+                  <tr key={order.id} className="hover:bg-stone-50">
                     <td className="px-4 py-4">
                       <div className="font-medium text-ink">
                         {order.orderNumber}
@@ -534,12 +535,12 @@ export default function AdminOrders() {
               </tbody>
             </table>
             </div>
-            <div className="md:hidden divide-y divide-wine/10">
+            <div className="md:hidden divide-y divide-stone-200">
               {filteredOrders.map((order) => (
                 <button
                   key={`${order.id}-mobile`}
                   onClick={() => setSelectedOrder(order)}
-                  className="w-full text-left p-4 hover:bg-cream/60"
+                  className="w-full text-left p-4 hover:bg-stone-50"
                 >
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-semibold text-ink">
@@ -569,8 +570,8 @@ export default function AdminOrders() {
       {/* Order Details Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-ink/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[22px] max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-wine/10 p-6 flex items-center justify-between">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-stone-200 p-6 flex items-center justify-between">
               <div>
                 <h2 className="font-display text-2xl font-semibold text-ink">Order Details</h2>
                 <p className="text-ink/55">
@@ -593,7 +594,7 @@ export default function AdminOrders() {
               {/* Customer Info */}
               <div>
                 <h3 className="font-display font-semibold text-ink mb-2">Customer Information</h3>
-                <div className="bg-cream rounded-xl p-4 space-y-1">
+                <div className="bg-stone-50 rounded-xl p-4 space-y-1">
                   <p className="text-ink"><span className="font-medium">Name:</span> {selectedOrder.user.name}</p>
                   <p className="text-ink"><span className="font-medium">Email:</span> {selectedOrder.user.email}</p>
                   {selectedOrder.user.phone && (
@@ -609,7 +610,7 @@ export default function AdminOrders() {
               {selectedOrder.fulfillmentType === 'PICKUP' && (
                 <div>
                   <h3 className="font-display font-semibold text-ink mb-2">Pickup Location</h3>
-                  <div className="bg-cream rounded-xl p-4">
+                  <div className="bg-stone-50 rounded-xl p-4">
                     <div className="flex items-start gap-3">
                       <div className="text-2xl">🏪</div>
                       <div className="flex-1">
@@ -623,7 +624,7 @@ export default function AdminOrders() {
                     </div>
                     {Number.isFinite(Number(selectedOrder.pickupLatitude)) &&
                     Number.isFinite(Number(selectedOrder.pickupLongitude)) ? (
-                      <div className="mt-3 rounded-xl overflow-hidden border border-wine/10">
+                      <div className="mt-3 rounded-xl overflow-hidden border border-stone-200">
                         <iframe
                           width="100%"
                           height="200"
@@ -633,19 +634,19 @@ export default function AdminOrders() {
                           referrerPolicy="no-referrer-when-downgrade"
                           src={`https://www.google.com/maps?q=${selectedOrder.pickupLatitude},${selectedOrder.pickupLongitude}&z=16&output=embed`}
                         />
-                        <div className="border-t border-wine/10 bg-white p-2">
+                        <div className="border-t border-stone-200 bg-white p-2">
                           <a
                             href={`https://www.google.com/maps/search/?api=1&query=${selectedOrder.pickupLatitude},${selectedOrder.pickupLongitude}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-cream"
+                            className="block rounded-xl border border-stone-300 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-stone-50"
                           >
                             📍 Open Map
                           </a>
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-3 rounded-xl border border-dashed border-wine/15 px-4 py-3 text-xs text-ink/55">
+                      <div className="mt-3 rounded-xl border border-dashed border-stone-300 px-4 py-3 text-xs text-ink/55">
                         No map coordinates saved for this pickup point.
                       </div>
                     )}
@@ -657,7 +658,7 @@ export default function AdminOrders() {
               {selectedOrder.address && (
                 <div>
                   <h3 className="font-display font-semibold text-ink mb-2">Delivery Address</h3>
-                  <div className="bg-cream rounded-xl p-4">
+                  <div className="bg-stone-50 rounded-xl p-4">
                     <div className="flex items-start gap-3 mb-3">
                       <div className="text-2xl">📍</div>
                       <div className="flex-1">
@@ -676,7 +677,7 @@ export default function AdminOrders() {
                     </div>
                     {/* Google Maps Embed */}
                     {hasSelectedOrderCoords ? (
-                      <div className="mt-3 rounded-xl overflow-hidden border border-wine/10">
+                      <div className="mt-3 rounded-xl overflow-hidden border border-stone-200">
                         <iframe
                           width="100%"
                           height="200"
@@ -686,12 +687,12 @@ export default function AdminOrders() {
                           referrerPolicy="no-referrer-when-downgrade"
                           src={`https://www.google.com/maps?q=${selectedOrder.address.latitude},${selectedOrder.address.longitude}&z=15&output=embed`}
                         />
-                        <div className="grid grid-cols-2 gap-2 border-t border-wine/10 bg-white p-2">
+                        <div className="grid grid-cols-2 gap-2 border-t border-stone-200 bg-white p-2">
                           <a
                             href={`https://www.google.com/maps/search/?api=1&query=${selectedOrder.address.latitude},${selectedOrder.address.longitude}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="rounded-xl border border-wine/15 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-cream"
+                            className="rounded-xl border border-stone-300 px-3 py-2 text-center text-xs font-semibold text-ink/70 hover:bg-stone-50"
                           >
                             📍 Open Map
                           </a>
@@ -706,7 +707,7 @@ export default function AdminOrders() {
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-3 rounded-xl border border-dashed border-wine/15 px-4 py-3 text-xs text-ink/55">
+                      <div className="mt-3 rounded-xl border border-dashed border-stone-300 px-4 py-3 text-xs text-ink/55">
                         No map coordinates saved for this address.
                       </div>
                     )}
@@ -717,7 +718,7 @@ export default function AdminOrders() {
               {/* Gift Details */}
               <div>
                 <h3 className="font-display font-semibold text-ink mb-2">Gift Details</h3>
-                <div className="bg-cream rounded-xl p-4 space-y-2">
+                <div className="bg-stone-50 rounded-xl p-4 space-y-2">
                   <p className="text-ink">
                     <span className="font-medium">Order Type:</span>{' '}
                     {selectedOrder.isWholesale
@@ -786,7 +787,7 @@ export default function AdminOrders() {
                 <h3 className="font-display font-semibold text-ink mb-2">Order Items</h3>
                 <div className="space-y-2">
                   {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 bg-cream rounded-xl p-3">
+                    <div key={item.id} className="flex items-center gap-3 bg-stone-50 rounded-xl p-3">
                       <div className="text-2xl">🎁</div>
                       <div className="flex-1">
                         <p className="font-medium text-ink">{item.product.name}</p>
@@ -799,7 +800,7 @@ export default function AdminOrders() {
               </div>
 
               {/* Order Summary */}
-              <div className="border-t border-wine/10 pt-4">
+              <div className="border-t border-stone-200 pt-4">
                 <div className="mb-4 rounded-xl border border-gold/30 bg-gold-soft/40 p-3">
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gold">
                     Estimated Delivery Time
@@ -811,12 +812,12 @@ export default function AdminOrders() {
                       step={estimatedTimeUnit === 'days' ? '0.5' : '1'}
                       value={estimatedTimeDraft}
                       onChange={(event) => setEstimatedTimeDraft(event.target.value)}
-                      className="w-full rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     />
                     <select
                       value={estimatedTimeUnit}
                       onChange={(event) => handleEstimatedTimeUnitChange(event.target.value as EstimatedTimeUnit)}
-                      className="rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
+                      className="rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-ink focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40"
                     >
                       <option value="minutes">Minutes</option>
                       <option value="days">Days</option>
@@ -860,7 +861,7 @@ export default function AdminOrders() {
                 {(selectedOrder.status === 'READY' ||
                   selectedOrder.status === 'OUT_FOR_DELIVERY') &&
                 selectedOrder.fulfillmentType !== 'PICKUP' ? (
-                  <div className="mb-4 rounded-xl border border-wine/10 bg-wine/[0.03] p-3">
+                  <div className="mb-4 rounded-xl border border-stone-200 bg-wine/[0.03] p-3">
                     <p className="mb-2 text-sm font-medium text-ink/70">
                       Assign delivery partner
                     </p>
@@ -880,7 +881,7 @@ export default function AdminOrders() {
                     <div className="flex flex-wrap gap-2">
                       <select
                         disabled={assigningRider}
-                        className="flex-1 rounded-xl border border-wine/15 bg-white px-3 py-2 text-sm"
+                        className="flex-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm"
                         defaultValue=""
                         onChange={(e) => {
                           const v = e.target.value
@@ -903,7 +904,7 @@ export default function AdminOrders() {
                           onClick={() =>
                             void assignRider(selectedOrder.id, null)
                           }
-                          className="rounded-xl border border-wine/20 px-3 py-2 text-sm text-wine"
+                          className="rounded-xl border border-stone-300 px-3 py-2 text-sm text-wine"
                         >
                           Unassign
                         </button>
@@ -923,7 +924,7 @@ export default function AdminOrders() {
                     <span className="text-ink">{formatPriceNoDecimals(selectedOrder.giftWrap.price || 0)}</span>
                   </div>
                 ) : null}
-                <div className="flex justify-between items-center text-lg font-bold border-t border-wine/10 pt-4">
+                <div className="flex justify-between items-center text-lg font-bold border-t border-stone-200 pt-4">
                   <span className="text-ink">Total Amount:</span>
                   <span className="text-wine">{formatPriceNoDecimals(selectedOrder.total || 0)}</span>
                 </div>
