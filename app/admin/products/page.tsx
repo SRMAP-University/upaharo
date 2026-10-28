@@ -7,9 +7,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { resolveImageUrl } from '@/lib/image-url'
 import { formatPriceCompact } from '@/lib/utils'
 import {
+  ADMIN_PRODUCTS_PAGE_SIZES,
   adminProductEditHref,
   adminProductsListPath,
+  normalizeAdminProductsPageSize,
 } from '@/lib/admin-products-list'
+import ProductActiveSwitch from '@/components/admin/ProductActiveSwitch'
 
 interface Product {
   id: string
@@ -35,6 +38,30 @@ function offerLabel(product: Product) {
   return { offer: formatPriceCompact(offer), percent: `${Math.round(discount * 100) / 100}% off` }
 }
 
+function PerPageSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: number
+  onChange: (perPage: number) => void
+  className: string
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-ink/70">
+      Show
+      <select value={value} onChange={(e) => onChange(Number(e.target.value))} className={className}>
+        {ADMIN_PRODUCTS_PAGE_SIZES.map((size) => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+      per page
+    </label>
+  )
+}
+
 function stockLabel(product: Product) {
   if (!product.trackStock) return null
   const qty = product.stockQty ?? 0
@@ -46,6 +73,7 @@ function AdminProductsContent() {
   const router = useRouter()
   const urlParams = useSearchParams()
   const urlPage = Math.max(1, Number.parseInt(urlParams.get('page') ?? '1', 10) || 1)
+  const urlPerPage = normalizeAdminProductsPageSize(urlParams.get('perPage'))
   const urlSearch = urlParams.get('search') ?? ''
   const urlCategory = urlParams.get('category') ?? 'all'
   const urlAvailability = urlParams.get('availability') ?? 'all'
@@ -74,19 +102,22 @@ function AdminProductsContent() {
   const [bulkCategory, setBulkCategory] = useState('')
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
-  const itemsPerPage = 50
+  const [itemsPerPage, setItemsPerPage] = useState(urlPerPage)
+  // Products whose Active switch is saving.
+  const [savingIds, setSavingIds] = useState<string[]>([])
   const skipUrlSync = useRef(true)
 
   const listFilters = useMemo(
     () => ({
       page: currentPage,
+      perPage: itemsPerPage,
       search: debouncedSearch,
       category,
       availability,
       sort,
       archived: showArchived,
     }),
-    [availability, category, currentPage, debouncedSearch, showArchived, sort]
+    [availability, category, currentPage, debouncedSearch, itemsPerPage, showArchived, sort]
   )
 
   // Seller names for the "Seller" line on each product.
@@ -107,15 +138,17 @@ function AdminProductsContent() {
     return () => window.clearTimeout(timer)
   }, [searchQuery])
 
-  const prevFilterKey = useRef(`${debouncedSearch}|${category}|${availability}|${sort}|${showArchived}`)
+  const prevFilterKey = useRef(
+    `${debouncedSearch}|${category}|${availability}|${sort}|${showArchived}|${itemsPerPage}`
+  )
   useEffect(() => {
-    const key = `${debouncedSearch}|${category}|${availability}|${sort}|${showArchived}`
+    const key = `${debouncedSearch}|${category}|${availability}|${sort}|${showArchived}|${itemsPerPage}`
     if (prevFilterKey.current !== key) {
       prevFilterKey.current = key
       setCurrentPage(1)
       setSelectedIds([])
     }
-  }, [availability, category, debouncedSearch, showArchived, sort])
+  }, [availability, category, debouncedSearch, itemsPerPage, showArchived, sort])
 
   useEffect(() => {
     if (skipUrlSync.current) {
@@ -246,16 +279,32 @@ function AdminProductsContent() {
     }
   }
 
-  const toggleAvailability = async (productId: string, currentStatus: boolean) => {
+  // Flip the row straight away and save in the background; undo if the save fails.
+  // The row stays in place (no reload) so a mistaken click is easy to switch back.
+  const setProductActive = async (product: Product, isAvailable: boolean) => {
+    const setRow = (value: boolean) =>
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, isAvailable: value } : p)))
+    setRow(isAvailable)
+    setSavingIds((prev) => [...prev, product.id])
+    setMessage('')
     try {
-      const res = await fetch(`/api/admin/products/${productId}`, {
+      const res = await fetch(`/api/admin/products/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isAvailable: !currentStatus }),
+        body: JSON.stringify({ isAvailable }),
       })
-      if (res.ok) void fetchProducts()
+      if (!res.ok) throw new Error(String(res.status))
+      setMessage(
+        isAvailable
+          ? `“${product.name}” is active and shown in the shop.`
+          : `“${product.name}” is inactive and hidden from the shop.`
+      )
     } catch (error) {
       console.error('Error updating product:', error)
+      setRow(!isAvailable)
+      setMessage(`Couldn’t ${isAvailable ? 'activate' : 'deactivate'} “${product.name}”. Please try again.`)
+    } finally {
+      setSavingIds((prev) => prev.filter((id) => id !== product.id))
     }
   }
 
@@ -268,7 +317,7 @@ function AdminProductsContent() {
         setMessage(data?.error || 'Failed to duplicate product')
         return
       }
-      setMessage('Product duplicated (set to unavailable).')
+      setMessage('Product duplicated (set to inactive).')
       void fetchProducts()
     } catch (error) {
       console.error(error)
@@ -312,7 +361,7 @@ function AdminProductsContent() {
         setMessage(data?.error || 'Failed to restore product')
         return
       }
-      setMessage('Product restored (unavailable until you enable it).')
+      setMessage('Product restored (inactive until you activate it).')
       void fetchProducts()
     } catch {
       setMessage('Failed to restore product')
@@ -444,9 +493,9 @@ function AdminProductsContent() {
           className={selectClass}
           disabled={showArchived}
         >
-          <option value="all">All availability</option>
-          <option value="available">Available</option>
-          <option value="unavailable">Unavailable</option>
+          <option value="all">Active and inactive</option>
+          <option value="available">Active only</option>
+          <option value="unavailable">Inactive only</option>
         </select>
         <select value={sort} onChange={(e) => setSort(e.target.value)} className={selectClass}>
           <option value="newest">Newest</option>
@@ -458,15 +507,18 @@ function AdminProductsContent() {
         </select>
       </div>
 
-      <label className="mb-4 flex items-center gap-2 text-sm text-ink/70">
-        <input
-          type="checkbox"
-          checked={showArchived}
-          onChange={(e) => setShowArchived(e.target.checked)}
-          className="rounded border-wine/30"
-        />
-        Show archived products
-      </label>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-sm text-ink/70">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+            className="rounded border-wine/30"
+          />
+          Show archived products
+        </label>
+        <PerPageSelect value={itemsPerPage} onChange={setItemsPerPage} className={selectClass} />
+      </div>
 
       {loadError && (
         <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -593,16 +645,12 @@ function AdminProductsContent() {
                               Archived
                             </span>
                           ) : (
-                            <button
-                              onClick={() => toggleAvailability(product.id, product.isAvailable)}
-                              className={`px-3 py-1 text-xs font-medium rounded-full ${
-                                product.isAvailable
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}
-                            >
-                              {product.isAvailable ? 'Available' : 'Unavailable'}
-                            </button>
+                            <ProductActiveSwitch
+                              active={product.isAvailable}
+                              busy={savingIds.includes(product.id)}
+                              label={product.name}
+                              onChange={(next) => void setProductActive(product, next)}
+                            />
                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -707,16 +755,12 @@ function AdminProductsContent() {
                         ) : null}
                       </div>
                       {!showArchived && (
-                        <button
-                          onClick={() => toggleAvailability(product.id, product.isAvailable)}
-                          className={`px-2 py-1 text-[10px] font-semibold rounded-full ${
-                            product.isAvailable
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {product.isAvailable ? 'Available' : 'Unavailable'}
-                        </button>
+                        <ProductActiveSwitch
+                          active={product.isAvailable}
+                          busy={savingIds.includes(product.id)}
+                          label={product.name}
+                          onChange={(next) => void setProductActive(product, next)}
+                        />
                       )}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
@@ -756,11 +800,18 @@ function AdminProductsContent() {
               })}
             </div>
 
-            {totalPages > 1 && (
-              <div className="px-4 md:px-6 py-4 border-t border-wine/10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="text-xs md:text-sm text-ink/55">
+            <div className="px-4 md:px-6 py-4 border-t border-wine/10 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-3 text-xs md:text-sm text-ink/55">
+                <span>
                   Showing {pageStart} to {pageEnd} of {totalProducts.toLocaleString()} products
-                </div>
+                </span>
+                <PerPageSelect
+                  value={itemsPerPage}
+                  onChange={setItemsPerPage}
+                  className="rounded-xl border border-wine/15 bg-white px-2 py-1.5 text-xs md:text-sm text-ink focus:outline-none focus:ring-2 focus:ring-wine/15"
+                />
+              </div>
+              {totalPages > 1 && (
                 <div className="flex flex-wrap gap-2">
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
@@ -780,8 +831,8 @@ function AdminProductsContent() {
                     Next
                   </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </>
         )}
       </div>
@@ -808,7 +859,7 @@ function AdminProductsContent() {
                     onClick={() => runBulk('enable')}
                     className="rounded-full bg-green-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
-                    Enable
+                    Activate
                   </button>
                   <button
                     type="button"
@@ -816,7 +867,7 @@ function AdminProductsContent() {
                     onClick={() => runBulk('disable')}
                     className="rounded-full bg-ink/70 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                   >
-                    Disable
+                    Deactivate
                   </button>
                   <div className="flex items-center gap-1">
                     <select
