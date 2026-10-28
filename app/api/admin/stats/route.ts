@@ -28,52 +28,44 @@ export async function GET(request: Request) {
     const startOfToday = new Date(Math.floor((Date.now() + NEPAL_OFFSET_MS) / DAY_MS) * DAY_MS - NEPAL_OFFSET_MS)
     const weekStart = new Date(startOfToday.getTime() - 6 * DAY_MS)
 
-    const [
-      totalOrders,
-      revenue,
-      totalProducts,
-      activeProducts,
-      totalUsers,
-      pendingOrders,
-      inProgressOrders,
-      weekOrders,
-      recentOrders,
-      outOfStock,
-    ] = await Promise.all([
-      prisma.order.count({ where: orderWhere }),
-      prisma.order.aggregate({ where: { ...orderWhere, status: { not: 'CANCELLED' } }, _sum: { total: true } }),
-      prisma.product.count({ where: liveProduct }),
-      prisma.product.count({ where: { ...liveProduct, isAvailable: true } }),
-      prisma.user.count({
-        where: {
-          role: { in: ['CUSTOMER', 'ADMIN'] },
-          orders: { some: { storeId } },
-        },
-      }),
-      prisma.order.count({ where: { ...orderWhere, status: 'PENDING' } }),
-      prisma.order.count({ where: { ...orderWhere, status: { in: [...IN_PROGRESS] } } }),
-      prisma.order.findMany({
-        where: { ...orderWhere, createdAt: { gte: weekStart } },
-        select: { total: true, status: true, createdAt: true },
-      }),
-      prisma.order.findMany({
-        where: orderWhere,
-        take: 8,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          orderNumber: true,
-          total: true,
-          status: true,
-          createdAt: true,
-          user: { select: { name: true } },
-        },
-      }),
-      // Older databases may not have stock columns yet.
-      prisma.product
-        .count({ where: { ...liveProduct, isAvailable: true, trackStock: true, stockQty: { lte: 0 } } })
-        .catch(() => null),
-    ])
+    // One query at a time: the database pooler only allows a few connections
+    // (session mode, 15 in all), and ten at once was more than it had free.
+    const totalOrders = await prisma.order.count({ where: orderWhere })
+    const revenue = await prisma.order.aggregate({
+      where: { ...orderWhere, status: { not: 'CANCELLED' } },
+      _sum: { total: true },
+    })
+    const totalProducts = await prisma.product.count({ where: liveProduct })
+    const activeProducts = await prisma.product.count({ where: { ...liveProduct, isAvailable: true } })
+    const totalUsers = await prisma.user.count({
+      where: {
+        role: { in: ['CUSTOMER', 'ADMIN'] },
+        orders: { some: { storeId } },
+      },
+    })
+    const pendingOrders = await prisma.order.count({ where: { ...orderWhere, status: 'PENDING' } })
+    const inProgressOrders = await prisma.order.count({ where: { ...orderWhere, status: { in: [...IN_PROGRESS] } } })
+    const weekOrders = await prisma.order.findMany({
+      where: { ...orderWhere, createdAt: { gte: weekStart } },
+      select: { total: true, status: true, createdAt: true },
+    })
+    const recentOrders = await prisma.order.findMany({
+      where: orderWhere,
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        orderNumber: true,
+        total: true,
+        status: true,
+        createdAt: true,
+        user: { select: { name: true } },
+      },
+    })
+    // Older databases may not have stock columns yet.
+    const outOfStock = await prisma.product
+      .count({ where: { ...liveProduct, isAvailable: true, trackStock: true, stockQty: { lte: 0 } } })
+      .catch(() => null)
 
     const days = Array.from({ length: 7 }, (_, i) => {
       const start = new Date(weekStart.getTime() + i * DAY_MS)
@@ -107,6 +99,7 @@ export async function GET(request: Request) {
       recentOrders: recentOrders.map(({ user, ...order }) => ({ ...order, customerName: user?.name || null })),
     })
   } catch (error: any) {
+    console.error('Error fetching admin stats:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to fetch stats' },
       { status: 500 }

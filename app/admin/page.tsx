@@ -71,24 +71,38 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [failed, setFailed] = useState(false)
 
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
     let cancelled = false
-    fetch('/api/admin/stats', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
-      .then((data) => {
-        if (!cancelled) setStats(data)
-      })
-      .catch((error) => {
-        console.error('Error fetching stats:', error)
-        if (!cancelled) setFailed(true)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+    let retryTimer: number | undefined
+    setLoading(true)
+    setFailed(false)
+    const load = (attempt: number) =>
+      fetch('/api/admin/stats', { cache: 'no-store' })
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+        .then((data) => {
+          if (cancelled) return
+          setStats(data)
+          setLoading(false)
+        })
+        .catch((error) => {
+          if (cancelled) return
+          // A busy database can refuse for a moment; try once more before showing the error.
+          if (attempt === 0) {
+            retryTimer = window.setTimeout(() => void load(1), 1500)
+            return
+          }
+          console.error('Error fetching stats:', error)
+          setFailed(true)
+          setLoading(false)
+        })
+    void load(0)
     return () => {
       cancelled = true
+      window.clearTimeout(retryTimer)
     }
-  }, [])
+  }, [reloadKey])
 
   const firstName = (user?.name || '').trim().split(/\s+/)[0]
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
@@ -118,8 +132,15 @@ export default function AdminDashboard() {
       </div>
 
       {failed ? (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          The dashboard numbers couldn’t load. Refresh the page to try again.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>The dashboard numbers couldn’t load.</span>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:border-red-300"
+          >
+            Try again
+          </button>
         </div>
       ) : null}
 
