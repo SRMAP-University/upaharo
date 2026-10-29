@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { allowedFoodTypeLabel } from '@/lib/food-products'
 import { prisma } from '@/lib/prisma'
 import { requireMerchant } from '@/lib/partner-auth'
 import {
@@ -79,7 +80,7 @@ export async function PATCH(
         id,
         ...(partner.access.fullAccess ? {} : { sellerId: partner.sellerId }),
       },
-      select: { id: true },
+      select: { id: true, category: true, name: true, showFoodTypeLabel: true },
     })
     if (!existing) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
@@ -98,8 +99,12 @@ export async function PATCH(
     if (body.variants !== undefined) data.variants = normalizeVariants(body.variants)
     if (body.imageAlt !== undefined) data.imageAlt = body.imageAlt
     if (body.isAvailable !== undefined) data.isAvailable = Boolean(body.isAvailable)
-    if (body.showFoodTypeLabel !== undefined) {
-      data.showFoodTypeLabel = body.showFoodTypeLabel === true
+    if (body.showFoodTypeLabel !== undefined || body.category !== undefined || body.name !== undefined) {
+      // Veg / non-veg badge only on food.
+      data.showFoodTypeLabel = allowedFoodTypeLabel(
+        body.showFoodTypeLabel !== undefined ? body.showFoodTypeLabel === true : existing.showFoodTypeLabel,
+        { category: body.category ?? existing.category, name: body.name ?? existing.name }
+      )
     }
     if (body.isVeg !== undefined) data.isVeg = body.isVeg !== false
     if (body.prepTime !== undefined) data.prepTime = body.prepTime

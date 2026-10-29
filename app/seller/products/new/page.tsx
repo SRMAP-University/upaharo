@@ -510,8 +510,10 @@ export default function NewProductPage() {
           <div className="space-y-4">
             <ProductFoodTypeFields
               showFoodTypeLabel={formData.showFoodTypeLabel}
+              category={formData.category}
+              name={formData.name}
               isVeg={formData.isVeg}
-              onShowFoodTypeLabelChange={(value) => setFormData({ ...formData, showFoodTypeLabel: value })}
+              onShowFoodTypeLabelChange={(value) => setFormData((prev) => ({ ...prev, showFoodTypeLabel: value }))}
               onIsVegChange={(value) => setFormData({ ...formData, isVeg: value })}
             />
             <label className="flex items-center gap-2">

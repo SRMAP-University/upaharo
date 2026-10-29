@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { allowedFoodTypeLabel } from '@/lib/food-products'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, appendArchivedProductTag, sanitizeProductTags } from '@/lib/product-archive'
 import { findFirstProductCompat, withProductWriteCompatibility } from '@/lib/product-db'
@@ -106,6 +107,21 @@ export async function PATCH(
         return NextResponse.json({ error: 'Invalid product category' }, { status: 400 })
       }
       data.category = category
+    }
+
+    // Veg / non-veg badge only on food; a move to a non-food category turns it off.
+    if (body?.showFoodTypeLabel !== undefined || body?.category !== undefined || body?.name !== undefined) {
+      const current = await prisma.product.findFirst({
+        where: { id, storeId: storeContext.store.id },
+        select: { category: true, name: true, showFoodTypeLabel: true },
+      })
+      if (current) {
+        const wanted = body?.showFoodTypeLabel !== undefined ? body.showFoodTypeLabel === true : current.showFoodTypeLabel
+        data.showFoodTypeLabel = allowedFoodTypeLabel(wanted, {
+          category: (data.category as string | undefined) ?? current.category,
+          name: body?.name !== undefined ? String(body.name) : current.name,
+        })
+      }
     }
 
     if (body?.sellerId !== undefined) {

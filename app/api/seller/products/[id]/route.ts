@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { allowedFoodTypeLabel } from '@/lib/food-products'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
@@ -93,6 +94,19 @@ export async function PATCH(
     const body = await request.json()
     const { id } = await params
 
+    // Veg / non-veg badge only on food.
+    let foodLabel: boolean | undefined
+    if (body.showFoodTypeLabel !== undefined || body.category || body.name) {
+      const current = await prisma.product.findFirst({
+        where: { id, sellerId: seller.id },
+        select: { category: true, name: true, showFoodTypeLabel: true },
+      })
+      foodLabel = allowedFoodTypeLabel(
+        body.showFoodTypeLabel !== undefined ? body.showFoodTypeLabel === true : current?.showFoodTypeLabel,
+        { category: body.category || current?.category, name: body.name || current?.name }
+      )
+    }
+
     const updateArgs = {
       where: {
         id,
@@ -116,7 +130,7 @@ export async function PATCH(
         ...(body.variants !== undefined && { variants: normalizeVariants(body.variants) }),
         ...(body.imageAlt !== undefined && { imageAlt: body.imageAlt }),
         ...(body.isAvailable !== undefined && { isAvailable: body.isAvailable }),
-        ...(body.showFoodTypeLabel !== undefined && { showFoodTypeLabel: body.showFoodTypeLabel }),
+        ...(foodLabel !== undefined && { showFoodTypeLabel: foodLabel }),
         ...(body.isVeg !== undefined && { isVeg: body.isVeg }),
         ...(body.prepTime !== undefined && { prepTime: body.prepTime }),
         ...(body.tags !== undefined && { tags: sanitizeProductTags(body.tags) }),

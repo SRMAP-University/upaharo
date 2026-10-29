@@ -575,9 +575,11 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
             <section className="rounded-xl border border-stone-200 bg-white p-5 md:p-6 space-y-4">
               <ProductFoodTypeFields
                 showFoodTypeLabel={formData.showFoodTypeLabel}
+                category={formData.category}
+                name={formData.name}
                 isVeg={formData.isVeg}
                 accent="orange"
-                onShowFoodTypeLabelChange={(value) => setFormData({ ...formData, showFoodTypeLabel: value })}
+                onShowFoodTypeLabelChange={(value) => setFormData((prev) => ({ ...prev, showFoodTypeLabel: value }))}
                 onIsVegChange={(value) => setFormData({ ...formData, isVeg: value })}
               />
               <label className="flex items-center gap-2 cursor-pointer">

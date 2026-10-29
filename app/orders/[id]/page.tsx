@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { isFoodProduct } from '@/lib/food-products'
 import { motion } from 'framer-motion'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -366,7 +367,7 @@ export default function OrderTrackingPage() {
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      {item.product.showFoodTypeLabel ? <FoodTypeBadge isVeg={item.product.isVeg} className="h-4 w-4" /> : null}
+                      {item.product.showFoodTypeLabel && isFoodProduct(item.product) ? <FoodTypeBadge isVeg={item.product.isVeg} className="h-4 w-4" /> : null}
                       <p className="truncate font-display text-sm font-semibold text-ink">{item.product.name}</p>
                     </div>
                     <p className="text-xs text-ink/55">Qty: {item.quantity}</p>

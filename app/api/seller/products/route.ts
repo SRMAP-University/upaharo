@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { allowedFoodTypeLabel } from '@/lib/food-products'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
       variants,
       imageAlt: body.imageAlt,
       isAvailable: body.isAvailable !== false,
-      showFoodTypeLabel: body.showFoodTypeLabel === true,
+      showFoodTypeLabel: allowedFoodTypeLabel(body.showFoodTypeLabel, { category: body.category, name: body.name }),
       isVeg: body.isVeg !== false,
       prepTime: body.prepTime || 15,
       tags,

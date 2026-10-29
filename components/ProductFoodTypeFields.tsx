@@ -1,22 +1,49 @@
 'use client'
 
+import { useEffect } from 'react'
+import { isFoodProduct } from '@/lib/food-products'
+
 type ProductFoodTypeFieldsProps = {
   showFoodTypeLabel: boolean
   isVeg: boolean
+  /** The product's category and name decide whether it is food. */
+  category: string
+  name: string
   accent?: 'pink' | 'orange'
   onShowFoodTypeLabelChange: (value: boolean) => void
   onIsVegChange: (value: boolean) => void
 }
 
+/**
+ * Veg / non-veg badge settings. Only food (cakes, chocolates, sweets, bakery,
+ * snacks…) can have the badge; for anything else the setting is hidden and
+ * switched off.
+ */
 export default function ProductFoodTypeFields({
   showFoodTypeLabel,
   isVeg,
+  category,
+  name,
   accent = 'pink',
   onShowFoodTypeLabelChange,
   onIsVegChange,
 }: ProductFoodTypeFieldsProps) {
   const activeClassName = 'border-transparent bg-wine text-white'
   void accent
+  const isFood = isFoodProduct({ category, name })
+
+  // Moving a product to a non-food category turns its badge off.
+  useEffect(() => {
+    if (!isFood && showFoodTypeLabel) onShowFoodTypeLabelChange(false)
+  }, [isFood, showFoodTypeLabel, onShowFoodTypeLabelChange])
+
+  if (!isFood) {
+    return (
+      <p className="text-xs text-ink/50">
+        Veg / non-veg badge: only for food such as cakes, chocolates, sweets and snacks. Pick a food category to set it.
+      </p>
+    )
+  }
 
   return (
     <div className="space-y-3">

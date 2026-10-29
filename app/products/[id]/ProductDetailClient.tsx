@@ -1,6 +1,7 @@
 'use client'
 
 import { use, useEffect, useRef, useState } from 'react'
+import { isFoodProduct } from '@/lib/food-products'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -546,7 +547,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
           {/* Details */}
           <div className="px-4 pt-5 lg:px-0 lg:pt-1">
             <div className="flex items-center gap-2">
-              {product.showFoodTypeLabel ? <FoodTypeBadge isVeg={product.isVeg} /> : null}
+              {product.showFoodTypeLabel && isFoodProduct(product) ? <FoodTypeBadge isVeg={product.isVeg} /> : null}
               <span className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/50">
                 {product.category}
               </span>

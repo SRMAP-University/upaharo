@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { allowedFoodTypeLabel } from '@/lib/food-products'
 import { prisma } from '@/lib/prisma'
 import { sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
@@ -220,7 +221,7 @@ export async function POST(request: NextRequest) {
       images,
       variants,
       imageAlt: String(body?.imageAlt || '').trim() || name,
-      showFoodTypeLabel: body?.showFoodTypeLabel === true,
+      showFoodTypeLabel: allowedFoodTypeLabel(body?.showFoodTypeLabel, { category, name }),
       isVeg: Boolean(body?.isVeg),
       prepTime: Math.max(1, Math.round(toNumber(body?.prepTime, 15))),
       tags,

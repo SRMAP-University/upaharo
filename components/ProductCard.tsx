@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { isFoodProduct } from '@/lib/food-products'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useCartStore } from '@/lib/store/cart'
@@ -18,6 +19,7 @@ interface ProductCardProps {
     image: string
     isVeg: boolean
     showFoodTypeLabel?: boolean
+    category?: string
     discount?: number | null
     prepTime: number
   }
@@ -77,7 +79,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         />
         
         {/* Veg/Non-veg indicator */}
-        {product.showFoodTypeLabel && (
+        {product.showFoodTypeLabel && isFoodProduct(product) && (
           <div className="absolute top-2.5 left-2.5">
             <FoodTypeBadge isVeg={product.isVeg} />
           </div>
