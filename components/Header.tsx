@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import BrandLogo from '@/components/BrandLogo'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useCartStore } from '@/lib/store/cart'
@@ -95,11 +96,7 @@ export default function Header() {
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center gap-2"
               >
-                <div className="w-8 h-8 bg-wine rounded-xl flex items-center justify-center shadow-[0_12px_26px_-16px_rgba(124,42,71,0.95)]">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                  </svg>
-                </div>
+                <BrandLogo size={36} />
                 <span className="font-display text-xl font-semibold tracking-tight text-wine">Upaharo</span>
               </motion.div>
             </Link>

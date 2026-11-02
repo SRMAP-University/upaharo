@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import BrandLogo from '@/components/BrandLogo'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
@@ -224,7 +225,7 @@ export default function AdminLayout({
 
   const brand = (
     <Link href="/admin" className="flex min-w-0 items-center gap-2.5">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wine text-sm font-bold text-white">U</span>
+      <BrandLogo size={34} />
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-[15px] font-semibold text-ink">Upaharo</span>
         <span className="block text-[11px] font-medium text-ink/45">Admin</span>
@@ -263,8 +264,8 @@ export default function AdminLayout({
       >
         <div className={`flex h-14 shrink-0 items-center border-b border-stone-200 ${collapsed ? 'justify-center' : 'justify-between px-4'}`}>
           {collapsed ? (
-            <Link href="/admin" title="Dashboard" className="flex h-8 w-8 items-center justify-center rounded-lg bg-wine text-sm font-bold text-white">
-              U
+            <Link href="/admin" title="Dashboard" className="flex h-9 w-9 items-center justify-center">
+              <BrandLogo size={34} />
             </Link>
           ) : (
             brand

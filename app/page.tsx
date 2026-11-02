@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import BrandLogo from '@/components/BrandLogo'
 import { headers } from 'next/headers'
 import BottomNav from '@/components/BottomNav'
 import ProductCard from '@/components/ProductCard'
@@ -609,7 +610,10 @@ export default async function Home() {
         <footer className="hidden border-t border-wine/10 pt-8 lg:block">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="font-display text-xl font-semibold text-wine">Upaharo</p>
+              <div className="flex items-center gap-2">
+                <BrandLogo size={36} />
+                <p className="font-display text-xl font-semibold text-wine">Upaharo</p>
+              </div>
               <p className="mt-1 max-w-md text-sm text-ink/50">
                 Flowers, cakes and thoughtful gifts — same-day delivery across the city.
               </p>

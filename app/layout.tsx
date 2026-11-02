@@ -71,13 +71,13 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_IN',
-    url: 'https://fnp.com',
+    url: 'https://www.upaharo.com',
     siteName: 'Upaharo',
     title: 'Upaharo - Gift & Flower Delivery',
     description: 'Send flowers, cakes, and gifts with same-day delivery',
     images: [
       {
-        url: '/favicon.svg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'Upaharo',
@@ -88,16 +88,17 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Upaharo - Gift & Flower Delivery',
     description: 'Send flowers, cakes, and gifts with same-day delivery',
-    images: ['/favicon.svg'],
+    images: ['/og-image.png'],
   },
   icons: {
     icon: [
-      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
     ],
-    apple: [
-      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
-    ],
-    shortcut: '/favicon.svg',
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: '/favicon.ico',
   },
 }
 
@@ -109,8 +110,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/icon-512x512.png" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Upaharo" />
