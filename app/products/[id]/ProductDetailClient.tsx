@@ -671,7 +671,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                     <circle cx="12" cy="9.5" r="2.5" strokeWidth={2} />
                   </svg>
                 </span>
-                <span>Delivery across Kathmandu Valley</span>
+                <span>Delivery across Nepal</span>
               </li>
             </ul>
 

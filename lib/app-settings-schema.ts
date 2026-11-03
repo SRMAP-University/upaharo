@@ -108,11 +108,28 @@ export function radiusTierIdFor(maxRadiusKm: number): string {
   return `r-${km}`
 }
 
-export function formatRadiusEta(minMinutes: number, maxMinutes: number): string {
+/** Longest delivery time a zone may promise (outside-valley courier). */
+export const MAX_ETA_MINUTES = 14 * 24 * 60
+
+/** "20-40 minutes", "3-6 hours" or "2-5 days". */
+export function formatEtaRange(minMinutes: number, maxMinutes: number): string {
   const lo = Math.max(1, Math.round(minMinutes))
   const hi = Math.max(lo, Math.round(maxMinutes))
-  if (lo === hi) return `Estimated delivery: ${lo} minutes`
-  return `Estimated delivery: ${lo}-${hi} minutes`
+  const range = (a: number, b: number, unit: string) =>
+    a === b ? `${a} ${unit}${a === 1 ? '' : 's'}` : `${a}-${b} ${unit}s`
+  if (hi >= 24 * 60) {
+    const days = Math.max(1, Math.round(lo / (24 * 60)))
+    return range(days, Math.max(days, Math.round(hi / (24 * 60))), 'day')
+  }
+  if (hi >= 180) {
+    const hours = Math.max(1, Math.round(lo / 60))
+    return range(hours, Math.max(hours, Math.round(hi / 60)), 'hour')
+  }
+  return range(lo, hi, 'minute')
+}
+
+export function formatRadiusEta(minMinutes: number, maxMinutes: number): string {
+  return `Estimated delivery: ${formatEtaRange(minMinutes, maxMinutes)}`
 }
 
 export const UI_DENSITIES = ['COMPACT', 'COMFORTABLE', 'SPACIOUS'] as const
@@ -521,8 +538,8 @@ export function normalizeDeliveryRadiusTiers(raw: unknown): DeliveryRadiusTier[]
     seen.add(radiusKey)
 
     const feeAmount = clampFloat(entry.feeAmount, 0, 0, 1_000_000)
-    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, 24 * 60)
-    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, 24 * 60)
+    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, MAX_ETA_MINUTES)
+    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, MAX_ETA_MINUTES)
     if (etaMaxMinutes < etaMinMinutes) {
       ;[etaMinMinutes, etaMaxMinutes] = [etaMaxMinutes, etaMinMinutes]
     }
@@ -579,8 +596,8 @@ export function normalizeDeliveryZones(raw: unknown): DeliveryZone[] {
     if (polygon.length < MIN_POLYGON_POINTS) continue
 
     const feeAmount = clampFloat(entry.feeAmount, 0, 0, 1_000_000)
-    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, 24 * 60)
-    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, 24 * 60)
+    let etaMinMinutes = clampInt(entry.etaMinMinutes, 20, 1, MAX_ETA_MINUTES)
+    let etaMaxMinutes = clampInt(entry.etaMaxMinutes, 30, 1, MAX_ETA_MINUTES)
     if (etaMaxMinutes < etaMinMinutes) {
       ;[etaMinMinutes, etaMaxMinutes] = [etaMaxMinutes, etaMinMinutes]
     }

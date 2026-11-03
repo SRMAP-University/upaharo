@@ -1,5 +1,21 @@
 import 'dart:math' as math;
 
+/// "20-40 minutes", "3-6 hours" or "2-5 days" (outside-valley courier zones).
+String formatEtaRange(int minMinutes, int maxMinutes) {
+  final lo = minMinutes < 1 ? 1 : minMinutes;
+  final hi = maxMinutes < lo ? lo : maxMinutes;
+  String range(int a, int b, String unit) => a == b ? '$a $unit${a == 1 ? '' : 's'}' : '$a-$b ${unit}s';
+  if (hi >= 24 * 60) {
+    final days = math.max(1, (lo / (24 * 60)).round());
+    return range(days, math.max(days, (hi / (24 * 60)).round()), 'day');
+  }
+  if (hi >= 180) {
+    final hours = math.max(1, (lo / 60).round());
+    return range(hours, math.max(hours, (hi / 60).round()), 'hour');
+  }
+  return range(lo, hi, 'minute');
+}
+
 /// One admin-configured circular delivery zone from the store pin.
 class DeliveryRadiusTier {
   const DeliveryRadiusTier({
@@ -18,12 +34,7 @@ class DeliveryRadiusTier {
   final int etaMaxMinutes;
   final String label;
 
-  String get estimateLabel {
-    final lo = etaMinMinutes < 1 ? 1 : etaMinMinutes;
-    final hi = etaMaxMinutes < lo ? lo : etaMaxMinutes;
-    if (lo == hi) return 'Estimated delivery: $lo minutes';
-    return 'Estimated delivery: $lo-$hi minutes';
-  }
+  String get estimateLabel => 'Estimated delivery: ${formatEtaRange(etaMinMinutes, etaMaxMinutes)}';
 
   factory DeliveryRadiusTier.fromJson(Map<String, dynamic> json) {
     final minEta = (json['etaMinMinutes'] as num?)?.round() ?? 20;
@@ -88,12 +99,7 @@ class DeliveryZone {
   final int etaMaxMinutes;
   final List<DeliveryZonePoint> polygon;
 
-  String get estimateLabel {
-    final lo = etaMinMinutes < 1 ? 1 : etaMinMinutes;
-    final hi = etaMaxMinutes < lo ? lo : etaMaxMinutes;
-    if (lo == hi) return 'Estimated delivery: $lo minutes';
-    return 'Estimated delivery: $lo-$hi minutes';
-  }
+  String get estimateLabel => 'Estimated delivery: ${formatEtaRange(etaMinMinutes, etaMaxMinutes)}';
 
   factory DeliveryZone.fromJson(Map<String, dynamic> json) {
     final minEta = (json['etaMinMinutes'] as num?)?.round() ?? 20;

@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     const catalog = await getCatalogSnapshot(storeId)
     const lastUser = [...incomingMessages].reverse().find((m) => m.role === 'user')?.content ?? ''
 
-    const systemPrompt = `You are Upaharo's friendly shopping assistant for delivery in Kathmandu Valley.
+    const systemPrompt = `You are Upaharo's friendly shopping assistant for delivery ${storeContext.slug === 'grocery' ? 'in Kathmandu Valley' : 'across Nepal (same day in Kathmandu, 2-5 days elsewhere)'}.
 Speak like a helpful shop associate: warm, natural, and concise (usually 1-3 sentences).
 Understand casual questions ("do you have anything?", "show me options", "for my mom") — do not echo the customer's sentence as a product search.
 

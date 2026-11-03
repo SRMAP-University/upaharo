@@ -2,6 +2,7 @@
 
 import {
   formatRadiusEta,
+  MAX_ETA_MINUTES,
   MAX_DELIVERY_RADIUS_TIERS,
   radiusTierIdFor,
   type DeliveryRadiusTier,
@@ -149,7 +150,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
                     <input
                       type="number"
                       min={1}
-                      max={24 * 60}
+                      max={MAX_ETA_MINUTES}
                       step={1}
                       value={tier.etaMinMinutes}
                       onChange={(event) =>
@@ -168,7 +169,7 @@ export function DeliveryRadiusTiersEditor({ tiers, onChange }: Props) {
                     <input
                       type="number"
                       min={1}
-                      max={24 * 60}
+                      max={MAX_ETA_MINUTES}
                       step={1}
                       value={tier.etaMaxMinutes}
                       onChange={(event) =>

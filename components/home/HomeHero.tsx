@@ -56,7 +56,7 @@ export default function HomeHero({ siteName, tagline }: HomeHeroProps) {
       titleAccent: 'everything',
       titleBottom: "words can't.",
       subtitle:
-        tagline || 'Fresh flowers, artisan cakes and thoughtfully curated gifts — delivered the same day across the city.',
+        tagline || 'Fresh flowers, artisan cakes and thoughtfully curated gifts — delivered the same day in Kathmandu and across Nepal.',
       image:
         'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=1400&q=80',
     },

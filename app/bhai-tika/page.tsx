@@ -294,7 +294,7 @@ export default async function BhaiTikaPage({
           <FallingPetals count={10} fall={420} />
           <h2 className="relative text-2xl font-semibold tracking-tight lg:text-4xl">Far from home this Tihar?</h2>
           <p className="relative mx-auto mt-2 max-w-lg text-sm leading-relaxed text-white/75 lg:text-base">
-            Send a tika set and a gift to your brother or sister. We deliver across Kathmandu Valley.
+            Send a tika set and a gift to your brother or sister. We deliver across Nepal.
           </p>
           <div className="relative mt-6 flex flex-wrap justify-center gap-3">
             <a

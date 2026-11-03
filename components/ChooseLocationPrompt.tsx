@@ -2,13 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import LocationModal from '@/components/LocationModal'
 import { useLocationStore } from '@/lib/store/location'
 import { useUserStore } from '@/lib/store/user'
 
-const SESSION_KEY = 'upaharo-location-prompt-dismissed'
-
-function shouldHide(pathname: string) {
+function shouldSkip(pathname: string) {
   return (
     pathname.startsWith('/admin') ||
     pathname.startsWith('/seller') ||
@@ -43,13 +40,15 @@ async function loadSavedAddress(): Promise<SavedAddress | null> {
   }
 }
 
+/**
+ * Fills in a signed-in shopper's saved delivery address on this browser.
+ * It never pops up: shoppers pick a location from the header when they want
+ * to (we deliver across Nepal, so browsing needs no location).
+ */
 export default function ChooseLocationPrompt() {
   const pathname = usePathname() || ''
-  const [isOpen, setIsOpen] = useState(false)
   const [hydrated, setHydrated] = useState(false)
-  const hasSavedLocation = useLocationStore((s) =>
-    Boolean(s.deliveryAddress || s.currentLocation)
-  )
+  const hasSavedLocation = useLocationStore((s) => Boolean(s.deliveryAddress || s.currentLocation))
   const userId = useUserStore((s) => s.user?.id)
 
   useEffect(() => {
@@ -61,57 +60,24 @@ export default function ChooseLocationPrompt() {
   }, [])
 
   useEffect(() => {
-    if (shouldHide(pathname) || hasSavedLocation) {
-      setIsOpen(false)
-      return
-    }
-    if (!hydrated) return
-
+    if (!hydrated || !userId || hasSavedLocation || shouldSkip(pathname)) return
     let cancelled = false
-    let timer: number | undefined
-
-    const tryOpen = async () => {
-      if (sessionStorage.getItem(SESSION_KEY) === '1') return
-
-      if (userId) {
-        const saved = await loadSavedAddress()
-        if (cancelled) return
-        if (saved) {
-          const location = {
-            latitude: Number(saved.latitude) || 0,
-            longitude: Number(saved.longitude) || 0,
-            address: `${saved.street || ''}, ${saved.city || ''}, ${saved.state || ''} - ${saved.pincode || ''}`,
-            label: saved.label || 'Home',
-          }
-          const { setCurrentLocation, setDeliveryAddress } = useLocationStore.getState()
-          setCurrentLocation(location)
-          setDeliveryAddress(location)
-          return
-        }
+    void loadSavedAddress().then((saved) => {
+      if (cancelled || !saved) return
+      const location = {
+        latitude: Number(saved.latitude) || 0,
+        longitude: Number(saved.longitude) || 0,
+        address: `${saved.street || ''}, ${saved.city || ''}, ${saved.state || ''} - ${saved.pincode || ''}`,
+        label: saved.label || 'Home',
       }
-
-      timer = window.setTimeout(() => {
-        if (!cancelled) setIsOpen(true)
-      }, 250)
-    }
-
-    void tryOpen()
-
+      const { setCurrentLocation, setDeliveryAddress } = useLocationStore.getState()
+      setCurrentLocation(location)
+      setDeliveryAddress(location)
+    })
     return () => {
       cancelled = true
-      if (timer) window.clearTimeout(timer)
     }
   }, [pathname, hasSavedLocation, hydrated, userId])
 
-  if (shouldHide(pathname)) return null
-
-  return (
-    <LocationModal
-      isOpen={isOpen}
-      onClose={() => {
-        sessionStorage.setItem(SESSION_KEY, '1')
-        setIsOpen(false)
-      }}
-    />
-  )
+  return null
 }

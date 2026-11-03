@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Loader } from '@googlemaps/js-api-loader'
-import type { DeliveryRadiusTier } from '@/lib/app-settings-schema'
+import { formatEtaRange, type DeliveryRadiusTier } from '@/lib/app-settings-schema'
 
 const ZONE_COLORS = [
   '#8B5A2B',
@@ -200,7 +200,7 @@ export function DeliveryZonesMap({
                   }}
                 />
                 ≤ {tier.maxRadiusKm} km · Rs {tier.feeAmount} ·{' '}
-                {tier.etaMinMinutes}-{tier.etaMaxMinutes} min
+                {formatEtaRange(tier.etaMinMinutes, tier.etaMaxMinutes)}
               </li>
             ))}
         </ul>

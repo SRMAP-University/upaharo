@@ -381,7 +381,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
                     {step === 'select' ? 'Choose delivery location' : 'Address details'}
                   </h2>
                   {step === 'select' ? (
-                    <p className="truncate text-xs text-ink/50">We deliver across Kathmandu Valley</p>
+                    <p className="truncate text-xs text-ink/50">We deliver across Nepal</p>
                   ) : null}
                 </div>
                 {step === 'form' ? (

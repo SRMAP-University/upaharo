@@ -615,7 +615,7 @@ export default async function Home() {
                 <p className="font-display text-xl font-semibold text-wine">Upaharo</p>
               </div>
               <p className="mt-1 max-w-md text-sm text-ink/50">
-                Flowers, cakes and thoughtful gifts — same-day delivery across the city.
+                Flowers, cakes and thoughtful gifts — same-day in Kathmandu, delivered across Nepal.
               </p>
             </div>
             <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/60">
