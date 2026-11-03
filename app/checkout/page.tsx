@@ -114,16 +114,99 @@ function WalletToggle({
 }
 
 /** Display-only waived fee: original amount struck through, then FREE. */
-function WaivedFeeRow({ label, amount }: { label: string; amount: number }) {
-  if (amount <= 0) return null
+type PaymentBreakdown = {
+  itemCount: number
+  /** Items at their full price, before product offers. */
+  itemsMrpTotal: number
+  productDiscount: number
+  giftWrapName?: string
+  giftWrapPrice: number
+  isPickup: boolean
+  deliveryFee: number
+  /** What delivery would cost without the free-delivery threshold. */
+  regularDeliveryFee: number
+  freeDeliveryMinAmount: number
+  remainingForFreeDelivery: number
+  couponCode?: string
+  couponDiscount: number
+  orderTotal: number
+  walletApplied: number
+}
+
+/** Price → discounts → fees → coupon → wallet, so the amount to pay adds up line by line. */
+function PaymentDetails({ b }: { b: PaymentBreakdown }) {
+  const row = 'flex justify-between gap-3 text-ink/65'
   return (
-    <div className="flex justify-between text-ink/60">
-      <span>{label}</span>
-      <span className="flex items-center gap-2">
-        <span className="line-through text-ink/40">{formatPrice(amount)}</span>
-        <span className="text-green-600 font-semibold">FREE</span>
-      </span>
+    <div className="space-y-2.5">
+      <div className={row}>
+        <span>
+          Price ({b.itemCount} item{b.itemCount === 1 ? '' : 's'})
+        </span>
+        <span>{formatPrice(b.itemsMrpTotal)}</span>
+      </div>
+      {b.productDiscount > 0 ? (
+        <div className="flex justify-between gap-3 text-green-700">
+          <span>Product discount</span>
+          <span>−{formatPrice(b.productDiscount)}</span>
+        </div>
+      ) : null}
+      {b.giftWrapPrice > 0 ? (
+        <div className={row}>
+          <span>Gift wrap{b.giftWrapName ? ` (${b.giftWrapName})` : ''}</span>
+          <span>+{formatPrice(b.giftWrapPrice)}</span>
+        </div>
+      ) : null}
+      <div>
+        <div className={row}>
+          <span>{b.isPickup ? 'Pickup' : 'Delivery charges'}</span>
+          {b.isPickup ? (
+            <span className="font-semibold text-green-700">FREE</span>
+          ) : b.deliveryFee === 0 ? (
+            <span className="flex items-center gap-2">
+              {b.regularDeliveryFee > 0 ? (
+                <span className="text-ink/40 line-through">{formatPrice(b.regularDeliveryFee)}</span>
+              ) : null}
+              <span className="font-semibold text-green-700">FREE</span>
+            </span>
+          ) : (
+            <span>+{formatPrice(b.deliveryFee)}</span>
+          )}
+        </div>
+        {!b.isPickup && b.freeDeliveryMinAmount > 0 ? (
+          <p className="mt-0.5 text-xs text-ink/45">
+            {b.remainingForFreeDelivery > 0
+              ? `Add ${formatPriceNoDecimals(b.remainingForFreeDelivery)} more for free delivery`
+              : `Free delivery on orders of ${formatPriceNoDecimals(b.freeDeliveryMinAmount)} or more`}
+          </p>
+        ) : null}
+      </div>
+      {b.couponDiscount > 0 ? (
+        <div className="flex justify-between gap-3 text-green-700">
+          <span>Coupon{b.couponCode ? ` (${b.couponCode})` : ''}</span>
+          <span>−{formatPrice(b.couponDiscount)}</span>
+        </div>
+      ) : null}
+      <div className="flex justify-between gap-3 border-t border-dashed border-wine/15 pt-2.5 font-medium text-ink">
+        <span>Order total</span>
+        <span>{formatPrice(b.orderTotal)}</span>
+      </div>
+      {b.walletApplied > 0 ? (
+        <div className="flex justify-between gap-3 text-green-700">
+          <span>Paid from wallet</span>
+          <span>−{formatPrice(b.walletApplied)}</span>
+        </div>
+      ) : null}
     </div>
+  )
+}
+
+/** Total saved through product offers, the coupon and free delivery. */
+function SavingsNote({ amount }: { amount: number }) {
+  if (amount < 1) return null
+  return (
+    <p className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
+      You save {formatPriceNoDecimals(amount)} on this order
+    </p>
   )
 }
 
@@ -140,6 +223,8 @@ export default function CheckoutPage() {
   const [showMobileSummary, setShowMobileSummary] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'ONLINE'>('CASH')
   const [giftWraps, setGiftWraps] = useState<GiftWrap[]>([])
+  // Offer % per product in the cart, for the price / discount lines.
+  const [productDiscounts, setProductDiscounts] = useState<Record<string, number>>({})
   const [occasions, setOccasions] = useState<Occasion[]>([])
   const [recipients, setRecipients] = useState<Recipient[]>([])
   const [addresses, setAddresses] = useState<any[]>([])
@@ -231,10 +316,20 @@ export default function CheckoutPage() {
       : appSettings.deliveryEstimate
   const tax = 0
   const couponDiscount = appliedCoupon?.discount ?? 0
-  const taxDisplay = Math.round(subtotal * 0.05 * 100) / 100
-  const handlingFeeDisplay = 300
-  const packagingFeeDisplay = 100
   const totalBeforeWallet = Math.max(0, goodsTotal + deliveryFee - couponDiscount)
+  // Cart prices are what the shopper pays; the product's offer % gives the full price back.
+  const itemsMrpTotal = items.reduce((sum, item) => {
+    const discount = productDiscounts[item.id] ?? 0
+    const unit = discount > 0 && discount < 100 ? item.price / (1 - discount / 100) : item.price
+    return sum + Math.round(unit * 100) / 100 * item.quantity
+  }, 0)
+  const productDiscount = Math.max(0, Math.round((itemsMrpTotal - subtotal) * 100) / 100)
+  const itemCount = items.reduce((count, item) => count + item.quantity, 0)
+  const regularDeliveryFee = isPickup ? 0 : deliveryZone?.inRange ? deliveryZone.feeAmount : deliveryFeeAmount
+  const remainingForFreeDelivery =
+    !isPickup && deliveryFee > 0 && freeDeliveryMinAmount > 0 ? Math.max(0, freeDeliveryMinAmount - goodsTotal) : 0
+  const totalSavings =
+    productDiscount + couponDiscount + (!isPickup && deliveryFee === 0 ? regularDeliveryFee : 0)
   const maxWalletSpend = wallet
     ? computeMaxWalletSpend(totalBeforeWallet, wallet.balance, wallet)
     : 0
@@ -295,6 +390,25 @@ export default function CheckoutPage() {
         if (!cancelled) setPickupLocation(null)
       })
 
+    return () => {
+      cancelled = true
+    }
+  }, [cartProductKey])
+
+  useEffect(() => {
+    if (!cartProductKey) return
+    let cancelled = false
+    fetch(`/api/products?ids=${encodeURIComponent(cartProductKey)}&view=card&limit=60`, { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !Array.isArray(data?.products)) return
+        setProductDiscounts(
+          Object.fromEntries(
+            data.products.map((p: { id: string; discount?: number | null }) => [p.id, Number(p.discount) || 0])
+          )
+        )
+      })
+      .catch(() => undefined)
     return () => {
       cancelled = true
     }
@@ -640,6 +754,22 @@ export default function CheckoutPage() {
   }
 
   const selectedWrap = giftWraps.find(w => w.id === giftOptions.giftWrapId)
+  const breakdown: PaymentBreakdown = {
+    itemCount,
+    itemsMrpTotal,
+    productDiscount,
+    giftWrapName: selectedWrap?.name,
+    giftWrapPrice,
+    isPickup,
+    deliveryFee,
+    regularDeliveryFee,
+    freeDeliveryMinAmount,
+    remainingForFreeDelivery,
+    couponCode: appliedCoupon?.code,
+    couponDiscount,
+    orderTotal: totalBeforeWallet,
+    walletApplied,
+  }
   const selectedRecipient = recipients.find(r => r.id === giftOptions.recipientId)
 
   return (
@@ -659,7 +789,7 @@ export default function CheckoutPage() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-ink/55">Total</p>
+            <p className="text-xs text-ink/55">Amount to pay</p>
             <p className="text-base font-semibold text-wine">{formatPrice(total)}</p>
           </div>
         </div>
@@ -1138,45 +1268,8 @@ export default function CheckoutPage() {
             >
               <h2 className="font-display text-xl font-semibold text-ink mb-4">Order Summary</h2>
 
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between text-ink/60">
-                  <span>Items ({items.length})</span>
-                  <span>{formatPrice(subtotal)}</span>
-                </div>
-                {giftWrapPrice > 0 && (
-                  <div className="flex justify-between text-ink/60">
-                    <span>🎁 {selectedWrap?.name}</span>
-                    <span>+{formatPrice(giftWrapPrice)}</span>
-                  </div>
-                )}
-                {isPickup ? (
-                  <div className="flex justify-between text-ink/60">
-                    <span>Pickup</span>
-                    <span className="font-semibold text-green-600">FREE</span>
-                  </div>
-                ) : deliveryFee === 0 ? (
-                  <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
-                ) : (
-                  <div className="flex justify-between text-ink/60">
-                    <span>Delivery</span>
-                    <span>{formatPrice(deliveryFee)}</span>
-                  </div>
-                )}
-                <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
-                <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
-                <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
-                {couponDiscount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Coupon ({appliedCoupon?.code})</span>
-                    <span>-{formatPrice(couponDiscount)}</span>
-                  </div>
-                )}
-                {walletApplied > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Wallet</span>
-                    <span>-{formatPrice(walletApplied)}</span>
-                  </div>
-                )}
+              <div className="mb-4">
+                <PaymentDetails b={breakdown} />
               </div>
 
               {/* Coupon input */}
@@ -1220,9 +1313,12 @@ export default function CheckoutPage() {
                 />
               )}
 
-              <div className="border-t border-wine/10 pt-3 flex justify-between text-xl font-semibold text-ink mb-4">
-                <span>Total</span>
+              <div className="border-t border-wine/10 pt-3 flex justify-between text-xl font-semibold text-ink mb-3">
+                <span>Amount to pay</span>
                 <span className="text-wine">{formatPriceNoDecimals(total)}</span>
+              </div>
+              <div className="mb-4">
+                <SavingsNote amount={totalSavings} />
               </div>
 
               {cashbackPreview > 0 && (
@@ -1298,44 +1394,7 @@ export default function CheckoutPage() {
                 className="overflow-hidden"
               >
                 <div className="px-3 py-3 border-b border-wine/10 space-y-2 text-sm">
-                  <div className="flex justify-between text-ink/60">
-                    <span>Items ({items.length})</span>
-                    <span>{formatPrice(subtotal)}</span>
-                  </div>
-                  {giftWrapPrice > 0 && (
-                    <div className="flex justify-between text-ink/60">
-                      <span>🎁 {selectedWrap?.name}</span>
-                      <span>+{formatPrice(giftWrapPrice)}</span>
-                    </div>
-                  )}
-                  {isPickup ? (
-                    <div className="flex justify-between text-ink/60">
-                      <span>Pickup</span>
-                      <span className="font-semibold text-green-600">FREE</span>
-                    </div>
-                  ) : deliveryFee === 0 ? (
-                    <WaivedFeeRow label="Delivery" amount={deliveryFeeAmount} />
-                  ) : (
-                    <div className="flex justify-between text-ink/60">
-                      <span>Delivery</span>
-                      <span>{formatPrice(deliveryFee)}</span>
-                    </div>
-                  )}
-                  <WaivedFeeRow label="Tax (5%)" amount={taxDisplay} />
-                  <WaivedFeeRow label="Handling charges" amount={handlingFeeDisplay} />
-                  <WaivedFeeRow label="Packaging" amount={packagingFeeDisplay} />
-                  {couponDiscount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Coupon ({appliedCoupon?.code})</span>
-                      <span>-{formatPrice(couponDiscount)}</span>
-                    </div>
-                  )}
-                  {walletApplied > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>Wallet</span>
-                      <span>-{formatPrice(walletApplied)}</span>
-                    </div>
-                  )}
+                  <PaymentDetails b={breakdown} />
 
                   {walletAvailable && (
                     <div className="pt-2">
@@ -1348,6 +1407,8 @@ export default function CheckoutPage() {
                       />
                     </div>
                   )}
+
+                  <SavingsNote amount={totalSavings} />
 
                   {cashbackPreview > 0 && (
                     <p className="text-xs text-green-700">
@@ -1397,7 +1458,7 @@ export default function CheckoutPage() {
                       <span>{showMobileSummary ? '▼' : '▶'}</span>
                       <span className="ml-1">View details</span>
                     </button>
-                    <p className="text-xs text-ink/60">Total Amount</p>
+                    <p className="text-xs text-ink/60">Amount to pay</p>
                     <p className="text-xl font-semibold text-wine">{formatPriceNoDecimals(total)}</p>
                   </div>
                   <motion.button

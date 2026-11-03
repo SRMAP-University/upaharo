@@ -161,6 +161,17 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariantIndex, setSelectedVariantIndex] = useState<number | null>(null)
   const [quantity, setQuantity] = useState(1)
+  // Store-wide delivery time, e.g. "2-3 days" (Admin → Settings).
+  const [deliveryTime, setDeliveryTime] = useState('')
+  useEffect(() => {
+    fetch('/api/settings')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const text = String((data?.settings ?? data)?.deliveryEstimate || '')
+        setDeliveryTime(text.replace(/^estimated delivery:\s*/i, '').trim())
+      })
+      .catch(() => undefined)
+  }, [])
   const [addons, setAddons] = useState<RecommendationProduct[]>([])
   const [buyTogether, setBuyTogether] = useState<RecommendationProduct[]>([])
   const [relatedProducts, setRelatedProducts] = useState<RecommendationProduct[]>([])
@@ -671,7 +682,10 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                     <circle cx="12" cy="9.5" r="2.5" strokeWidth={2} />
                   </svg>
                 </span>
-                <span>Delivery across Nepal</span>
+                <span>
+                  Delivery across Nepal
+                  {deliveryTime ? <span className="font-semibold text-ink"> · {deliveryTime}</span> : null}
+                </span>
               </li>
             </ul>
 

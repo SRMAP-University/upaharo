@@ -2309,9 +2309,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         )
                       else
                         _totalRow('Delivery', totals.deliveryFee),
-                      _waivedFeeRow('Tax (5%)', cart.totalPrice * 0.05),
-                      _waivedFeeRow('Handling charges', 300),
-                      _waivedFeeRow('Packaging', 100),
                       if (_couponDiscount > 0)
                         _totalRow(
                           'Coupon${_appliedCouponCode != null ? ' ($_appliedCouponCode)' : ''}',
@@ -2322,7 +2319,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             const SizedBox(height: 6),
             Divider(height: 1, color: AppTheme.creamDeep),
             const SizedBox(height: 6),
-                      _totalRow('Total', total, bold: true),
+                      _totalRow('Amount to pay', total, bold: true),
                       if (totals.cashback > 0) ...[
               const SizedBox(height: 8),
                         Text(
