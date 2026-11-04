@@ -156,6 +156,10 @@ const nextConfig = {
     optimizePackageImports: ['lucide-react', '@radix-ui/react-icons']
   },
   images: {
+    // Keep resized product photos for 30 days. Many come from slow outside
+    // hosts (rasanmart.com for Grooll, ~2-3 s each); the 60 s default meant
+    // nearly every app image was fetched from scratch.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     domains: ['localhost', 'res.cloudinary.com'],
     remotePatterns: [
       {
