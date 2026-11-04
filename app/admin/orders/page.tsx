@@ -583,12 +583,20 @@ export default function AdminOrders() {
                   ) : null}
                 </p>
               </div>
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="text-ink/40 hover:text-ink text-2xl"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-2">
+                {selectedOrder.source === 'OFFLINE' ? (
+                  <Link href={`/admin/orders/offline?edit=${selectedOrder.id}`} className={adminButtonClass.secondary}>
+                    Edit order
+                  </Link>
+                ) : null}
+                <button
+                  onClick={() => setSelectedOrder(null)}
+                  className="text-ink/40 hover:text-ink text-2xl"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+              </div>
             </div>
             <div className="p-6 space-y-6">
               {/* Customer Info */}

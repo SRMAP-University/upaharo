@@ -16,6 +16,7 @@ import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { getOfflineOrder, updateOfflineOrder } from '@/lib/offline-order'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -244,6 +245,60 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json(order)
   } catch (error) {
     console.error('Error updating order:', error)
+    return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+  }
+}
+
+/** An offline order, for the edit form. */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { id } = await params
+    const order = await getOfflineOrder(storeContext.store.id, id)
+    if (!order) return NextResponse.json({ error: 'Offline order not found' }, { status: 404 })
+    return NextResponse.json(order)
+  } catch (error) {
+    console.error('Error loading offline order:', error)
+    return NextResponse.json({ error: 'Failed to load order' }, { status: 500 })
+  }
+}
+
+/** Save an edited offline order (items, prices, customer, delivery, payment). */
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    if (!(await requireAdmin(request))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { id } = await params
+    const body = await request.json()
+    const result = await updateOfflineOrder(id, {
+      storeId: storeContext.store.id,
+      storeSlug: storeContext.slug,
+      items: Array.isArray(body?.items) ? body.items : [],
+      customerName: body?.customerName,
+      customerPhone: body?.customerPhone,
+      channel: body?.channel,
+      fulfillmentType: body?.fulfillmentType,
+      paymentMethod: body?.paymentMethod,
+      paymentStatus: body?.paymentStatus,
+      status: body?.status,
+      discount: body?.discount,
+      deliveryFee: body?.deliveryFee,
+      note: body?.note,
+      address: body?.address ?? null,
+    })
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error.error }, { status: result.error.status })
+    }
+    return NextResponse.json(result.order)
+  } catch (error) {
+    console.error('Error updating offline order:', error)
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
   }
 }
