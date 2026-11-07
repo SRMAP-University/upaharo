@@ -182,6 +182,9 @@ class Order {
   final DeliveryPartnerTracking? deliveryPartner;
   /// Sent with a single order; null in lists and older caches.
   final PriceBreakdown? breakdown;
+  /// Who cancelled: CUSTOMER | ADMIN | SELLER | SYSTEM (null on older orders).
+  final String? cancelledBy;
+  final String? cancelReason;
 
   const Order({
     required this.id,
@@ -222,6 +225,8 @@ class Order {
     this.deliveryOtp,
     this.deliveryPartner,
     this.breakdown,
+    this.cancelledBy,
+    this.cancelReason,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -287,6 +292,8 @@ class Order {
             )
           : null,
       breakdown: json['breakdown'] is Map ? PriceBreakdown.fromJson(json['breakdown'] as Map) : null,
+      cancelledBy: json['cancelledBy'] as String?,
+      cancelReason: json['cancelReason'] as String?,
     );
   }
 
@@ -331,9 +338,27 @@ class Order {
         if (senderName != null) 'senderName': senderName,
         'showSenderName': showSenderName,
         if (breakdown != null) 'breakdown': breakdown!.toJson(),
+        if (cancelledBy != null) 'cancelledBy': cancelledBy,
+        if (cancelReason != null) 'cancelReason': cancelReason,
       };
 
   bool get isPickup => fulfillmentType == 'PICKUP';
+
+  /// "Cancelled by you", "Cancelled by Upaharo", …
+  String get cancelledByLabel {
+    switch (cancelledBy) {
+      case 'CUSTOMER':
+        return 'Cancelled by you';
+      case 'ADMIN':
+        return 'Cancelled by Upaharo';
+      case 'SELLER':
+        return 'Cancelled by the seller';
+      case 'SYSTEM':
+        return 'Cancelled automatically';
+      default:
+        return 'Cancelled';
+    }
+  }
 
   static String _statusToApi(OrderStatus status) {
     switch (status) {

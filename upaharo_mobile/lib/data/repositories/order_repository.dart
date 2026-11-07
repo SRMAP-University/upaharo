@@ -46,11 +46,11 @@ class OrderRepository {
     );
   }
 
-  Future<Order> cancelOrder(String id) async {
+  Future<Order> cancelOrder(String id, {required String reason}) async {
     final data = await DioClient.request<Map<String, dynamic>>(
       ApiEndpoints.order(id),
       method: 'PATCH',
-      data: {'action': 'cancel'},
+      data: {'action': 'cancel', 'reason': reason},
       parser: (json) => json as Map<String, dynamic>,
     );
 

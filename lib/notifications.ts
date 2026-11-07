@@ -182,6 +182,8 @@ export async function notifyOrderStatus(params: {
   deliveryOtp?: string
   storeId?: string | null
   storeSlug?: string | null
+  /** Added to the message when an order is cancelled. */
+  cancelReason?: string | null
 }) {
   const { storeSlug } = await resolveNotifyStore(params)
   const copy = orderStatusCopy(storeSlug)[params.status] || {
@@ -195,6 +197,9 @@ export async function notifyOrderStatus(params: {
     params.deliveryOtp
   ) {
     body = `Order #${params.orderNumber} update. Your delivery code is ${params.deliveryOtp} — share it only when you receive the order.`
+  }
+  if (params.status === 'CANCELLED' && params.cancelReason) {
+    body = `${body} Reason: ${params.cancelReason}`
   }
 
   await notifyUser({

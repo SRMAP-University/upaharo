@@ -11,6 +11,7 @@ import PickupLocationCard from '@/components/PickupLocationCard'
 import { useUserStore } from '@/lib/store/user'
 import { resolveImageUrl } from '@/lib/image-url'
 import { lineOffer, orderBreakdown } from '@/lib/order-breakdown'
+import { cancelledByLabel } from '@/lib/order-cancel'
 import { formatPrice, formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 
 const trackingSteps = [
@@ -324,7 +325,11 @@ export default function OrderTrackingPage() {
           </div>
           {currentStatus === 'CANCELLED' ? (
             <div className={`mt-4 rounded-xl border px-3 py-2 text-sm ${activeTheme.panelClass}`}>
-              This order was cancelled. Contact support if this was unexpected.
+              <p className="font-semibold">{cancelledByLabel(order.cancelledBy, 'customer')}</p>
+              {order.cancelReason ? <p className="mt-0.5">Reason: {order.cancelReason}</p> : null}
+              {order.cancelledBy !== 'CUSTOMER' ? (
+                <p className="mt-0.5 opacity-80">Contact support if this was unexpected.</p>
+              ) : null}
             </div>
           ) : null}
         </motion.section>

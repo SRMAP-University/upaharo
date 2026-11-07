@@ -19,6 +19,7 @@ import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { digitalBillUrl } from '@/lib/digital-bill'
 import { createOfflineOrder } from '@/lib/offline-order'
+import { readCancelReason } from '@/lib/order-cancel'
 
 const MERCHANT_ALLOWED: OrderStatus[] = [
   'ACCEPTED',
@@ -286,6 +287,15 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
+      if (nextStatus === 'CANCELLED' && existing.status !== 'CANCELLED') {
+        updateData.cancelledBy = fullAccess ? 'ADMIN' : 'SELLER'
+        // Older partner app versions don't ask for a reason.
+        updateData.cancelReason = readCancelReason(body.cancelReason)
+      } else if (nextStatus !== 'CANCELLED' && existing.status === 'CANCELLED') {
+        updateData.cancelledBy = null
+        updateData.cancelReason = null
+      }
+
       updateData.status = nextStatus
       Object.assign(updateData, statusTimestampFields(nextStatus))
       effectiveStatus = nextStatus
@@ -368,6 +378,7 @@ export async function PATCH(request: NextRequest) {
         status: effectiveStatus,
         storeId: existing.storeId,
         deliveryOtp: issuedOtp ?? undefined,
+        cancelReason: order.cancelReason,
       }).catch((err) => console.error('notifyOrderStatus', err))
 
       if (effectiveStatus === 'READY') {

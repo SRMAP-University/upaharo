@@ -57,12 +57,14 @@ class MerchantProvider extends ChangeNotifier {
     String status, {
     String? deliveryOtp,
     String? deliveryPartnerId,
+    String? cancelReason,
   }) async {
     final data = <String, dynamic>{
       'orderId': orderId,
       'status': status,
     };
     if (deliveryOtp != null) data['deliveryOtp'] = deliveryOtp;
+    if (cancelReason != null) data['cancelReason'] = cancelReason;
     if (deliveryPartnerId != null) {
       data['deliveryPartnerId'] = deliveryPartnerId;
     }

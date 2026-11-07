@@ -10,6 +10,7 @@ import { useUserStore } from '@/lib/store/user'
 import { useCartStore } from '@/lib/store/cart'
 import { resolveImageUrl } from '@/lib/image-url'
 import { formatPrice, formatPriceNoDecimals } from '@/lib/utils'
+import { cancelledByLabel } from '@/lib/order-cancel'
 
 interface OrderItem {
   id: string
@@ -46,6 +47,8 @@ interface Order {
   id: string
   orderNumber: string
   status: string
+  cancelledBy?: string | null
+  cancelReason?: string | null
   isGift: boolean
   total: number
   createdAt: string
@@ -221,9 +224,17 @@ export default function OrdersPage() {
                       })}
                     </p>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)} w-fit`}>
-                    {formatStatus(order.status)}
-                  </span>
+                  <div className="flex flex-col gap-1 sm:items-end">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)} w-fit`}>
+                      {formatStatus(order.status)}
+                    </span>
+                    {order.status === 'CANCELLED' ? (
+                      <span className="max-w-[16rem] text-xs text-red-700 sm:text-right">
+                        {cancelledByLabel(order.cancelledBy, 'customer')}
+                        {order.cancelReason ? ` · ${order.cancelReason}` : ''}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="space-y-3 mb-4">

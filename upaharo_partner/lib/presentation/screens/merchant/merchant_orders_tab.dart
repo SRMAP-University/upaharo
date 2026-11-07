@@ -59,6 +59,34 @@ String _merchantStatusActionLabel(String status, {bool short = false}) {
   }
 }
 
+/// Who cancelled an order (Order.cancelledBy on the server).
+String _cancelledByLabel(Object? by) {
+  switch (by) {
+    case 'CUSTOMER':
+      return 'Cancelled by customer';
+    case 'ADMIN':
+      return 'Cancelled by admin';
+    case 'SELLER':
+      return 'Cancelled by seller';
+    case 'SYSTEM':
+      return 'Cancelled automatically';
+    default:
+      return 'Cancelled';
+  }
+}
+
+/// Reasons the store picks from when cancelling (same list as the website,
+/// lib/order-cancel.ts). The customer sees the reason.
+const _storeCancelReasons = [
+  'Out of stock',
+  'Customer asked to cancel',
+  'Could not reach the customer',
+  'Address outside our delivery area',
+  'Payment not received',
+  'Duplicate or test order',
+  'Other',
+];
+
 Color _merchantStatusColor(String status, Color primary) {
   switch (status) {
     case 'PENDING':
@@ -354,13 +382,14 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     return widget.initialOrder;
   }
 
-  Future<void> _advance(String next, {String? deliveryOtp}) async {
+  Future<void> _advance(String next, {String? deliveryOtp, String? cancelReason}) async {
     setState(() => _updating = true);
     try {
       await context.read<MerchantProvider>().updateOrderStatus(
             widget.orderId,
             next,
             deliveryOtp: deliveryOtp,
+            cancelReason: cancelReason,
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -374,6 +403,67 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
     } finally {
       if (mounted) setState(() => _updating = false);
     }
+  }
+
+  /// Asks why the order is being cancelled; null when it's kept.
+  Future<String?> _askCancelReason() {
+    String? choice;
+    final other = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final reason = choice == 'Other' ? other.text.trim() : (choice ?? '');
+          return AlertDialog(
+            title: const Text('Cancel order?'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Why is it being cancelled? The customer sees this reason.'),
+                  const SizedBox(height: 8),
+                  RadioGroup<String>(
+                    groupValue: choice,
+                    onChanged: (value) => setLocal(() => choice = value),
+                    child: Column(
+                      children: [
+                        for (final option in _storeCancelReasons)
+                          RadioListTile<String>(
+                            value: option,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(option),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (choice == 'Other')
+                    TextField(
+                      controller: other,
+                      autofocus: true,
+                      maxLength: 300,
+                      maxLines: 2,
+                      decoration: const InputDecoration(hintText: 'Write the reason'),
+                      onChanged: (_) => setLocal(() {}),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Keep order'),
+              ),
+              FilledButton(
+                onPressed: reason.isEmpty ? null : () => Navigator.pop(ctx, reason),
+                child: const Text('Cancel order'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _markDelivered() async {
@@ -489,23 +579,10 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
               onPressed: _updating
                   ? null
                   : () async {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('Cancel order?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('No'),
-                            ),
-                            FilledButton(
-                              onPressed: () => Navigator.pop(ctx, true),
-                              child: const Text('Cancel order'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (ok == true) await _advance('CANCELLED');
+                      final reason = await _askCancelReason();
+                      if (reason != null && reason.isNotEmpty) {
+                        await _advance('CANCELLED', cancelReason: reason);
+                      }
                     },
               icon: const Icon(Icons.cancel_outlined),
             ),
@@ -635,6 +712,17 @@ class _MerchantOrderDetailScreenState extends State<MerchantOrderDetailScreen> {
                       ],
                     ],
                   ),
+                  if (status == 'CANCELLED') ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        _cancelledByLabel(order['cancelledBy']),
+                        if ((order['cancelReason'] as String?)?.isNotEmpty == true)
+                          'Reason: ${order['cancelReason']}',
+                      ].join(' · '),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.danger),
+                    ),
+                  ],
                   if (user?['phone'] != null)
                     TextButton.icon(
                       style: TextButton.styleFrom(

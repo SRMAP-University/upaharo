@@ -419,6 +419,10 @@ model Order {
   outForDeliveryAt     DateTime?
   deliveredAt          DateTime?
   cancelledAt          DateTime?
+  /// Who cancelled: CUSTOMER | ADMIN | SELLER | SYSTEM (null on orders cancelled before this was kept).
+  cancelledBy          String?
+  /// Why it was cancelled (picked or typed when cancelling).
+  cancelReason         String?
   /// Customer shares this code with the rider/admin to confirm delivery.
   deliveryOtp          String?
   deliveryOtpCreatedAt DateTime?

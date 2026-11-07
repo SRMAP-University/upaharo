@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { OrderStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ADMIN_ORDER_INCLUDE, toAdminOrder } from '@/lib/admin-order-view'
+import { readCancelReason } from '@/lib/order-cancel'
 import {
   deliveryOtpsMatch,
   generateDeliveryOtp,
@@ -79,6 +80,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             { status: 400 }
           )
         }
+      }
+
+      if (nextStatus === 'CANCELLED' && existing.status !== 'CANCELLED') {
+        const reason = readCancelReason(body.cancelReason)
+        if (!reason) {
+          return NextResponse.json({ error: 'Choose a reason for cancelling this order' }, { status: 400 })
+        }
+        updateData.cancelledBy = 'ADMIN'
+        updateData.cancelReason = reason
+      } else if (nextStatus !== 'CANCELLED' && existing.status === 'CANCELLED') {
+        updateData.cancelledBy = null
+        updateData.cancelReason = null
       }
 
       updateData.status = nextStatus
@@ -171,6 +184,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             status: effectiveStatus,
             deliveryOtp: order.deliveryOtp || issuedOtp || undefined,
             storeId: existing.storeId,
+            cancelReason: order.cancelReason,
           })
           if (effectiveStatus === 'READY') {
             await notifyDeliveryPartnersJobAvailable({

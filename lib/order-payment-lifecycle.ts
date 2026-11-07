@@ -107,6 +107,8 @@ export async function abandonUnpaidOnlineOrder(orderId: string): Promise<{
       status: 'CANCELLED',
       paymentStatus: 'FAILED',
       cancelledAt: new Date(),
+      cancelledBy: 'SYSTEM',
+      cancelReason: 'Online payment was not completed',
     },
   })
 

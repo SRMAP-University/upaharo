@@ -44,6 +44,8 @@ export async function DELETE(request: NextRequest) {
         data: {
           status: 'CANCELLED',
           cancelledAt: new Date(),
+          cancelledBy: 'CUSTOMER',
+          cancelReason: 'Customer deleted their account',
         },
       })
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
 import { orderBreakdown } from '@/lib/order-breakdown'
+import { readCancelReason } from '@/lib/order-cancel'
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { resolveUserId } from '@/lib/request-auth'
 import { resolveStoreContext } from '@/lib/store-context'
@@ -197,6 +198,9 @@ export async function PATCH(
       data: {
         status: 'CANCELLED',
         cancelledAt: new Date(),
+        cancelledBy: 'CUSTOMER',
+        // Older app versions don't ask for a reason.
+        cancelReason: readCancelReason(body?.reason),
       },
       include: {
         items: {

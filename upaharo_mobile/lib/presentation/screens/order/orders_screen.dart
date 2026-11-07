@@ -336,7 +336,7 @@ class _OrderCard extends StatelessWidget {
     }
     final label = switch (order.status) {
       OrderStatus.delivered => 'Delivered',
-      OrderStatus.cancelled => 'Cancelled',
+      OrderStatus.cancelled => order.cancelledByLabel,
       OrderStatus.outForDelivery => 'On the way',
       OrderStatus.preparing => 'Preparing',
       OrderStatus.ready => 'Ready',

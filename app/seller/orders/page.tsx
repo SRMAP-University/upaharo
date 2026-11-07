@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { cancelledByLabel } from '@/lib/order-cancel'
 
 interface OrderItem {
   id: string
@@ -17,6 +18,8 @@ interface Order {
   id: string
   orderNumber: string
   status: string
+  cancelledBy?: string | null
+  cancelReason?: string | null
   source?: 'UPAHARO' | 'OFFLINE'
   offlineChannel?: string | null
   total: number
@@ -161,13 +164,21 @@ export default function SellerOrdersPage() {
                       {formatDate(order.placedAt)}
                     </p>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold self-start ${getStatusColor(
-                      order.status
-                    )}`}
-                  >
-                    {order.status.replace('_', ' ')}
-                  </span>
+                  <div className="flex flex-col items-start gap-1 sm:items-end">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-semibold self-start sm:self-end ${getStatusColor(
+                        order.status
+                      )}`}
+                    >
+                      {order.status.replace('_', ' ')}
+                    </span>
+                    {order.status === 'CANCELLED' ? (
+                      <span className="max-w-[16rem] text-xs text-red-700 sm:text-right">
+                        {cancelledByLabel(order.cancelledBy, 'store')}
+                        {order.cancelReason ? ` · ${order.cancelReason}` : ''}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="border-t border-wine/10 pt-4 mb-4">

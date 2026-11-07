@@ -209,28 +209,82 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Future<void> _cancelOrder() async {
-    final ok = await showDialog<bool>(
+  /// Reasons the customer picks from (same list as the website, lib/order-cancel.ts).
+  static const _cancelReasons = [
+    'Ordered by mistake',
+    'Want to change items or address',
+    'Found a better price elsewhere',
+    'Delivery is taking too long',
+    'No longer needed',
+    'Other',
+  ];
+
+  /// Asks why the customer is cancelling; null when they keep the order.
+  Future<String?> _askCancelReason() {
+    String? choice;
+    final other = TextEditingController();
+    return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cancel order?'),
-        content: const Text('This cannot be undone. Make sure you really want to cancel this order.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep order')),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Cancel order'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final reason = choice == 'Other' ? other.text.trim() : (choice ?? '');
+          return AlertDialog(
+            title: const Text('Cancel order?'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Why do you want to cancel? This cannot be undone.'),
+                  const SizedBox(height: 8),
+                  RadioGroup<String>(
+                    groupValue: choice,
+                    onChanged: (value) => setLocal(() => choice = value),
+                    child: Column(
+                      children: [
+                        for (final option in _cancelReasons)
+                          RadioListTile<String>(
+                            value: option,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(option),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (choice == 'Other')
+                    TextField(
+                      controller: other,
+                      autofocus: true,
+                      maxLength: 300,
+                      maxLines: 2,
+                      decoration: const InputDecoration(hintText: 'Tell us why'),
+                      onChanged: (_) => setLocal(() {}),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Keep order')),
+              TextButton(
+                onPressed: reason.isEmpty ? null : () => Navigator.pop(ctx, reason),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Cancel order'),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
 
-    if (ok != true || !mounted) return;
+  Future<void> _cancelOrder() async {
+    final reason = await _askCancelReason();
+    if (reason == null || reason.isEmpty || !mounted) return;
 
     try {
       setState(() => _loading = true);
-      final updated = await _repo.cancelOrder(_orderId);
+      final updated = await _repo.cancelOrder(_orderId, reason: reason);
       if (!mounted) return;
       context.read<OrdersProvider>().upsertOrder(updated);
       setState(() {
@@ -579,7 +633,12 @@ class _MapStatusHover extends StatelessWidget {
     final completed = trackingCompletedIndex(order.status);
     final cancelled = order.status == OrderStatus.cancelled;
     final partner = order.deliveryPartner;
-    final liveHint = partner != null &&
+    final liveHint = cancelled
+        ? [
+            order.cancelledByLabel,
+            if (order.cancelReason != null && order.cancelReason!.isNotEmpty) 'Reason: ${order.cancelReason}',
+          ].join(' · ')
+        : partner != null &&
             (order.status == OrderStatus.outForDelivery ||
                 order.status == OrderStatus.ready)
         ? partner.hasLiveLocation
@@ -719,7 +778,7 @@ class _MapStatusHover extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               cancelled
-                  ? 'Cancelled'
+                  ? order.cancelledByLabel
                   : trackingSteps[completed.clamp(0, trackingSteps.length - 1)].label,
               style: TextStyle(
                 fontSize: 11,

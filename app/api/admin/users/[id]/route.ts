@@ -145,6 +145,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         data: {
           status: 'CANCELLED',
           cancelledAt: new Date(),
+          cancelledBy: 'ADMIN',
+          cancelReason: 'Customer account was removed',
         },
       })
 

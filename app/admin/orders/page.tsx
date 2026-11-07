@@ -5,6 +5,7 @@ import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageH
 import Link from 'next/link'
 import { resolveImageUrl } from '@/lib/image-url'
 import { couponRule, lineOffer, orderBreakdown } from '@/lib/order-breakdown'
+import { CANCEL_REASON_MAX, STORE_CANCEL_REASONS, cancelledByLabel } from '@/lib/order-cancel'
 import { formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 
 interface Address {
@@ -54,6 +55,10 @@ interface Order {
   showSenderName?: boolean
   status: 'PENDING' | 'ACCEPTED' | 'PREPARING' | 'READY' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED'
   paymentStatus: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
+  cancelledAt?: string | null
+  /** CUSTOMER | ADMIN | SELLER | SYSTEM; null on orders cancelled before this was kept. */
+  cancelledBy?: string | null
+  cancelReason?: string | null
   deliveryOtp?: string | null
   deliveryPartnerId?: string | null
   deliveryPartner?: {
@@ -289,6 +294,103 @@ function PriceDetails({ order }: { order: Order }) {
   )
 }
 
+/** "Cancelled by customer: Ordered by mistake". */
+const cancelSummary = (order: Order) =>
+  `${cancelledByLabel(order.cancelledBy, 'store')}${order.cancelReason ? `: ${order.cancelReason}` : ''}`
+
+/** Asks the admin why an order is being cancelled. onConfirm returns an error message, or null when done. */
+function CancelOrderDialog({
+  order,
+  onClose,
+  onConfirm,
+}: {
+  order: Order
+  onClose: () => void
+  onConfirm: (reason: string) => Promise<string | null>
+}) {
+  const [choice, setChoice] = useState('')
+  const [other, setOther] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const reason = choice === 'Other' ? other.trim() : choice
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onClose])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reason) {
+      setError(choice === 'Other' ? 'Write the reason.' : 'Choose a reason.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    const failed = await onConfirm(reason)
+    setBusy(false)
+    if (failed) setError(failed)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/50 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cancel-order-title"
+      onClick={(e) => e.target === e.currentTarget && !busy && onClose()}
+    >
+      <form onSubmit={submit} className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
+        <h3 id="cancel-order-title" className="font-display text-lg font-semibold text-ink">
+          Cancel order {order.orderNumber}?
+        </h3>
+        <p className="mt-1 text-sm text-ink/60">Why is it being cancelled? The customer sees this reason in their order and notification.</p>
+        <div className="mt-4 space-y-1.5">
+          {[...STORE_CANCEL_REASONS, 'Other'].map((option) => (
+            <label key={option} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-ink hover:bg-stone-50">
+              <input
+                type="radio"
+                name="cancel-reason"
+                value={option}
+                checked={choice === option}
+                onChange={() => setChoice(option)}
+                className="h-4 w-4 accent-wine"
+              />
+              {option}
+            </label>
+          ))}
+        </div>
+        {choice === 'Other' ? (
+          <textarea
+            autoFocus
+            value={other}
+            onChange={(e) => setOther(e.target.value)}
+            maxLength={CANCEL_REASON_MAX}
+            rows={2}
+            placeholder="Write the reason"
+            aria-label="Reason for cancelling"
+            className="mt-2 w-full rounded-xl border border-stone-300 px-3 py-2 text-sm text-ink focus:border-wine/40 focus:outline-none focus:ring-2 focus:ring-wine/15"
+          />
+        ) : null}
+        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={busy} className={adminButtonClass.secondary}>
+            Keep order
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex items-center rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {busy ? 'Cancelling…' : 'Cancel order'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 const STATUS_OPTIONS = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']
 const PAYMENT_STATUS_OPTIONS = ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED']
 const MINUTES_PER_DAY = 24 * 60
@@ -320,6 +422,7 @@ export default function AdminOrders() {
   const [loadError, setLoadError] = useState('')
   const [selectedStoreName, setSelectedStoreName] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [cancelling, setCancelling] = useState<Order | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'UPAHARO' | 'OFFLINE'>('ALL')
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
@@ -462,6 +565,12 @@ export default function AdminOrders() {
   }
 
   const updateOrderStatus = async (orderId: string, status: string) => {
+    // Cancelling asks for a reason first.
+    if (status === 'CANCELLED') {
+      const order = orders.find((o) => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null)
+      if (order && order.status !== 'CANCELLED') setCancelling(order)
+      return
+    }
     try {
       let deliveryOtp: string | undefined
       if (status === 'DELIVERED' && deliveryOtpRequired) {
@@ -494,6 +603,24 @@ export default function AdminOrders() {
     } catch (error) {
       console.error('Error updating order:', error)
       alert('Failed to update order status')
+    }
+  }
+
+  const confirmCancel = async (order: Order, cancelReason: string) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'CANCELLED', cancelReason }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) return data.error || 'Could not cancel the order'
+      setCancelling(null)
+      fetchOrders()
+      if (selectedOrder?.id === order.id) setSelectedOrder(data)
+      return null
+    } catch {
+      return 'Could not cancel the order. Check your connection and try again.'
     }
   }
 
@@ -708,6 +835,9 @@ export default function AdminOrders() {
                           <option key={status} value={status}>{status}</option>
                         ))}
                       </select>
+                      {order.status === 'CANCELLED' ? (
+                        <div className="mt-1 max-w-[12rem] text-[11px] leading-snug text-red-700">{cancelSummary(order)}</div>
+                      ) : null}
                     </td>
                     <td className="px-4 py-4">
                       <select
@@ -755,6 +885,7 @@ export default function AdminOrders() {
                     </span>
                   </div>
                   <div className="mt-1 text-xs text-ink/55">{orderTime(order.createdAt)}</div>
+                  {order.status === 'CANCELLED' ? <div className="mt-1 text-xs text-red-700">{cancelSummary(order)}</div> : null}
                   <div className="mt-2 flex items-center justify-between text-xs text-ink/55">
                     <span>{order.user.name} · {order.store.name}</span>
                     <span>{formatPriceNoDecimals(order.total || 0)}</span>
@@ -768,6 +899,10 @@ export default function AdminOrders() {
           </>
         )}
       </div>
+
+      {cancelling ? (
+        <CancelOrderDialog order={cancelling} onClose={() => setCancelling(null)} onConfirm={(reason) => confirmCancel(cancelling, reason)} />
+      ) : null}
 
       {/* Order Details Modal */}
       {selectedOrder && (
@@ -802,6 +937,18 @@ export default function AdminOrders() {
               </div>
             </div>
             <div className="p-6 space-y-6">
+              {selectedOrder.status === 'CANCELLED' ? (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                  <p className="font-semibold">
+                    {cancelledByLabel(selectedOrder.cancelledBy, 'store')}
+                    {selectedOrder.cancelledAt ? <span className="font-normal"> · {orderTime(selectedOrder.cancelledAt)}</span> : null}
+                  </p>
+                  <p className="mt-0.5">
+                    Reason: {selectedOrder.cancelReason || <span className="text-red-700/70">not given</span>}
+                  </p>
+                </div>
+              ) : null}
+
               {/* Customer Info */}
               <div>
                 <h3 className="font-display font-semibold text-ink mb-2">Customer Information</h3>
