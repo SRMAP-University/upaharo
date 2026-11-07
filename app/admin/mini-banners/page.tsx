@@ -77,7 +77,7 @@ export default function AdminMiniBanners() {
   const fetchCatalog = async () => {
     try {
       const [productsRes, categoriesRes] = await Promise.all([
-        fetch('/api/admin/products'),
+        fetch('/api/admin/products?all=1'),
         fetch('/api/admin/categories'),
       ])
       if (productsRes.ok) {

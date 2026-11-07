@@ -95,7 +95,7 @@ export default function AdminCoupons() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/admin/products')
+      const res = await fetch('/api/admin/products?all=1')
       if (res.ok) {
         const data = await res.json()
         setProducts(data.products ?? [])

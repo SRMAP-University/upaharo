@@ -17,6 +17,8 @@ import { resolveAdminStoreContext } from '@/lib/store-context'
 import { resolveProductSellerId } from '@/lib/product-seller'
 
 function toNumber(value: unknown, fallback: number) {
+  // A missing parameter (null / '') would read as 0.
+  if (value === null || value === undefined || value === '') return fallback
   const n = Number(value)
   return Number.isFinite(n) ? n : fallback
 }
@@ -89,6 +91,20 @@ export async function GET(request: NextRequest) {
       ids,
       includeInventoryItems,
     })
+
+    // Pickers that search the whole catalogue in the browser (coupons,
+    // banners) ask for every product, with only the fields they show.
+    if (searchParams.get('all') === '1') {
+      const products = await prisma.product.findMany({
+        where,
+        orderBy: productListOrderBy(sort),
+        select: { id: true, name: true, category: true, price: true, image: true, isAvailable: true },
+      })
+      return NextResponse.json(
+        { products, total: products.length, page: 1, limit: products.length, totalPages: 1, storeSlug: storeContext.slug },
+        { headers: { 'Cache-Control': 'private, no-store, max-age=0, must-revalidate', Vary: 'Cookie' } }
+      )
+    }
 
     const page = Math.max(1, Math.round(toNumber(searchParams.get('page'), 1)))
     const limit = Math.min(100, Math.max(1, Math.round(toNumber(searchParams.get('limit'), 50))))
