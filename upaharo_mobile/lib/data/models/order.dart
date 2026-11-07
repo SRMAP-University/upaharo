@@ -19,6 +19,76 @@ enum PaymentMethod { cash, online, card }
 
 enum PaymentStatus { pending, completed, failed, refunded }
 
+/// The order's price step by step, worked out by the server
+/// (lib/order-breakdown.ts), and what the customer saved.
+class PriceBreakdown {
+  const PriceBreakdown({
+    this.itemsRegular = 0,
+    this.offers = 0,
+    this.subtotal = 0,
+    this.coupon = 0,
+    this.discount = 0,
+    this.giftWrap = 0,
+    this.delivery = 0,
+    this.tax = 0,
+    this.wallet = 0,
+    this.otherCharges = 0,
+    this.otherReduction = 0,
+    this.total = 0,
+    this.saved = 0,
+  });
+
+  /// Items at their regular price (before product offers).
+  final double itemsRegular;
+  final double offers;
+  final double subtotal;
+  final double coupon;
+  final double discount;
+  final double giftWrap;
+  final double delivery;
+  final double tax;
+  final double wallet;
+  final double otherCharges;
+  final double otherReduction;
+  final double total;
+  /// Offers, coupon and discounts together.
+  final double saved;
+
+  static double _n(Map json, String key) => (json[key] as num?)?.toDouble() ?? 0;
+
+  factory PriceBreakdown.fromJson(Map json) => PriceBreakdown(
+        itemsRegular: _n(json, 'itemsRegular'),
+        offers: _n(json, 'offers'),
+        subtotal: _n(json, 'subtotal'),
+        coupon: _n(json, 'coupon'),
+        discount: _n(json, 'discount'),
+        giftWrap: _n(json, 'giftWrap'),
+        delivery: _n(json, 'delivery'),
+        tax: _n(json, 'tax'),
+        wallet: _n(json, 'wallet'),
+        otherCharges: _n(json, 'otherCharges'),
+        otherReduction: _n(json, 'otherReduction'),
+        total: _n(json, 'total'),
+        saved: _n(json, 'saved'),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'itemsRegular': itemsRegular,
+        'offers': offers,
+        'subtotal': subtotal,
+        'coupon': coupon,
+        'discount': discount,
+        'giftWrap': giftWrap,
+        'delivery': delivery,
+        'tax': tax,
+        'wallet': wallet,
+        'otherCharges': otherCharges,
+        'otherReduction': otherReduction,
+        'total': total,
+        'saved': saved,
+      };
+}
+
 /// Live delivery partner shown on customer track map.
 class DeliveryPartnerTracking {
   const DeliveryPartnerTracking({
@@ -110,6 +180,8 @@ class Order {
   /// Shown to the customer to confirm delivery (share with rider).
   final String? deliveryOtp;
   final DeliveryPartnerTracking? deliveryPartner;
+  /// Sent with a single order; null in lists and older caches.
+  final PriceBreakdown? breakdown;
 
   const Order({
     required this.id,
@@ -149,6 +221,7 @@ class Order {
     this.showSenderName = true,
     this.deliveryOtp,
     this.deliveryPartner,
+    this.breakdown,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -213,6 +286,7 @@ class Order {
               Map<String, dynamic>.from(json['deliveryPartner'] as Map),
             )
           : null,
+      breakdown: json['breakdown'] is Map ? PriceBreakdown.fromJson(json['breakdown'] as Map) : null,
     );
   }
 
@@ -256,6 +330,7 @@ class Order {
         if (greetingMessage != null) 'greetingMessage': greetingMessage,
         if (senderName != null) 'senderName': senderName,
         'showSenderName': showSenderName,
+        if (breakdown != null) 'breakdown': breakdown!.toJson(),
       };
 
   bool get isPickup => fulfillmentType == 'PICKUP';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { LEGACY_PRODUCT_SELECT } from '@/lib/product-db'
+import { orderBreakdown } from '@/lib/order-breakdown'
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { resolveUserId } from '@/lib/request-auth'
 import { resolveStoreContext } from '@/lib/store-context'
@@ -40,6 +41,7 @@ export async function GET(
         recipient: true,
         giftWrap: true,
         occasion: true,
+        coupon: { select: { code: true } },
         deliveryPartner: {
           select: {
             id: true,
@@ -84,9 +86,33 @@ export async function GET(
       partner.currentLng != null
 
     const { deliveryPartner, ...rest } = order
+    // Price step by step, and what the customer saved (offers, coupon, discounts).
+    const breakdown = orderBreakdown(order)
     return NextResponse.json({
       order: {
         ...rest,
+        couponCode: order.coupon?.code ?? null,
+        savings: {
+          offers: breakdown.offers,
+          coupon: breakdown.coupon,
+          discount: breakdown.otherDiscount + breakdown.otherReduction,
+          total: breakdown.saved,
+        },
+        breakdown: {
+          itemsRegular: breakdown.itemsRegular,
+          offers: breakdown.offers,
+          subtotal: breakdown.subtotal,
+          coupon: breakdown.coupon,
+          discount: breakdown.otherDiscount,
+          giftWrap: breakdown.giftWrap,
+          delivery: breakdown.delivery,
+          tax: breakdown.tax,
+          wallet: breakdown.wallet,
+          otherCharges: breakdown.otherCharges,
+          otherReduction: breakdown.otherReduction,
+          total: breakdown.total,
+          saved: breakdown.saved,
+        },
         deliveryPartner: deliveryPartner
           ? {
               id: deliveryPartner.id,

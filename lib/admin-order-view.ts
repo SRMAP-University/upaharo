@@ -30,7 +30,7 @@ export const ADMIN_ORDER_INCLUDE = {
   recipient: { select: { name: true, phone: true, relationship: true } },
   occasion: { select: { name: true, emoji: true } },
   giftWrap: { select: { name: true, type: true, price: true, image: true } },
-  coupon: { select: { code: true } },
+  coupon: { select: { code: true, description: true, type: true, value: true, maxDiscount: true, minOrderAmount: true } },
   items: {
     include: {
       product: {

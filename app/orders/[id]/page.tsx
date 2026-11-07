@@ -10,7 +10,8 @@ import FoodTypeBadge from '@/components/FoodTypeBadge'
 import PickupLocationCard from '@/components/PickupLocationCard'
 import { useUserStore } from '@/lib/store/user'
 import { resolveImageUrl } from '@/lib/image-url'
-import { formatPrice, formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import { lineOffer, orderBreakdown } from '@/lib/order-breakdown'
+import { formatPrice, formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 
 const trackingSteps = [
   { key: 'PENDING', label: 'Order Placed' },
@@ -72,6 +73,54 @@ const statusTheme: Record<
     hint: 'This order was cancelled.',
     panelClass: 'bg-red-50 border-red-200 text-red-800',
   },
+}
+
+/** Every step from the items to the total, and what the customer saved. */
+function BillSummary({ order, isPickup }: { order: any; isPickup: boolean }) {
+  const b = orderBreakdown(order)
+  const count = (order.items || []).reduce((n: number, item: any) => n + (Number(item.quantity) || 0), 0)
+  const money = (n: number) => formatPriceCompact(n)
+  const row = (label: React.ReactNode, value: string, green = false) => (
+    <div className="flex items-center justify-between gap-3 text-ink/60">
+      <span>{label}</span>
+      <span className={`tabular-nums ${green ? 'font-medium text-green-700' : ''}`}>{value}</span>
+    </div>
+  )
+  return (
+    <div className="space-y-2 text-sm">
+      {row(`Items (${count})`, money(b.itemsRegular))}
+      {b.offers >= 0.5 ? row('Offer discount', `−${money(b.offers)}`, true) : null}
+      {b.offers >= 0.5 ? row('Subtotal', money(b.subtotal)) : null}
+      {b.coupon > 0
+        ? row(
+            <>
+              Coupon
+              {order.coupon?.code ? (
+                <span className="ml-1.5 rounded bg-green-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-green-800">{order.coupon.code}</span>
+              ) : null}
+            </>,
+            `−${money(b.coupon)}`,
+            true
+          )
+        : null}
+      {b.otherDiscount > 0 ? row('Discount', `−${money(b.otherDiscount)}`, true) : null}
+      {b.giftWrap > 0 ? row(`Gift wrap${order.giftWrap?.name ? ` (${order.giftWrap.name})` : ''}`, money(b.giftWrap)) : null}
+      {isPickup ? row('Pickup', 'FREE', true) : row('Delivery fee', b.delivery > 0 ? money(b.delivery) : 'FREE', b.delivery <= 0)}
+      {b.tax > 0 ? row('Tax', money(b.tax)) : null}
+      {b.wallet > 0 ? row('Paid from wallet', `−${money(b.wallet)}`) : null}
+      {b.otherCharges > 0 ? row('Other charges', money(b.otherCharges)) : null}
+      {b.otherReduction > 0 ? row('Other discount', `−${money(b.otherReduction)}`, true) : null}
+      <div className="flex items-center justify-between border-t border-wine/10 pt-2 text-base font-semibold text-ink">
+        <span>Total</span>
+        <span className="text-wine">{money(b.total)}</span>
+      </div>
+      {b.saved >= 1 ? (
+        <p className="rounded-xl bg-green-50 px-3 py-2 text-sm font-medium text-green-800">
+          You saved {formatPriceNoDecimals(b.saved)} on this order
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 function formatStatusLabel(status: string) {
@@ -328,24 +377,7 @@ export default function OrderTrackingPage() {
             className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
           >
             <h2 className="mb-3 font-display text-lg font-semibold text-ink">Bill Summary</h2>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between text-ink/60">
-                <span>Subtotal</span>
-                <span>{formatPriceNoDecimals(order.subtotal)}</span>
-              </div>
-              <div className="flex items-center justify-between text-ink/60">
-                <span>{isPickup ? 'Pickup' : 'Delivery Fee'}</span>
-                <span>{isPickup ? 'FREE' : formatPriceNoDecimals(order.deliveryFee)}</span>
-              </div>
-              <div className="flex items-center justify-between text-ink/60">
-                <span>Tax</span>
-                <span>{formatPriceNoDecimals(order.tax)}</span>
-              </div>
-              <div className="border-t border-wine/10 pt-2 flex items-center justify-between text-base font-semibold text-ink">
-                <span>Total</span>
-                <span className="text-wine">{formatPriceNoDecimals(order.total)}</span>
-              </div>
-            </div>
+            <BillSummary order={order} isPickup={isPickup} />
           </motion.section>
         </div>
 
@@ -371,6 +403,13 @@ export default function OrderTrackingPage() {
                       <p className="truncate font-display text-sm font-semibold text-ink">{item.product.name}</p>
                     </div>
                     <p className="text-xs text-ink/55">Qty: {item.quantity}</p>
+                    {lineOffer(item).offer ? (
+                      <p className="text-xs text-ink/55">
+                        <span className="line-through">{formatPriceCompact(lineOffer(item).regularUnit)}</span>{' '}
+                        {formatPriceCompact(item.price)}{' '}
+                        <span className="font-semibold text-green-700">{lineOffer(item).offer}% off</span>
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <p className="text-sm font-semibold text-wine">{formatPrice(item.price * item.quantity)}</p>

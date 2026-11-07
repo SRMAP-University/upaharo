@@ -914,10 +914,50 @@ class _BillCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final b = order.breakdown;
+    final itemCount = order.items.fold<int>(0, (sum, item) => sum + item.quantity);
     return _SectionCard(
       title: 'Bill summary',
       child: Column(
-        children: [
+        children: b != null
+            ? [
+                _row('Items ($itemCount)', b.itemsRegular),
+                if (b.offers >= 0.5) _row('Offer discount', -b.offers),
+                if (b.offers >= 0.5) _row('Subtotal', b.subtotal),
+                if (b.coupon > 0)
+                  _row(order.couponCode != null ? 'Coupon (${order.couponCode})' : 'Coupon', -b.coupon),
+                if (b.discount > 0) _row('Discount', -b.discount),
+                if (b.giftWrap > 0)
+                  _row(order.giftWrap != null ? 'Gift wrap (${order.giftWrap!.name})' : 'Gift wrap', b.giftWrap),
+                _row(order.isPickup ? 'Pickup' : 'Delivery', b.delivery, freeIfZero: true),
+                if (b.tax > 0) _row('Tax', b.tax),
+                if (b.wallet > 0) _row('Paid from wallet', -b.wallet, offWord: false),
+                if (b.otherCharges > 0) _row('Other charges', b.otherCharges),
+                if (b.otherReduction > 0) _row('Other discount', -b.otherReduction),
+                const Divider(),
+                _row('Total', b.total, bold: true),
+                if (b.saved >= 1) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'You saved ${PriceFormatter.format(b.saved)} on this order',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF2E7D32),
+                      ),
+                    ),
+                  ),
+                ],
+                ..._footer(),
+              ]
+            : [
           _row('Subtotal', order.subtotal),
           _row(order.isPickup ? 'Pickup' : 'Delivery', order.deliveryFee, freeIfZero: true),
           if (order.couponDiscount > 0 || order.discount > 0)
@@ -929,6 +969,15 @@ class _BillCard extends StatelessWidget {
           if (order.tax > 0) _row('Tax', order.tax),
           const Divider(),
           _row('Total', order.total, bold: true),
+          ..._footer(),
+        ],
+      ),
+    );
+  }
+
+  /// Cashback and payment lines under the total.
+  List<Widget> _footer() {
+    return [
           if (order.cashbackAmount > 0 && order.cashbackStatus != 'VOIDED') ...[
             const SizedBox(height: 6),
             Align(
@@ -953,12 +1002,10 @@ class _BillCard extends StatelessWidget {
               style: TextStyle(fontSize: 12, color: AppTheme.charcoal),
             ),
           ),
-        ],
-      ),
-    );
+    ];
   }
 
-  Widget _row(String label, double amount, {bool bold = false, bool freeIfZero = false}) {
+  Widget _row(String label, double amount, {bool bold = false, bool freeIfZero = false, bool offWord = true}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -969,7 +1016,9 @@ class _BillCard extends StatelessWidget {
             const Text('FREE', style: TextStyle(color: Color(0xFF2E7D32), fontWeight: FontWeight.w600))
           else
             Text(
-              PriceFormatter.format(amount.abs()) + (amount < 0 ? ' off' : ''),
+              amount < 0 && !offWord
+                  ? '−${PriceFormatter.format(amount.abs())}'
+                  : PriceFormatter.format(amount.abs()) + (amount < 0 ? ' off' : ''),
               style: TextStyle(
                 fontWeight: bold ? FontWeight.w600 : FontWeight.w600,
                 color: bold ? AppTheme.wine : AppTheme.ink,
