@@ -5,6 +5,8 @@ const prisma = new PrismaClient()
 try {
   await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "stockCountedAt" TIMESTAMP(3)`)
   await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "costPrice" DOUBLE PRECISION`)
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "packagingCost" DOUBLE PRECISION`)
+  await prisma.$executeRawUnsafe(`ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "bundleItems" JSONB`)
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "AdminPin" (
       "id" TEXT NOT NULL,

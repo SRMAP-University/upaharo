@@ -5,9 +5,21 @@ import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageH
 import ProductActiveSwitch from '@/components/admin/ProductActiveSwitch'
 import { AdminIcons } from '@/components/admin/admin-nav'
 import { resolveImageUrl } from '@/lib/image-url'
+import { uploadProductImage } from '@/lib/upload-image'
 import { formatPriceNoDecimals } from '@/lib/utils'
 
 type StockStatus = 'in' | 'low' | 'out' | 'untracked'
+type Filter = StockStatus | 'hamper' | 'all'
+
+type HamperPart = {
+  productId: string
+  name: string
+  image: string
+  quantity: number
+  unitCost: number | null
+  salePrice: number
+  available: number | null
+}
 
 type Row = {
   id: string
@@ -23,11 +35,14 @@ type Row = {
   available: number | null
   status: StockStatus
   costPrice: number | null
+  packagingCost: number | null
+  unitCost: number | null
   price: number
   discount: number
   salePrice: number
   unitProfit: number | null
   marginPercent: number | null
+  hamper: HamperPart[] | null
 }
 
 type Summary = {
@@ -37,6 +52,7 @@ type Summary = {
   lowStock: number
   outOfStock: number
   untracked: number
+  hampers: number
   withoutPurchasePrice: number
   stockValueAtCost: number
   stockValueAtSale: number
@@ -245,6 +261,28 @@ function PriceCell({ value, onSave, placeholder }: { value: number | null; onSav
 function StockCell({ row, onPatch }: { row: Row; onPatch: (body: Record<string, unknown>) => void }) {
   const [add, setAdd] = useState('')
   const [count, setCount] = useState('')
+  if (row.hamper) {
+    return (
+      <div className="min-w-[11rem]">
+        {row.available === null ? (
+          <p className="text-xs text-ink/45">Its items aren’t tracked</p>
+        ) : (
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-semibold tabular-nums text-ink">{row.available}</span>
+            <span className="text-xs text-ink/45">can be made</span>
+          </div>
+        )}
+        <ul className="mt-0.5 space-y-0.5 text-[11px] text-ink/50">
+          {row.hamper.map((part) => (
+            <li key={part.productId} className="max-w-[14rem] truncate" title={part.name}>
+              {part.quantity} × {part.name}
+              {part.available !== null ? ` · ${part.available} left` : ''}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
   if (!row.trackStock) {
     return (
       <button type="button" onClick={() => onPatch({ trackStock: true })} className="text-xs font-semibold text-wine hover:underline">
@@ -308,11 +346,14 @@ function StockCell({ row, onPatch }: { row: Row; onPatch: (body: Record<string, 
 }
 
 function AddCustomItem({ categories, onAdded, onClose }: { categories: string[]; onAdded: () => void; onClose: () => void }) {
-  const [form, setForm] = useState({ name: '', category: '', costPrice: '', price: '', stock: '', sku: '', sellOnline: false })
+  const [form, setForm] = useState({ name: '', category: '', costPrice: '', packagingCost: '', price: '', stock: '', sku: '', sellOnline: false })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }))
-  const margin = Number(form.price) > 0 && form.costPrice !== '' ? Number(form.price) - Number(form.costPrice) : null
+  const margin =
+    Number(form.price) > 0 && form.costPrice !== ''
+      ? Number(form.price) - Number(form.costPrice) - (Number(form.packagingCost) || 0)
+      : null
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -358,6 +399,10 @@ function AddCustomItem({ categories, onAdded, onClose }: { categories: string[];
           <input inputMode="decimal" value={form.costPrice} onChange={(e) => set({ costPrice: e.target.value })} className={`mt-1 ${inputClass}`} />
         </label>
         <label className="text-sm font-medium text-ink">
+          Packaging cost (Rs)
+          <input inputMode="decimal" value={form.packagingCost} onChange={(e) => set({ packagingCost: e.target.value })} placeholder="Box, wrap, ribbon…" className={`mt-1 ${inputClass}`} />
+        </label>
+        <label className="text-sm font-medium text-ink">
           Selling price (Rs)
           <input required inputMode="decimal" value={form.price} onChange={(e) => set({ price: e.target.value })} className={`mt-1 ${inputClass}`} />
         </label>
@@ -369,7 +414,7 @@ function AddCustomItem({ categories, onAdded, onClose }: { categories: string[];
           SKU (optional)
           <input value={form.sku} onChange={(e) => set({ sku: e.target.value })} className={`mt-1 ${inputClass}`} />
         </label>
-        <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink sm:col-span-2">
+        <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink sm:col-span-3">
           <input type="checkbox" checked={form.sellOnline} onChange={(e) => set({ sellOnline: e.target.checked })} />
           Also sell it on the website and app (otherwise it stays in-store only, and can be used in offline orders)
         </label>
@@ -386,6 +431,337 @@ function AddCustomItem({ categories, onAdded, onClose }: { categories: string[];
   )
 }
 
+function Thumb({ src, size = 'h-10 w-10' }: { src: string; size?: string }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={resolveImageUrl(src)} alt="" className={`${size} shrink-0 rounded-md bg-stone-100 object-cover`} />
+  ) : (
+    <span className={`${size} shrink-0 rounded-md bg-stone-100`} />
+  )
+}
+
+/** Make or change a hamper: pick products and quantities, packaging, and a price. */
+function HamperBuilder({
+  categories,
+  editing,
+  onSaved,
+  onClose,
+  onLocked,
+}: {
+  categories: string[]
+  editing: Row | null
+  onSaved: (row: Row, created: boolean) => void
+  onClose: () => void
+  onLocked: () => void
+}) {
+  const [name, setName] = useState(editing?.name || '')
+  const [category, setCategory] = useState(editing?.category || categories.find((c) => /hamper/i.test(c)) || '')
+  const [items, setItems] = useState<HamperPart[]>(editing?.hamper || [])
+  const [packaging, setPackaging] = useState(editing?.packagingCost != null ? String(editing.packagingCost) : '')
+  const [price, setPrice] = useState(editing ? String(editing.price) : '')
+  const [sellOnline, setSellOnline] = useState(editing ? editing.isAvailable : false)
+  const [image, setImage] = useState(editing?.image || '')
+  const [uploading, setUploading] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<Row[]>([])
+  const [searching, setSearching] = useState(false)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // Categories can arrive after the form opens.
+  useEffect(() => {
+    if (category) return
+    const hampers = categories.find((c) => /hamper/i.test(c))
+    if (hampers) setCategory(hampers)
+  }, [categories, category])
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setResults([])
+      setSearching(false)
+      return
+    }
+    let cancelled = false
+    setSearching(true)
+    const timer = window.setTimeout(() => {
+      api<{ rows: Row[] }>(`/api/admin/inventory/products?${new URLSearchParams({ search: q, perPage: '20' })}`)
+        .then((data) => !cancelled && setResults(data.rows.filter((r) => !r.hamper && r.id !== editing?.id)))
+        .catch((err) => {
+          if (cancelled) return
+          if ((err as { locked?: boolean }).locked) onLocked()
+          else setError((err as Error).message)
+        })
+        .finally(() => !cancelled && setSearching(false))
+    }, 250)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [query, editing?.id, onLocked])
+
+  const addItem = (row: Row) =>
+    setItems((prev) =>
+      prev.some((i) => i.productId === row.id)
+        ? prev.map((i) => (i.productId === row.id ? { ...i, quantity: i.quantity + 1 } : i))
+        : [
+            ...prev,
+            { productId: row.id, name: row.name, image: row.image, quantity: 1, unitCost: row.unitCost, salePrice: row.salePrice, available: row.available },
+          ]
+    )
+  const setQuantity = (productId: string, quantity: number) =>
+    setItems((prev) =>
+      quantity <= 0 ? prev.filter((i) => i.productId !== productId) : prev.map((i) => (i.productId === productId ? { ...i, quantity } : i))
+    )
+
+  const units = items.reduce((s, i) => s + i.quantity, 0)
+  const missingCost = items.filter((i) => i.unitCost === null)
+  const itemsCost = items.reduce((s, i) => s + (i.unitCost ?? 0) * i.quantity, 0)
+  const packagingValue = Number(packaging) || 0
+  const totalCost = itemsCost + packagingValue
+  const separately = items.reduce((s, i) => s + i.salePrice * i.quantity, 0)
+  const priceValue = Number(price) || 0
+  const profit = priceValue > 0 && missingCost.length === 0 ? priceValue - totalCost : null
+  const tracked = items.filter((i) => i.available !== null)
+  const canMake = tracked.length ? Math.min(...tracked.map((i) => Math.floor(i.available! / i.quantity))) : null
+  const shownImage = image || items.find((i) => i.image)?.image || ''
+
+  const upload = async (file: File | null) => {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      setImage(await uploadProductImage(file))
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      const body = JSON.stringify({
+        name,
+        category,
+        items: items.map(({ productId, quantity }) => ({ productId, quantity })),
+        packagingCost: packaging.trim() === '' ? null : packaging.trim(),
+        price: price.trim(),
+        sellOnline,
+        image,
+      })
+      const row = editing
+        ? await api<Row>(`/api/admin/inventory/hampers/${editing.id}`, { method: 'PATCH', body })
+        : await api<Row>('/api/admin/inventory/hampers', { method: 'POST', body })
+      onSaved(row, !editing)
+    } catch (err) {
+      if ((err as { locked?: boolean }).locked) onLocked()
+      else setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="mb-5 rounded-xl border border-stone-200 bg-white">
+      <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+        <h3 className="text-sm font-semibold text-ink">{editing ? `Edit hamper: ${editing.name}` : 'Create a hamper'}</h3>
+        <button type="button" onClick={onClose} className="text-sm text-ink/50 hover:text-ink">
+          Close
+        </button>
+      </div>
+      {error ? <p className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+
+      <div className="grid gap-5 p-4 lg:grid-cols-[1.2fr_1fr]">
+        {/* What goes inside */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-ink">What goes inside</p>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products to add (name or SKU)"
+            className={inputClass}
+            aria-label="Search products to add to the hamper"
+          />
+          {query.trim().length >= 2 ? (
+            <div className="max-h-64 overflow-y-auto rounded-lg border border-stone-200">
+              {searching && results.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-ink/50">Searching…</p>
+              ) : results.length === 0 ? (
+                <p className="px-3 py-3 text-sm text-ink/50">No products match.</p>
+              ) : (
+                <ul className="divide-y divide-stone-100">
+                  {results.map((row) => {
+                    const inside = items.find((i) => i.productId === row.id)?.quantity
+                    return (
+                      <li key={row.id} className="flex items-center gap-3 px-3 py-2">
+                        <Thumb src={row.image} size="h-9 w-9" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm text-ink" title={row.name}>
+                            {row.name}
+                          </p>
+                          <p className="text-[11px] text-ink/45">
+                            Sells {rs(row.salePrice)} · {row.unitCost === null ? 'no purchase price' : `costs ${rs(row.unitCost)}`}
+                            {row.available !== null ? ` · ${row.available} left` : ''}
+                          </p>
+                        </div>
+                        <button type="button" onClick={() => addItem(row)} className="shrink-0 rounded-md bg-wine/10 px-2.5 py-1 text-xs font-semibold text-wine hover:bg-wine/15">
+                          {inside ? `Add another (${inside})` : 'Add'}
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          {items.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-stone-300 px-3 py-6 text-center text-sm text-ink/50">
+              Search above and add the products that go into this hamper.
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200">
+              {items.map((item) => (
+                <li key={item.productId} className="flex items-center gap-3 px-3 py-2">
+                  <Thumb src={item.image} size="h-9 w-9" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink" title={item.name}>
+                      {item.name}
+                    </p>
+                    <p className="text-[11px] text-ink/45">
+                      {item.unitCost === null ? (
+                        <span className="text-amber-700">No purchase price</span>
+                      ) : (
+                        `${rs(item.unitCost)} each · ${rs(item.unitCost * item.quantity)}`
+                      )}
+                      {item.available !== null ? ` · ${item.available} left` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center rounded-md border border-stone-300">
+                    <button type="button" onClick={() => setQuantity(item.productId, item.quantity - 1)} className="px-2 py-1 text-sm text-ink/70 hover:bg-stone-50" aria-label={`One less ${item.name}`}>
+                      −
+                    </button>
+                    <input
+                      inputMode="numeric"
+                      value={item.quantity}
+                      onChange={(e) => setQuantity(item.productId, Math.min(999, Number(e.target.value.replace(/[^\d]/g, '')) || 0))}
+                      className="w-9 border-x border-stone-300 py-1 text-center text-sm tabular-nums"
+                      aria-label={`How many ${item.name}`}
+                    />
+                    <button type="button" onClick={() => setQuantity(item.productId, item.quantity + 1)} className="px-2 py-1 text-sm text-ink/70 hover:bg-stone-50" aria-label={`One more ${item.name}`}>
+                      +
+                    </button>
+                  </div>
+                  <button type="button" onClick={() => setQuantity(item.productId, 0)} className="shrink-0 text-xs text-ink/45 hover:text-red-600">
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Details and price */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-ink">
+            Hamper name
+            <input required value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tihar Sweet Hamper" className={`mt-1 ${inputClass}`} />
+          </label>
+          <label className="block text-sm font-medium text-ink">
+            Category
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={`mt-1 ${inputClass}`}>
+              {categories.includes('Gift Hampers') ? null : <option value="">Gift Hampers</option>}
+              {(category && !categories.includes(category) ? [category, ...categories] : categories).map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center gap-3">
+            <Thumb src={shownImage} size="h-14 w-14" />
+            <div className="text-sm">
+              <label className={`${adminButtonClass.secondary} cursor-pointer`}>
+                {uploading ? 'Uploading…' : image ? 'Change photo' : 'Upload photo'}
+                <input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={(e) => void upload(e.target.files?.[0] || null)} />
+              </label>
+              <p className="mt-1 text-[11px] text-ink/45">{image ? ' ' : 'Uses the first item’s photo until you upload one.'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-sm font-medium text-ink">
+              Packaging cost (Rs)
+              <input inputMode="decimal" value={packaging} onChange={(e) => setPackaging(e.target.value)} placeholder="Box, basket, wrap…" className={`mt-1 ${inputClass}`} />
+            </label>
+            <label className="text-sm font-medium text-ink">
+              Selling price (Rs)
+              <input required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} className={`mt-1 ${inputClass}`} />
+            </label>
+          </div>
+          {separately > 0 ? (
+            <p className="text-[11px] text-ink/50">
+              Bought separately these cost the customer {rs(separately)}.{' '}
+              <button type="button" onClick={() => setPrice(String(Math.round(separately)))} className="font-semibold text-wine hover:underline">
+                Use {rs(separately)}
+              </button>
+            </p>
+          ) : null}
+
+          <dl className="space-y-1.5 rounded-lg bg-stone-50 px-3 py-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-ink/60">
+                Items ({units} {units === 1 ? 'piece' : 'pieces'})
+              </dt>
+              <dd className="tabular-nums text-ink">{rs(itemsCost)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-ink/60">Packaging</dt>
+              <dd className="tabular-nums text-ink">{rs(packagingValue)}</dd>
+            </div>
+            <div className="flex justify-between border-t border-stone-200 pt-1.5 font-medium">
+              <dt className="text-ink">Cost of one hamper</dt>
+              <dd className="tabular-nums text-ink">{rs(totalCost)}</dd>
+            </div>
+            <div className="flex justify-between font-semibold">
+              <dt className="text-ink">Profit per hamper</dt>
+              <dd className={`tabular-nums ${profit !== null && profit < 0 ? 'text-red-600' : 'text-ink'}`}>
+                {profit === null ? '—' : `${rs(profit)}${priceValue > 0 ? ` (${Math.round((profit / priceValue) * 100)}%)` : ''}`}
+              </dd>
+            </div>
+            {missingCost.length > 0 ? (
+              <p className="pt-1 text-[11px] text-amber-800">
+                {missingCost.length === 1 ? `${missingCost[0].name} has` : `${missingCost.length} items have`} no purchase price yet, so the profit can’t be worked out.
+              </p>
+            ) : null}
+            {canMake !== null ? (
+              <p className="pt-1 text-[11px] text-ink/55">
+                With the stock in hand you can make {canMake} {canMake === 1 ? 'hamper' : 'hampers'}. Each one sold takes its items out of stock.
+              </p>
+            ) : null}
+          </dl>
+
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="checkbox" checked={sellOnline} onChange={(e) => setSellOnline(e.target.checked)} />
+            Sell it on the website and app
+          </label>
+          <div className="flex justify-end gap-2 border-t border-stone-100 pt-3">
+            <button type="button" onClick={onClose} className={adminButtonClass.secondary}>
+              Cancel
+            </button>
+            <button type="submit" disabled={busy || uploading || units < 2} className={adminButtonClass.primary}>
+              {busy ? 'Saving…' : editing ? 'Save hamper' : 'Create hamper'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  )
+}
+
 function StockTab({ onLocked }: { onLocked: () => void }) {
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -393,12 +769,14 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
   const [totalPages, setTotalPages] = useState(1)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(50)
-  const [status, setStatus] = useState<StockStatus | 'all'>('all')
+  const [status, setStatus] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [adding, setAdding] = useState(false)
+  // null = closed, 'new' = creating, a row = editing that hamper.
+  const [hamperForm, setHamperForm] = useState<Row | 'new' | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [saving, setSaving] = useState<string | null>(null)
 
@@ -451,13 +829,19 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
     }
   }
 
-  const chips: Array<{ id: StockStatus | 'all'; label: string; count?: number }> = [
+  const chips: Array<{ id: Filter; label: string; count?: number }> = [
     { id: 'all', label: 'All', count: summary?.products },
     { id: 'in', label: 'In stock', count: summary?.inStock },
     { id: 'low', label: 'Low stock', count: summary?.lowStock },
     { id: 'out', label: 'Out of stock', count: summary?.outOfStock },
     { id: 'untracked', label: 'Not tracked', count: summary?.untracked },
+    { id: 'hamper', label: 'Hampers', count: summary?.hampers },
   ]
+  const openHamper = (value: Row | 'new') => {
+    setAdding(false)
+    setHamperForm(value)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
     <div className="space-y-5">
@@ -485,6 +869,22 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
         />
       ) : null}
 
+      {hamperForm ? (
+        <HamperBuilder
+          key={hamperForm === 'new' ? 'new' : hamperForm.id}
+          categories={categories}
+          editing={hamperForm === 'new' ? null : hamperForm}
+          onLocked={onLocked}
+          onClose={() => setHamperForm(null)}
+          onSaved={(row, created) => {
+            setHamperForm(null)
+            setMessage(created ? `Hamper “${row.name}” created.` : `Hamper “${row.name}” saved.`)
+            if (created) void load()
+            else setRows((prev) => prev.map((r) => (r.id === row.id ? row : r)))
+          }}
+        />
+      ) : null}
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-2">
           {chips.map((chip) => (
@@ -499,10 +899,22 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or SKU" className={`${inputClass} w-56`} />
+          {!hamperForm ? (
+            <button type="button" onClick={() => openHamper('new')} className={adminButtonClass.secondary}>
+              + Create hamper
+            </button>
+          ) : null}
           {!adding ? (
-            <button type="button" onClick={() => setAdding(true)} className={adminButtonClass.primary}>
+            <button
+              type="button"
+              onClick={() => {
+                setHamperForm(null)
+                setAdding(true)
+              }}
+              className={adminButtonClass.primary}
+            >
               + Custom item
             </button>
           ) : null}
@@ -512,12 +924,13 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
       {message ? <p className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-ink/70">{message}</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-        <table className="w-full min-w-[920px] text-sm">
+        <table className="w-full min-w-[1040px] text-sm">
           <thead className="bg-stone-50 text-left text-xs font-medium uppercase tracking-wider text-ink/50">
             <tr>
               <th className="px-4 py-2.5">Product</th>
               <th className="px-4 py-2.5">Stock</th>
               <th className="px-4 py-2.5 text-right">Purchase price</th>
+              <th className="px-4 py-2.5 text-right">Packaging</th>
               <th className="px-4 py-2.5 text-right">Selling price</th>
               <th className="px-4 py-2.5 text-right">Profit / unit</th>
               <th className="px-4 py-2.5">Status</th>
@@ -527,14 +940,14 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
           <tbody className="divide-y divide-stone-100">
             {loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-ink/50">
+                <td colSpan={8} className="px-4 py-10 text-center text-ink/50">
                   Loading stock…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-ink/50">
-                  Nothing here.
+                <td colSpan={8} className="px-4 py-10 text-center text-ink/50">
+                  {status === 'hamper' ? 'No hampers yet. Use “+ Create hamper” to make one from your products.' : 'Nothing here.'}
                 </td>
               </tr>
             ) : (
@@ -542,19 +955,26 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
                 <tr key={row.id} className={saving === row.id ? 'opacity-60' : ''}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      {row.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={resolveImageUrl(row.image)} alt="" className="h-10 w-10 shrink-0 rounded-md bg-stone-100 object-cover" />
-                      ) : (
-                        <span className="h-10 w-10 shrink-0 rounded-md bg-stone-100" />
-                      )}
+                      <Thumb src={row.image} />
                       <div className="min-w-0">
                         <p className="max-w-[16rem] truncate font-medium text-ink" title={row.name}>
                           {row.name}
                         </p>
                         <p className="text-xs text-ink/45">
-                          {row.category}
-                          {row.sku ? ` · SKU ${row.sku}` : ''}
+                          {row.hamper ? (
+                            <>
+                              <span className="mr-1 rounded bg-wine/10 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-wine">Hamper</span>
+                              {row.hamper.reduce((s, p) => s + p.quantity, 0)} pieces ·{' '}
+                              <button type="button" onClick={() => openHamper(row)} className="font-semibold text-wine hover:underline">
+                                Edit
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              {row.category}
+                              {row.sku ? ` · SKU ${row.sku}` : ''}
+                            </>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -563,7 +983,21 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
                     <StockCell row={row} onPatch={(body) => void patch(row, body)} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <PriceCell value={row.costPrice} placeholder="Add" onSave={(v) => void patch(row, { costPrice: v === '' ? null : v })} />
+                    {row.hamper ? (
+                      <span className="text-xs text-ink/55" title="What its items cost">
+                        Items{' '}
+                        {row.unitCost === null ? (
+                          <span className="text-amber-700">need prices</span>
+                        ) : (
+                          <span className="font-medium tabular-nums text-ink">{rs(row.unitCost - (row.packagingCost || 0))}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <PriceCell value={row.costPrice} placeholder="Add" onSave={(v) => void patch(row, { costPrice: v === '' ? null : v })} />
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <PriceCell value={row.packagingCost} placeholder="0" onSave={(v) => void patch(row, { packagingCost: v === '' ? null : v })} />
                   </td>
                   <td className="px-4 py-3 text-right">
                     <PriceCell value={row.price} onSave={(v) => void patch(row, { price: v })} />
@@ -574,12 +1008,14 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
                     ) : null}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {row.unitProfit === null ? (
-                      <span className="text-xs text-ink/40">Needs purchase price</span>
+                    {row.unitProfit === null || row.unitCost === null ? (
+                      <span className="text-xs text-ink/40">{row.hamper ? 'Needs item purchase prices' : 'Needs purchase price'}</span>
                     ) : (
                       <>
                         <span className={row.unitProfit < 0 ? 'font-semibold text-red-600' : 'font-semibold text-ink'}>{rs(row.unitProfit)}</span>
-                        <p className="text-[11px] text-ink/45">{row.marginPercent}% margin</p>
+                        <p className="text-[11px] text-ink/45">
+                          Cost {rs(row.unitCost)} · {row.marginPercent}% margin
+                        </p>
                       </>
                     )}
                   </td>
@@ -756,7 +1192,7 @@ function ReportTab({ onLocked }: { onLocked: () => void }) {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Kpi label="Sales" value={t ? rs(t.netSales) : '—'} hint={t ? `${t.orders} orders · after ${rs(t.discounts)} discounts` : ' '} loading={loading} />
-        <Kpi label="Purchase cost" value={t ? rs(t.cost) : '—'} hint="Of items with a purchase price" loading={loading} />
+        <Kpi label="Cost" value={t ? rs(t.cost) : '—'} hint="Purchase + packaging, items with a price" loading={loading} />
         <Kpi label="Profit" value={t ? rs(t.profit) : '—'} hint={margin !== null ? `${margin}% margin` : 'Add purchase prices'} loading={loading} tone={t && t.profit < 0 ? 'red' : undefined} />
         <Kpi label="Delivery fees" value={t ? rs(t.deliveryFees) : '—'} hint="Collected, not in profit" loading={loading} />
         <Kpi label="Avg. order" value={t && t.orders ? rs(t.netSales / t.orders) : '—'} hint={`${from === to ? label(from) : `${label(from)} – ${label(to)}`}`} loading={loading} />
@@ -827,7 +1263,7 @@ function ReportTab({ onLocked }: { onLocked: () => void }) {
               <th className="px-4 py-2.5 text-right">Item sales</th>
               <th className="px-4 py-2.5 text-right">Discounts</th>
               <th className="px-4 py-2.5 text-right">Sales</th>
-              <th className="px-4 py-2.5 text-right">Purchase cost</th>
+              <th className="px-4 py-2.5 text-right">Cost</th>
               <th className="px-4 py-2.5 text-right">Profit</th>
             </tr>
           </thead>

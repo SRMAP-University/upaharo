@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireInventoryAccess } from '@/lib/inventory-lock'
-import { availableStock, inventoryRow } from '@/lib/inventory'
+import { availableStock, inventoryRow, parseBundle } from '@/lib/inventory'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 
@@ -12,8 +12,8 @@ const money = (value: unknown) => {
 }
 
 /**
- * Update stock and prices: { costPrice?, price?, discount?, trackStock?,
- * setStock? (new count), addStock? (units received), isAvailable? }.
+ * Update stock and prices: { costPrice?, packagingCost?, price?, discount?,
+ * trackStock?, setStock? (new count), addStock? (units received), isAvailable? }.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const access = await requireInventoryAccess(request)
@@ -26,16 +26,33 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
   const storeId = storeContext.store.id
   const { id } = await params
-  const existing = await prisma.product.findFirst({ where: { id, storeId }, select: { id: true, trackStock: true } })
+  const existing = await prisma.product.findFirst({
+    where: { id, storeId },
+    select: { id: true, trackStock: true, bundleItems: true },
+  })
   if (!existing) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  const isHamper = Boolean(parseBundle(existing.bundleItems))
 
   const body = await request.json().catch(() => ({}))
   const data: Record<string, unknown> = {}
 
   if (body.costPrice !== undefined) {
+    if (isHamper) {
+      return NextResponse.json({ error: 'A hamper costs what its items and packaging cost' }, { status: 400 })
+    }
     const cost = money(body.costPrice)
     if (Number.isNaN(cost)) return NextResponse.json({ error: 'Purchase price must be 0 or more' }, { status: 400 })
     data.costPrice = cost
+  }
+  if (body.packagingCost !== undefined) {
+    const packaging = money(body.packagingCost)
+    if (Number.isNaN(packaging)) {
+      return NextResponse.json({ error: 'Packaging cost must be 0 or more' }, { status: 400 })
+    }
+    data.packagingCost = packaging
+  }
+  if (isHamper && (body.trackStock === true || body.setStock !== undefined || body.addStock !== undefined)) {
+    return NextResponse.json({ error: "A hamper's stock comes from its items" }, { status: 400 })
   }
   if (body.price !== undefined) {
     const price = money(body.price)

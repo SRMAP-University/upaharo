@@ -327,6 +327,11 @@ model Product {
   stockCountedAt            DateTime?
   /// What the shop pays per unit (purchase price), for profit reports.
   costPrice                 Float?
+  /// Packaging cost per unit (box, ribbon, card), added to the purchase cost.
+  packagingCost             Float?
+  /// Hamper made of other products: [{ productId, quantity }]. Its cost and
+  /// stock come from these items; selling one uses up their stock.
+  bundleItems               Json?
   /// Pack size unit: kg, g, ml, l, piece, pack.
   unit                      String?
   /// Numeric pack size (e.g. 500 for 500g).
