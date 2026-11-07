@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OrderStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ORDER_INCLUDE, toAdminOrder } from '@/lib/admin-order-view'
 import {
   deliveryOtpsMatch,
   generateDeliveryOtp,
@@ -143,56 +144,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        address: true,
-        deliveryPartner: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            vehicleType: true,
-            vehicleNumber: true,
-          },
-        },
-        recipient: {
-          select: {
-            name: true,
-            phone: true,
-            relationship: true,
-          },
-        },
-        occasion: {
-          select: {
-            name: true,
-            emoji: true,
-          },
-        },
-        giftWrap: {
-          select: {
-            name: true,
-            type: true,
-            price: true,
-            image: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                image: true,
-              },
-            },
-          },
-        },
-      },
+      include: ADMIN_ORDER_INCLUDE,
     })
 
     const effectiveStatus =
@@ -242,7 +194,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     })()
 
-    return NextResponse.json(order)
+    return NextResponse.json(toAdminOrder(order))
   } catch (error) {
     console.error('Error updating order:', error)
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })

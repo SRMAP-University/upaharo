@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { OrderSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { ADMIN_ORDER_INCLUDE, toAdminOrder } from '@/lib/admin-order-view'
 import { createOfflineOrder } from '@/lib/offline-order'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
@@ -31,78 +32,11 @@ export async function GET(request: NextRequest) {
           AND: [{ paymentMethod: 'ONLINE' }, { paymentStatus: 'PENDING' }],
         },
       },
-      include: {
-        store: {
-          select: {
-            slug: true,
-            name: true,
-          },
-        },
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true
-          }
-        },
-        address: {
-          select: {
-            label: true,
-            street: true,
-            apartment: true,
-            landmark: true,
-            city: true,
-            state: true,
-            pincode: true,
-            latitude: true,
-            longitude: true
-          }
-        },
-        deliveryPartner: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            vehicleType: true,
-            vehicleNumber: true,
-          },
-        },
-        recipient: {
-          select: {
-            name: true,
-            phone: true,
-            relationship: true,
-          },
-        },
-        occasion: {
-          select: {
-            name: true,
-            emoji: true,
-          },
-        },
-        giftWrap: {
-          select: {
-            name: true,
-            type: true,
-            price: true,
-            image: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                image: true
-              }
-            }
-          }
-        }
-      },
+      include: ADMIN_ORDER_INCLUDE,
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(orders, {
+    return NextResponse.json(orders.map(toAdminOrder), {
       headers: {
         'Cache-Control': 'private, no-store, max-age=0, must-revalidate',
         Vary: 'Cookie',

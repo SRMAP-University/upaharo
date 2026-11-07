@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
-import { formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import { resolveImageUrl } from '@/lib/image-url'
+import { formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 
 interface Address {
   label: string
@@ -26,6 +27,14 @@ interface Order {
   subtotal?: number
   deliveryFee?: number
   tax?: number
+  /** Coupon for online orders (same as couponDiscount); a manual discount for offline ones. */
+  discount?: number
+  couponDiscount?: number
+  walletDiscount?: number
+  cashbackAmount?: number
+  cashbackStatus?: string
+  paymentMethod?: 'CASH' | 'ONLINE' | 'CARD'
+  coupon?: { code: string } | null
   isGift?: boolean
   isWholesale?: boolean
   businessName?: string | null
@@ -77,15 +86,193 @@ interface Order {
     price: number
     image: string
   } | null
-  items: {
+  items: OrderItem[]
+}
+
+interface OrderItem {
+  id: string
+  quantity: number
+  /** Unit price the customer paid. */
+  price: number
+  product: {
     id: string
-    quantity: number
+    name: string
+    image: string
+    /** Today's regular price and offer %, to show the offer when it explains the price paid. */
     price: number
-    product: {
-      name: string
-      image: string
-    }
-  }[]
+    discount: number | null
+    /** A one-off line from an offline order (no shop page). */
+    custom: boolean
+    /** Still in the shop (not deleted). */
+    inShop: boolean
+  }
+}
+
+const money = (n: number) => formatPriceCompact(Math.round(n * 100) / 100)
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  CASH: 'Cash',
+  ONLINE: 'Online payment',
+  CARD: 'Card',
+}
+
+/** Regular price and offer for a line, when the product's offer explains what was paid. */
+function linePricing(item: OrderItem) {
+  const paid = item.price * item.quantity
+  const offer = Number(item.product.discount) || 0
+  const regular = Number(item.product.price) || 0
+  const onOffer = offer > 0 && regular > item.price && Math.abs(regular * (1 - offer / 100) - item.price) < 0.51
+  return {
+    paid,
+    regularUnit: onOffer ? regular : item.price,
+    regularTotal: onOffer ? regular * item.quantity : paid,
+    offer: onOffer ? Math.round(offer * 100) / 100 : 0,
+  }
+}
+
+/**
+ * Every amount between the items and the final total. Whatever the stored
+ * total doesn't explain shows as an adjustment, so the lines always add up.
+ */
+function priceBreakdown(order: Order) {
+  const lines = order.items.map(linePricing)
+  const itemsRegular = lines.reduce((s, l) => s + l.regularTotal, 0)
+  const subtotal = lines.reduce((s, l) => s + l.paid, 0)
+  const offerSavings = itemsRegular - subtotal
+  const coupon = order.couponDiscount || 0
+  const otherDiscount = Math.max(0, (order.discount || 0) - coupon)
+  const giftWrap = order.isGift && order.giftWrap ? order.giftWrap.price || 0 : 0
+  const delivery = order.deliveryFee || 0
+  const tax = order.tax || 0
+  const wallet = order.walletDiscount || 0
+  const worked = subtotal - coupon - otherDiscount + giftWrap + delivery + tax - wallet
+  const adjustment = Math.round(((order.total || 0) - worked) * 100) / 100
+  return {
+    itemsRegular,
+    offerSavings,
+    subtotal,
+    coupon,
+    otherDiscount,
+    giftWrap,
+    delivery,
+    tax,
+    wallet,
+    adjustment: Math.abs(adjustment) >= 0.5 ? adjustment : 0,
+    total: order.total || 0,
+  }
+}
+
+function OrderItemRow({ item }: { item: OrderItem }) {
+  const pricing = linePricing(item)
+  const shopUrl = item.product.inShop && !item.product.custom ? `/products/${item.product.id}` : null
+  const photo = item.product.image ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={resolveImageUrl(item.product.image)} alt="" className="h-16 w-16 shrink-0 rounded-lg bg-white object-cover ring-1 ring-stone-200" />
+  ) : (
+    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-white text-2xl ring-1 ring-stone-200">🎁</span>
+  )
+  return (
+    <div className="flex items-center gap-3 rounded-xl bg-stone-50 p-3">
+      {shopUrl ? (
+        <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg hover:opacity-90" aria-label={`Open ${item.product.name} in the shop`}>
+          {photo}
+        </a>
+      ) : (
+        photo
+      )}
+      <div className="min-w-0 flex-1">
+        {shopUrl ? (
+          <a href={shopUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-ink hover:text-wine hover:underline">
+            {item.product.name} <span aria-hidden>↗</span>
+          </a>
+        ) : (
+          <p className="font-medium text-ink">{item.product.name}</p>
+        )}
+        <p className="mt-0.5 text-sm text-ink/60">
+          {item.quantity} × {money(item.price)}
+          {pricing.offer ? (
+            <>
+              {' '}
+              <span className="text-ink/40 line-through">{money(pricing.regularUnit)}</span>{' '}
+              <span className="font-medium text-emerald-700">{pricing.offer}% off</span>
+            </>
+          ) : null}
+        </p>
+        <p className="mt-0.5 text-xs text-ink/45">
+          {item.product.custom ? (
+            'Custom item (not in the shop)'
+          ) : item.product.inShop ? (
+            <Link href={`/admin/products/${item.product.id}`} className="font-semibold text-wine hover:underline">
+              Edit product
+            </Link>
+          ) : (
+            'No longer in the shop'
+          )}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="font-semibold tabular-nums text-ink">{money(pricing.paid)}</p>
+        {pricing.offer ? <p className="text-xs tabular-nums text-ink/40 line-through">{money(pricing.regularTotal)}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function PriceDetails({ order }: { order: Order }) {
+  const b = priceBreakdown(order)
+  const count = order.items.reduce((s, i) => s + i.quantity, 0)
+  const row = (label: React.ReactNode, amount: string, tone: 'less' | 'add' | 'plain' = 'plain') => (
+    <div className="flex items-start justify-between gap-4 py-1.5 text-sm">
+      <span className="text-ink/65">{label}</span>
+      <span className={`shrink-0 tabular-nums ${tone === 'less' ? 'text-emerald-700' : 'text-ink'}`}>{amount}</span>
+    </div>
+  )
+  return (
+    <div className="rounded-xl border border-stone-200 p-4">
+      {row(`Items (${count})`, money(b.itemsRegular))}
+      {b.offerSavings >= 0.5 ? row('Offer discount', `−${money(b.offerSavings)}`, 'less') : null}
+      {b.offerSavings >= 0.5 ? row('Subtotal', money(b.subtotal)) : null}
+      {b.coupon > 0
+        ? row(
+            <>
+              Coupon
+              {order.coupon?.code ? (
+                <span className="ml-1.5 rounded bg-emerald-50 px-1.5 py-0.5 font-mono text-xs font-semibold text-emerald-800">{order.coupon.code}</span>
+              ) : null}
+            </>,
+            `−${money(b.coupon)}`,
+            'less'
+          )
+        : null}
+      {b.otherDiscount > 0 ? row(order.source === 'OFFLINE' ? 'Discount' : 'Other discount', `−${money(b.otherDiscount)}`, 'less') : null}
+      {b.giftWrap > 0 ? row(`Gift wrap${order.giftWrap?.name ? ` (${order.giftWrap.name})` : ''}`, `+${money(b.giftWrap)}`, 'add') : null}
+      {order.fulfillmentType === 'PICKUP'
+        ? row('Delivery', 'Pickup, no fee')
+        : row('Delivery fee', b.delivery > 0 ? `+${money(b.delivery)}` : 'Free', 'add')}
+      {b.tax > 0 ? row('Tax', `+${money(b.tax)}`, 'add') : null}
+      {b.wallet > 0 ? row('Wallet used', `−${money(b.wallet)}`, 'less') : null}
+      {/* Part of the total the fields above don't explain (some early orders carried an extra fee). */}
+      {b.adjustment > 0 ? row('Other charges', `+${money(b.adjustment)}`, 'add') : null}
+      {b.adjustment < 0 ? row('Other discount', `−${money(-b.adjustment)}`, 'less') : null}
+      <div className="mt-2 flex items-center justify-between border-t border-stone-200 pt-3 text-lg font-bold">
+        <span className="text-ink">Final price</span>
+        <span className="tabular-nums text-wine">{money(b.total)}</span>
+      </div>
+      <p className="mt-1 text-xs text-ink/50">
+        {order.paymentMethod ? `${PAYMENT_METHOD_LABEL[order.paymentMethod] || order.paymentMethod} · ` : ''}
+        Payment {order.paymentStatus.toLowerCase()}
+        {b.itemsRegular - b.subtotal + b.coupon + b.otherDiscount + b.wallet >= 0.5
+          ? ` · Customer saved ${money(b.itemsRegular - b.subtotal + b.coupon + b.otherDiscount + b.wallet)}`
+          : ''}
+      </p>
+      {order.cashbackAmount && order.cashbackAmount > 0 ? (
+        <p className="mt-1 text-xs text-ink/50">
+          Cashback {money(order.cashbackAmount)} to the customer’s wallet
+          {order.cashbackStatus === 'PENDING' ? ' after delivery' : order.cashbackStatus === 'CREDITED' ? ' (credited)' : ''}
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 const STATUS_OPTIONS = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED']
@@ -795,16 +982,15 @@ export default function AdminOrders() {
                 <h3 className="font-display font-semibold text-ink mb-2">Order Items</h3>
                 <div className="space-y-2">
                   {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 bg-stone-50 rounded-xl p-3">
-                      <div className="text-2xl">🎁</div>
-                      <div className="flex-1">
-                        <p className="font-medium text-ink">{item.product.name}</p>
-                        <p className="text-sm text-ink/55">Qty: {item.quantity} × Rs. {item.price.toFixed(2)}</p>
-                      </div>
-                      <p className="font-semibold text-ink">Rs. {(item.quantity * item.price).toFixed(2)}</p>
-                    </div>
+                    <OrderItemRow key={item.id} item={item} />
                   ))}
                 </div>
+              </div>
+
+              {/* Price details: items to final price */}
+              <div>
+                <h3 className="font-display font-semibold text-ink mb-2">Price Details</h3>
+                <PriceDetails order={selectedOrder} />
               </div>
 
               {/* Order Summary */}
@@ -926,15 +1112,9 @@ export default function AdminOrders() {
                     {selectedOrder.paymentStatus}
                   </span>
                 </div>
-                {selectedOrder.giftWrap ? (
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium text-ink/55">Gift Wrap:</span>
-                    <span className="text-ink">{formatPriceNoDecimals(selectedOrder.giftWrap.price || 0)}</span>
-                  </div>
-                ) : null}
                 <div className="flex justify-between items-center text-lg font-bold border-t border-stone-200 pt-4">
-                  <span className="text-ink">Total Amount:</span>
-                  <span className="text-wine">{formatPriceNoDecimals(selectedOrder.total || 0)}</span>
+                  <span className="text-ink">Final price:</span>
+                  <span className="text-wine">{money(selectedOrder.total || 0)}</span>
                 </div>
               </div>
             </div>
