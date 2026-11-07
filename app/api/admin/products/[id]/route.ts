@@ -181,6 +181,14 @@ export async function PATCH(
         return NextResponse.json({ error: inventory.error }, { status: 400 })
       }
       Object.assign(data, inventory.data)
+      // A new stock number is a fresh count: sales from now on come off it.
+      if (inventory.data.trackStock && inventory.data.stockQty !== null) {
+        const before = await prisma.product.findFirst({
+          where: { id, storeId: storeContext.store.id },
+          select: { stockQty: true, trackStock: true },
+        })
+        if (!before?.trackStock || before.stockQty !== inventory.data.stockQty) data.stockCountedAt = new Date()
+      }
 
       if (inventory.data.sku) {
         const clash = await prisma.product.findFirst({

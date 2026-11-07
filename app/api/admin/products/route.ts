@@ -229,6 +229,7 @@ export async function POST(request: NextRequest) {
       isAvailable: body?.isAvailable !== false,
       ...pickup.data,
       ...inventory.data,
+      ...(inventory.data.trackStock ? { stockCountedAt: new Date() } : {}),
       ...grocery.data,
     }
 

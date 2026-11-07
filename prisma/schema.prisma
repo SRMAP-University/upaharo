@@ -323,6 +323,10 @@ model Product {
   trackStock                Boolean              @default(false)
   /// Remaining units when trackStock is true (null = not tracked).
   stockQty                  Int?
+  /// When stockQty was last counted; sales after this are taken off it.
+  stockCountedAt            DateTime?
+  /// What the shop pays per unit (purchase price), for profit reports.
+  costPrice                 Float?
   /// Pack size unit: kg, g, ml, l, piece, pack.
   unit                      String?
   /// Numeric pack size (e.g. 500 for 500g).
@@ -981,4 +985,13 @@ model RecommendationRule {
   @@index([storeId, scopeType, sourceProductId, kind, position])
   @@index([storeId, scopeType, sourceCategoryId, kind, position])
   @@index([storeId, targetProductId])
+}
+
+/// Secrets that lock admin areas (e.g. the inventory PIN). Only a salted
+/// scrypt hash is stored.
+model AdminPin {
+  id        String   @id
+  hash      String
+  salt      String
+  updatedAt DateTime @updatedAt
 }
