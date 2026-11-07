@@ -41,14 +41,11 @@ set -a
 # shellcheck disable=SC1091
 [ -f .env.local ] && . ./.env.local
 set +a
-node scripts/_ensure-offline-order-cols.mjs || true
-node scripts/_ensure-support-instagram.mjs || true
-node scripts/_ensure-feature-delivery-otp.mjs || true
-node scripts/_ensure-festival-mode.mjs || true
-node scripts/_ensure-banner-layout.mjs || true
-node scripts/_ensure-banner-bg-gradient.mjs || true
-node scripts/_ensure-app-features.mjs || true
-node scripts/_ensure-inventory.mjs || true
+# Every _ensure-*.mjs script, so a new one runs on its first deploy even
+# while this file is still the previous version in memory.
+for ensure in scripts/_ensure-*.mjs; do
+  node "$ensure" || true
+done
 
 echo "==> Building (live app stays up)"
 npm run build
@@ -65,7 +62,9 @@ pm2 save
 echo "==> Health check"
 ok=0
 for i in 1 2 3 4 5 6; do
-  if curl -sf --max-time 5 http://127.0.0.1:3000/api/settings >/dev/null; then
+  # Products read the Product table, so a missing column fails the check.
+  if curl -sf --max-time 5 http://127.0.0.1:3000/api/settings >/dev/null &&
+    curl -sf --max-time 8 'http://127.0.0.1:3000/api/products?limit=1&view=card' >/dev/null; then
     ok=1
     break
   fi
