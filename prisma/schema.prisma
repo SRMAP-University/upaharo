@@ -441,6 +441,10 @@ model Order {
   greetingMessage      String?
   senderName           String?
   showSenderName       Boolean          @default(true)
+  /// Inventory: switched off, so it takes no stock and isn't in sales & profit.
+  inventoryExcluded    Boolean          @default(false)
+  /// Inventory: deleted there (with the PIN). The order itself is kept.
+  inventoryRemovedAt   DateTime?
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
 
@@ -602,6 +606,10 @@ model OrderItem {
   product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
   price     Float
+  /// Inventory's corrected quantity for stock and profit (null = as ordered).
+  inventoryQty   Int?
+  /// Inventory's corrected unit price for sales and profit (null = as ordered).
+  inventoryPrice Float?
   createdAt DateTime @default(now())
 
   @@index([orderId])

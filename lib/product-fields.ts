@@ -1,4 +1,5 @@
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
+import { INVENTORY_PRODUCT_TAGS } from '@/lib/inventory-tags'
 
 export const PRODUCT_UNITS = ['kg', 'g', 'ml', 'l', 'piece', 'pack'] as const
 export type ProductUnit = (typeof PRODUCT_UNITS)[number]
@@ -111,15 +112,20 @@ export function buildAdminProductWhere(params: {
   availability?: string | null
   archived?: boolean
   ids?: string[]
+  /** Products made in Inventory (custom items, hampers) are left out unless asked for. */
+  includeInventoryItems?: boolean
 }) {
   const where: Record<string, unknown> = {
     storeId: params.storeId,
   }
 
+  // Looking products up by id always finds them.
+  const hidden = params.includeInventoryItems || params.ids?.length ? [] : INVENTORY_PRODUCT_TAGS
   if (params.archived) {
     where.tags = { has: ARCHIVED_PRODUCT_TAG }
+    if (hidden.length) where.NOT = { tags: { hasSome: hidden } }
   } else {
-    where.NOT = { tags: { has: ARCHIVED_PRODUCT_TAG } }
+    where.NOT = { tags: { hasSome: [ARCHIVED_PRODUCT_TAG, ...hidden] } }
   }
 
   if (params.ids && params.ids.length > 0) {

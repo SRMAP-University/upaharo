@@ -5,8 +5,9 @@
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { parseBundle, type BundleItem } from '@/lib/inventory'
+import { HAMPER_TAG } from '@/lib/inventory-tags'
 
-export const HAMPER_TAG = 'inventory-hamper'
+export { HAMPER_TAG }
 export const DEFAULT_HAMPER_CATEGORY = 'Gift Hampers'
 const MAX_ITEMS = 30
 

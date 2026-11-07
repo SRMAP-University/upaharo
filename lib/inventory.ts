@@ -4,6 +4,8 @@
  * (cancelled orders never count), so order flows don't have to adjust stock.
  * A unit costs its purchase price plus packaging; a hamper costs its items
  * plus its own packaging, and selling one uses up its items' stock.
+ * Orders switched off or deleted in Inventory don't count, and Inventory's
+ * corrected quantity / price on an order line replaces what was ordered.
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -97,6 +99,15 @@ type ProductRow = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>
 const plainUnitCost = (p: { costPrice: number | null; packagingCost: number | null }) =>
   p.costPrice === null || p.costPrice === undefined ? null : round2(p.costPrice + (p.packagingCost || 0))
 
+/** Orders that count in Inventory (SQL, order aliased as o). */
+const COUNTED_ORDER = Prisma.sql`o."status" <> 'CANCELLED' AND o."inventoryExcluded" = false AND o."inventoryRemovedAt" IS NULL`
+/** The same, for Prisma queries. */
+export const COUNTED_ORDER_WHERE = {
+  status: { not: 'CANCELLED' },
+  inventoryExcluded: false,
+  inventoryRemovedAt: null,
+} satisfies Prisma.OrderWhereInput
+
 const statusOf = (available: number | null): StockStatus =>
   available === null ? 'untracked' : available <= 0 ? 'out' : available <= LOW_STOCK ? 'low' : 'in'
 
@@ -113,7 +124,7 @@ export async function storeHampers(storeId: string) {
 
 /**
  * Units of each tracked product used since its last count: sold on its own,
- * plus inside hampers (non-cancelled orders only).
+ * plus inside hampers (orders that count in Inventory only).
  */
 async function usedSinceCount(storeId: string, products: ProductRow[]) {
   const used = new Map<string, number>()
@@ -121,12 +132,12 @@ async function usedSinceCount(storeId: string, products: ProductRow[]) {
   if (counted.length === 0) return used
 
   const direct = await prisma.$queryRaw<Array<{ productId: string; sold: number }>>`
-    SELECT oi."productId" AS "productId", COALESCE(SUM(oi."quantity"), 0)::int AS sold
+    SELECT oi."productId" AS "productId", COALESCE(SUM(COALESCE(oi."inventoryQty", oi."quantity")), 0)::int AS sold
     FROM "OrderItem" oi
     JOIN "Order" o ON o."id" = oi."orderId"
     JOIN "Product" p ON p."id" = oi."productId"
     WHERE o."storeId" = ${storeId}
-      AND o."status" <> 'CANCELLED'
+      AND ${COUNTED_ORDER}
       AND p."stockCountedAt" IS NOT NULL
       AND o."createdAt" >= p."stockCountedAt"
       AND oi."productId" IN (${Prisma.join(counted.map((p) => p.id))})
@@ -140,11 +151,11 @@ async function usedSinceCount(storeId: string, products: ProductRow[]) {
   if (hampers.length === 0) return used
   const earliest = new Date(Math.min(...counted.map((p) => p.stockCountedAt!.getTime())))
   const sales = await prisma.$queryRaw<Array<{ productId: string; quantity: number; createdAt: Date }>>`
-    SELECT oi."productId" AS "productId", oi."quantity" AS quantity, o."createdAt" AS "createdAt"
+    SELECT oi."productId" AS "productId", COALESCE(oi."inventoryQty", oi."quantity") AS quantity, o."createdAt" AS "createdAt"
     FROM "OrderItem" oi
     JOIN "Order" o ON o."id" = oi."orderId"
     WHERE o."storeId" = ${storeId}
-      AND o."status" <> 'CANCELLED'
+      AND ${COUNTED_ORDER}
       AND o."createdAt" >= ${earliest}
       AND oi."productId" IN (${Prisma.join(hampers.map((h) => h.id))})
   `
@@ -338,7 +349,7 @@ export async function listInventory(
 }
 
 /** Full unit cost of each product (hampers from their items; null when unknown). */
-async function unitCosts(storeId: string, productIds: string[]) {
+export async function unitCosts(storeId: string, productIds: string[]) {
   if (productIds.length === 0) return new Map<string, number | null>()
   const products = await prisma.product.findMany({ where: { id: { in: productIds }, storeId }, select: PRODUCT_SELECT })
   const rows = await rowsFor(storeId, products)
@@ -350,7 +361,62 @@ async function unitCosts(storeId: string, productIds: string[]) {
 /** Nepal calendar day (YYYY-MM-DD) of a moment. */
 export const nepalDay = (date: Date) => new Date(date.getTime() + NEPAL_OFFSET_MS).toISOString().slice(0, 10)
 /** Start of a Nepal calendar day, as a real instant. */
-const dayStart = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) - NEPAL_OFFSET_MS)
+export const dayStart = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) - NEPAL_OFFSET_MS)
+/** End of a Nepal calendar day (exclusive). */
+export const dayEnd = (day: string) => new Date(dayStart(day).getTime() + DAY_MS)
+export const isDay = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+
+/** An order line as Inventory counts it. */
+export type SaleLine = { productId: string; quantity: number; price: number }
+
+/** Inventory's quantity and price for an order line (its corrections, else what was ordered). */
+export const saleLine = (item: {
+  productId: string
+  quantity: number
+  price: number
+  inventoryQty: number | null
+  inventoryPrice: number | null
+}): SaleLine => ({
+  productId: item.productId,
+  quantity: item.inventoryQty ?? item.quantity,
+  price: item.inventoryPrice ?? item.price,
+})
+
+/**
+ * One order's sales, cost and profit. The order's discount is shared across
+ * its lines by value; lines without a cost are left out of cost and profit.
+ */
+export function orderFigures(
+  lines: SaleLine[],
+  order: { discount: number | null; couponDiscount: number | null },
+  costs: Map<string, number | null>
+) {
+  const itemSales = lines.reduce((s, l) => s + l.price * l.quantity, 0)
+  // Online orders store the coupon in both fields; offline ones use `discount`.
+  const discounts = Math.min(itemSales, Math.max(order.discount || 0, order.couponDiscount || 0))
+  let costedSales = 0
+  let cost = 0
+  const perLine = lines.map((line) => {
+    const sales = line.price * line.quantity
+    const unitCost = costs.get(line.productId) ?? null
+    const share = itemSales > 0 ? discounts * (sales / itemSales) : 0
+    if (unitCost !== null) {
+      costedSales += sales
+      cost += unitCost * line.quantity
+    }
+    return { ...line, sales, share, unitCost, profit: unitCost === null ? null : sales - share - unitCost * line.quantity }
+  })
+  const costedShare = itemSales > 0 ? discounts * (costedSales / itemSales) : 0
+  return {
+    itemSales,
+    discounts,
+    netSales: itemSales - discounts,
+    cost,
+    profit: costedSales - cost - costedShare,
+    uncostedSales: itemSales - costedSales,
+    lines: perLine,
+  }
+}
 
 export type SalesBucket = {
   key: string
@@ -382,41 +448,54 @@ const emptyBucket = (key: string): SalesBucket => ({
 
 /**
  * Sales and profit between two Nepal days (inclusive), by day or by month.
- * Cancelled orders are left out. Profit = (sales − purchase and packaging
- * cost) of items with a cost, less their share of the order's discounts.
+ * Cancelled orders, and orders switched off or deleted in Inventory, are left
+ * out. Profit = (sales − purchase and packaging cost) of items with a cost,
+ * less their share of the order's discounts.
  */
 export async function salesReport(
   storeId: string,
   options: { from: string; to: string; groupBy?: 'day' | 'month'; source?: 'all' | 'online' | 'offline' }
 ) {
-  const from = /^\d{4}-\d{2}-\d{2}$/.test(options.from) ? options.from : nepalDay(new Date())
-  const to = /^\d{4}-\d{2}-\d{2}$/.test(options.to) && options.to >= from ? options.to : from
+  const from = isDay(options.from) ? options.from : nepalDay(new Date())
+  const to = isDay(options.to) && options.to >= from ? options.to : from
   const groupBy = options.groupBy === 'month' ? 'month' : 'day'
   const start = dayStart(from)
-  const end = new Date(dayStart(to).getTime() + DAY_MS)
+  const end = dayEnd(to)
+  const inRange: Prisma.OrderWhereInput = {
+    storeId,
+    createdAt: { gte: start, lt: end },
+    ...(options.source === 'offline' ? { source: 'OFFLINE' } : options.source === 'online' ? { source: 'UPAHARO' } : {}),
+  }
 
-  const orders = await prisma.order.findMany({
-    where: {
-      storeId,
-      status: { not: 'CANCELLED' },
-      createdAt: { gte: start, lt: end },
-      ...(options.source === 'offline' ? { source: 'OFFLINE' } : options.source === 'online' ? { source: 'UPAHARO' } : {}),
-    },
-    select: {
-      createdAt: true,
-      discount: true,
-      couponDiscount: true,
-      deliveryFee: true,
-      items: {
-        select: {
-          productId: true,
-          quantity: true,
-          price: true,
-          product: { select: { name: true } },
+  const [orders, leftOut] = await Promise.all([
+    prisma.order.findMany({
+      where: { ...inRange, ...COUNTED_ORDER_WHERE },
+      select: {
+        createdAt: true,
+        discount: true,
+        couponDiscount: true,
+        deliveryFee: true,
+        items: {
+          select: {
+            productId: true,
+            quantity: true,
+            price: true,
+            inventoryQty: true,
+            inventoryPrice: true,
+            product: { select: { name: true } },
+          },
         },
       },
-    },
-  })
+    }),
+    // Shown as a note: orders in range that Inventory leaves out.
+    prisma.order.count({
+      where: {
+        ...inRange,
+        status: { not: 'CANCELLED' },
+        OR: [{ inventoryExcluded: true }, { inventoryRemovedAt: { not: null } }],
+      },
+    }),
+  ])
 
   // Purchase + packaging per unit; hampers from their items.
   const costs = await unitCosts(storeId, Array.from(new Set(orders.flatMap((o) => o.items.map((i) => i.productId)))))
@@ -437,36 +516,24 @@ export async function salesReport(
     const bucket = buckets.get(key) ?? emptyBucket(key)
     buckets.set(key, bucket)
 
-    const itemSales = order.items.reduce((s, i) => s + i.price * i.quantity, 0)
-    // Online orders store the coupon in both fields; offline ones use `discount`.
-    const discounts = Math.min(itemSales, Math.max(order.discount || 0, order.couponDiscount || 0))
-    let costedSales = 0
-    let cost = 0
-    for (const item of order.items) {
-      const lineSales = item.price * item.quantity
-      const unitCost = costs.get(item.productId) ?? null
-      const share = itemSales > 0 ? discounts * (lineSales / itemSales) : 0
+    const figures = orderFigures(order.items.map(saleLine), order, costs)
+    order.items.forEach((item, index) => {
+      const line = figures.lines[index]
       const entry = byProduct.get(item.productId) ?? { id: item.productId, name: item.product.name, quantity: 0, sales: 0, profit: 0 }
-      entry.quantity += item.quantity
-      entry.sales += lineSales - share
-      if (unitCost !== null) {
-        costedSales += lineSales
-        cost += unitCost * item.quantity
-        if (entry.profit !== null) entry.profit += lineSales - share - unitCost * item.quantity
-      } else {
-        entry.profit = null
-      }
+      entry.quantity += line.quantity
+      entry.sales += line.sales - line.share
+      if (line.profit === null) entry.profit = null
+      else if (entry.profit !== null) entry.profit += line.profit
       byProduct.set(item.productId, entry)
-    }
-    const costedShare = itemSales > 0 ? discounts * (costedSales / itemSales) : 0
+    })
     for (const target of [bucket, totals]) {
       target.orders += 1
-      target.itemSales += itemSales
-      target.discounts += discounts
-      target.netSales += itemSales - discounts
-      target.cost += cost
-      target.profit += costedSales - cost - costedShare
-      target.uncostedSales += itemSales - costedSales
+      target.itemSales += figures.itemSales
+      target.discounts += figures.discounts
+      target.netSales += figures.netSales
+      target.cost += figures.cost
+      target.profit += figures.profit
+      target.uncostedSales += figures.uncostedSales
       target.deliveryFees += order.deliveryFee || 0
     }
   }
@@ -492,6 +559,8 @@ export async function salesReport(
     from,
     to,
     groupBy,
+    /** Orders in range switched off or deleted in Inventory. */
+    leftOut,
     totals: tidy(totals),
     buckets: [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key)).map(tidy),
     topBySales: [...products].sort((a, b) => b.sales - a.sales).slice(0, 10),

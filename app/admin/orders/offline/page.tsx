@@ -140,7 +140,7 @@ function OfflineOrderForm() {
     const timer = window.setTimeout(async () => {
       setSearching(true)
       try {
-        const params = new URLSearchParams({ limit: '20', sort: 'newest' })
+        const params = new URLSearchParams({ limit: '20', sort: 'newest', inventory: '1' })
         if (query.trim()) params.set('search', query.trim())
         const res = await fetch(`/api/admin/products?${params.toString()}`, { cache: 'no-store' })
         const data = await res.json().catch(() => null)

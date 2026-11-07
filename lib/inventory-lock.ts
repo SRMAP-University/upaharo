@@ -76,6 +76,25 @@ export async function clearWrongPins(adminId: string) {
   await redis.del(attemptsKey(adminId))
 }
 
+/**
+ * Asks for the PIN again before a delete, even while inventory is unlocked.
+ * Null when it's right; otherwise the message and HTTP status to send. Wrong
+ * tries count towards the same 15-minute lockout as unlocking.
+ */
+export async function confirmInventoryPin(adminId: string, pin: unknown): Promise<{ error: string; status: number } | null> {
+  const wait = await pinLockoutSeconds(adminId)
+  if (wait > 0) return { error: `Too many wrong PINs. Try again in ${Math.ceil(wait / 60)} min.`, status: 429 }
+  if (!(await checkInventoryPin(String(pin ?? '')))) {
+    const left = await recordWrongPin(adminId)
+    return {
+      error: left > 0 ? `Wrong PIN. ${left} ${left === 1 ? 'try' : 'tries'} left.` : 'Wrong PIN. Locked for 15 minutes.',
+      status: 403,
+    }
+  }
+  await clearWrongPins(adminId)
+  return null
+}
+
 function sign(payload: string) {
   return createHmac('sha256', secret()).update(payload).digest('hex')
 }

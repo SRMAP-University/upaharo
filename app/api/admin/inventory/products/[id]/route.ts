@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireInventoryAccess } from '@/lib/inventory-lock'
-import { availableStock, inventoryRow, parseBundle } from '@/lib/inventory'
+import { confirmInventoryPin, requireInventoryAccess } from '@/lib/inventory-lock'
+import { availableStock, inventoryRow, parseBundle, storeHampers } from '@/lib/inventory'
+import { appendArchivedProductTag, ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 
@@ -98,4 +99,58 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, id), REDIS_KEYS.HOME(storeContext.slug))
   }
   return NextResponse.json(await inventoryRow(storeId, id))
+}
+
+/**
+ * Delete a product or hamper from Inventory: { pin }. The PIN is asked again.
+ * One that's in past orders is archived instead (off the website and out of
+ * Inventory, but kept for those orders). A product inside a hamper can't go.
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const access = await requireInventoryAccess(request)
+  if ('error' in access) {
+    return access.error === 'locked'
+      ? NextResponse.json({ error: 'Inventory is locked', locked: true }, { status: 423 })
+      : NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const storeContext = await resolveAdminStoreContext()
+  if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+  const storeId = storeContext.store.id
+  const { id } = await params
+
+  const body = await request.json().catch(() => ({}))
+  const pinError = await confirmInventoryPin(access.admin.id, body?.pin)
+  if (pinError) return NextResponse.json({ error: pinError.error }, { status: pinError.status })
+
+  const product = await prisma.product.findFirst({
+    where: { id, storeId, NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } } },
+    select: { id: true, name: true, tags: true, _count: { select: { orderItems: true } } },
+  })
+  if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+
+  const containing = (await storeHampers(storeId)).filter((h) => h.id !== id && h.items.some((i) => i.productId === id))
+  if (containing.length) {
+    const hamper = await prisma.product.findFirst({
+      where: { id: { in: containing.map((h) => h.id) }, NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } } },
+      select: { name: true },
+    })
+    if (hamper) {
+      return NextResponse.json(
+        { error: `“${product.name}” is in the hamper “${hamper.name}”. Take it out of the hamper first.` },
+        { status: 400 }
+      )
+    }
+  }
+
+  const archived = product._count.orderItems > 0
+  if (archived) {
+    await prisma.product.update({
+      where: { id },
+      data: { isAvailable: false, tags: appendArchivedProductTag(product.tags) },
+    })
+  } else {
+    await prisma.product.delete({ where: { id } })
+  }
+  await redis.del(REDIS_KEYS.PRODUCT_DETAIL(storeContext.slug, id), REDIS_KEYS.HOME(storeContext.slug))
+  return NextResponse.json({ deleted: true, archived })
 }

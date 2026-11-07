@@ -74,10 +74,48 @@ type Report = {
   from: string
   to: string
   groupBy: 'day' | 'month'
+  /** Orders in range switched off or deleted in the Orders tab. */
+  leftOut: number
   totals: Bucket
   buckets: Bucket[]
   topBySales: Array<{ id: string; name: string; quantity: number; sales: number; profit: number | null }>
   topByProfit: Array<{ id: string; name: string; quantity: number; sales: number; profit: number | null }>
+}
+
+type OrderView = 'all' | 'counted' | 'off' | 'deleted'
+
+type InvOrderLine = {
+  id: string
+  productId: string
+  name: string
+  image: string
+  orderedQty: number
+  orderedPrice: number
+  quantity: number
+  price: number
+  edited: boolean
+  unitCost: number | null
+  profit: number | null
+}
+
+type InvOrder = {
+  id: string
+  orderNumber: string
+  createdAt: string
+  status: string
+  source: 'UPAHARO' | 'OFFLINE'
+  channel: string | null
+  customer: string
+  counted: boolean
+  deletedAt: string | null
+  lines: InvOrderLine[]
+  itemSales: number
+  discounts: number
+  netSales: number
+  cost: number
+  profit: number
+  uncostedSales: number
+  deliveryFee: number
 }
 
 // Two series validated for contrast and colour-blind separation.
@@ -239,12 +277,28 @@ const STATUS_STYLE: Record<StockStatus, string> = {
   untracked: 'bg-stone-100 text-ink/60 ring-stone-200',
 }
 
-function PriceCell({ value, onSave, placeholder }: { value: number | null; onSave: (v: string) => void; placeholder?: string }) {
+function PriceCell({
+  value,
+  onSave,
+  placeholder,
+  width = 'w-24',
+  label,
+  whole = false,
+}: {
+  value: number | null
+  onSave: (v: string) => void
+  placeholder?: string
+  width?: string
+  label?: string
+  /** Whole numbers (quantities). */
+  whole?: boolean
+}) {
   const [draft, setDraft] = useState(value === null ? '' : String(value))
   useEffect(() => setDraft(value === null ? '' : String(value)), [value])
   return (
     <input
-      inputMode="decimal"
+      inputMode={whole ? 'numeric' : 'decimal'}
+      aria-label={label}
       value={draft}
       placeholder={placeholder}
       onChange={(e) => setDraft(e.target.value)}
@@ -253,7 +307,7 @@ function PriceCell({ value, onSave, placeholder }: { value: number | null; onSav
         if (draft.trim() !== before) onSave(draft.trim())
       }}
       onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-      className={`${inputClass} w-24 text-right`}
+      className={`${inputClass} ${width} text-right`}
     />
   )
 }
@@ -428,6 +482,107 @@ function AddCustomItem({ categories, onAdded, onClose }: { categories: string[];
         </button>
       </div>
     </form>
+  )
+}
+
+function TrashIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} className={className} aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+      />
+    </svg>
+  )
+}
+
+/** Asks for the inventory PIN again before a delete. onConfirm throws to show an error. */
+function PinConfirm({
+  title,
+  detail,
+  confirmLabel = 'Delete',
+  onConfirm,
+  onClose,
+  onLocked,
+}: {
+  title: string
+  detail: string
+  confirmLabel?: string
+  onConfirm: (pin: string) => Promise<void>
+  onClose: () => void
+  onLocked: () => void
+}) {
+  const [pin, setPin] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !busy && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [busy, onClose])
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!/^\d{4,8}$/.test(pin)) {
+      setError('Enter your 4–8 digit inventory PIN.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await onConfirm(pin)
+    } catch (err) {
+      if ((err as { locked?: boolean }).locked) onLocked()
+      else setError((err as Error).message)
+      setPin('')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pin-confirm-title"
+      onClick={(e) => e.target === e.currentTarget && !busy && onClose()}
+    >
+      <form onSubmit={submit} className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+        <h3 id="pin-confirm-title" className="text-base font-semibold text-ink">
+          {title}
+        </h3>
+        <p className="mt-1.5 text-sm text-ink/60">{detail}</p>
+        <label className="mt-4 block text-xs font-medium text-ink/60">
+          Inventory PIN
+          <input
+            autoFocus
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={8}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            className={`mt-1 ${inputClass} tracking-[0.3em]`}
+          />
+        </label>
+        {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={busy} className={adminButtonClass.secondary}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex items-center rounded-lg bg-red-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+          >
+            {busy ? 'Deleting…' : confirmLabel}
+          </button>
+        </div>
+      </form>
+    </div>
   )
 }
 
@@ -779,6 +934,7 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
   const [hamperForm, setHamperForm] = useState<Row | 'new' | null>(null)
   const [categories, setCategories] = useState<string[]>([])
   const [saving, setSaving] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<Row | null>(null)
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(search.trim()), 300)
@@ -923,8 +1079,27 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
 
       {message ? <p className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-ink/70">{message}</p> : null}
 
+      {deleting ? (
+        <PinConfirm
+          title={`Delete “${deleting.name}”?`}
+          detail={
+            deleting.hamper
+              ? 'The hamper comes off the website and out of Inventory. Its items stay. Past orders keep it.'
+              : 'It comes off the website, the product list and Inventory. Past orders keep it.'
+          }
+          onLocked={onLocked}
+          onClose={() => setDeleting(null)}
+          onConfirm={async (pin) => {
+            await api(`/api/admin/inventory/products/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ pin }) })
+            setMessage(`“${deleting.name}” deleted.`)
+            setDeleting(null)
+            void load()
+          }}
+        />
+      ) : null}
+
       <div className="overflow-x-auto rounded-xl border border-stone-200 bg-white">
-        <table className="w-full min-w-[1040px] text-sm">
+        <table className="w-full min-w-[1080px] text-sm">
           <thead className="bg-stone-50 text-left text-xs font-medium uppercase tracking-wider text-ink/50">
             <tr>
               <th className="px-4 py-2.5">Product</th>
@@ -935,18 +1110,21 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
               <th className="px-4 py-2.5 text-right">Profit / unit</th>
               <th className="px-4 py-2.5">Status</th>
               <th className="px-4 py-2.5">On sale</th>
+              <th className="px-2 py-2.5">
+                <span className="sr-only">Delete</span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
             {loading && rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-ink/50">
+                <td colSpan={9} className="px-4 py-10 text-center text-ink/50">
                   Loading stock…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-ink/50">
+                <td colSpan={9} className="px-4 py-10 text-center text-ink/50">
                   {status === 'hamper' ? 'No hampers yet. Use “+ Create hamper” to make one from your products.' : 'Nothing here.'}
                 </td>
               </tr>
@@ -1031,6 +1209,17 @@ function StockTab({ onLocked }: { onLocked: () => void }) {
                       label={row.name}
                       onChange={(next) => void patch(row, { isAvailable: next })}
                     />
+                  </td>
+                  <td className="px-2 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(row)}
+                      className="rounded-md p-1.5 text-ink/35 hover:bg-red-50 hover:text-red-600"
+                      aria-label={`Delete ${row.name}`}
+                      title="Delete (asks for the PIN)"
+                    >
+                      <TrashIcon />
+                    </button>
                   </td>
                 </tr>
               ))
@@ -1197,6 +1386,13 @@ function ReportTab({ onLocked }: { onLocked: () => void }) {
         <Kpi label="Delivery fees" value={t ? rs(t.deliveryFees) : '—'} hint="Collected, not in profit" loading={loading} />
         <Kpi label="Avg. order" value={t && t.orders ? rs(t.netSales / t.orders) : '—'} hint={`${from === to ? label(from) : `${label(from)} – ${label(to)}`}`} loading={loading} />
       </div>
+      {report && report.leftOut > 0 ? (
+        <p className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-ink/70">
+          {report.leftOut === 1
+            ? '1 order in this period is switched off or deleted in the Orders tab, so it isn’t counted here.'
+            : `${report.leftOut} orders in this period are switched off or deleted in the Orders tab, so they aren’t counted here.`}
+        </p>
+      ) : null}
       {t && t.uncostedSales > 0 ? (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900">
           {rs(t.uncostedSales)} of these sales are of items without a purchase price, so they aren’t in the profit. Add purchase prices in the Stock tab.
@@ -1338,6 +1534,464 @@ function TopList({
   )
 }
 
+// ------------------------------------------------------------------ Orders
+
+const ORDER_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pending',
+  ACCEPTED: 'Accepted',
+  PREPARING: 'Preparing',
+  READY: 'Ready',
+  OUT_FOR_DELIVERY: 'Out for delivery',
+  DELIVERED: 'Delivered',
+}
+
+const orderDate = (iso: string) =>
+  new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Asia/Kathmandu',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+/** On/off switch for whether an order counts in stock and profit. */
+function CountSwitch({ counted, busy, label, onChange }: { counted: boolean; busy: boolean; label: string; onChange: (next: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={counted}
+      aria-label={`${label}: ${counted ? 'counts in stock and profit' : 'not counted'}`}
+      title={counted ? 'Counts in stock and profit. Click to switch off.' : 'Not counted. Click to count it.'}
+      disabled={busy}
+      onClick={() => onChange(!counted)}
+      className="group inline-flex items-center gap-2 rounded-full py-1 focus:outline-none disabled:cursor-wait disabled:opacity-70"
+    >
+      <span
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors ${
+          counted ? 'bg-green-600' : 'bg-ink/25'
+        } group-focus-visible:ring-2 group-focus-visible:ring-wine/30 group-focus-visible:ring-offset-1`}
+      >
+        <span className={`inline-flex h-5 w-5 rounded-full bg-white shadow transition-transform ${counted ? 'translate-x-5' : 'translate-x-0'}`} />
+      </span>
+      <span className={`w-20 text-left text-xs font-semibold ${counted ? 'text-green-700' : 'text-ink/55'}`}>{counted ? 'Counted' : 'Switched off'}</span>
+    </button>
+  )
+}
+
+function OrderCard({
+  order,
+  busy,
+  deletedView,
+  selected,
+  onSelect,
+  onPatch,
+  onDelete,
+}: {
+  order: InvOrder
+  busy: boolean
+  deletedView: boolean
+  selected: boolean
+  onSelect: (on: boolean) => void
+  onPatch: (body: Record<string, unknown>) => void
+  onDelete: () => void
+}) {
+  const uncosted = order.lines.some((l) => l.unitCost === null && l.quantity > 0)
+  return (
+    <article className={`rounded-xl border border-stone-200 ${order.counted ? 'bg-white' : 'bg-stone-50'} ${busy ? 'opacity-60' : ''}`}>
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-stone-100 px-4 py-3">
+        {!deletedView ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => onSelect(e.target.checked)}
+            aria-label={`Select order #${order.orderNumber}`}
+            className="h-4 w-4 rounded border-stone-300 accent-wine"
+          />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-ink">
+            #{order.orderNumber}
+            <span className={`rounded px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ${order.source === 'OFFLINE' ? 'bg-sky-50 text-sky-800' : 'bg-wine/10 text-wine'}`}>
+              {order.source === 'OFFLINE' ? `Offline${order.channel ? ` · ${order.channel.replace(/_/g, ' ').toLowerCase()}` : ''}` : 'Online'}
+            </span>
+            <span className="rounded bg-stone-100 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-ink/60">
+              {ORDER_STATUS_LABEL[order.status] || order.status}
+            </span>
+          </p>
+          <p className="mt-0.5 truncate text-xs text-ink/50">
+            {orderDate(order.createdAt)}
+            {order.customer ? ` · ${order.customer}` : ''}
+          </p>
+        </div>
+        {deletedView ? (
+          <button type="button" disabled={busy} onClick={() => onPatch({ restore: true })} className={adminButtonClass.secondary}>
+            Put back
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <CountSwitch counted={order.counted} busy={busy} label={`Order #${order.orderNumber}`} onChange={(next) => onPatch({ counted: next })} />
+            <button
+              type="button"
+              onClick={onDelete}
+              className="rounded-md p-1.5 text-ink/35 hover:bg-red-50 hover:text-red-600"
+              aria-label={`Delete order #${order.orderNumber} from Inventory`}
+              title="Delete from Inventory (asks for the PIN)"
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        )}
+      </header>
+
+      <div className="divide-y divide-stone-100">
+        {order.lines.map((line) => (
+          <div key={line.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+            <Thumb src={line.image} size="h-9 w-9" />
+            <div className="min-w-0 flex-1 basis-40">
+              <p className="truncate text-sm font-medium text-ink" title={line.name}>
+                {line.name}
+              </p>
+              {line.edited ? (
+                <p className="text-[11px] text-ink/45">
+                  Ordered {line.orderedQty} × {rs(line.orderedPrice)} ·{' '}
+                  <button
+                    type="button"
+                    disabled={busy || deletedView}
+                    onClick={() => onPatch({ lines: [{ id: line.id, quantity: null, price: null }] })}
+                    className="font-semibold text-wine hover:underline disabled:opacity-50"
+                  >
+                    Undo change
+                  </button>
+                </p>
+              ) : null}
+            </div>
+            <div className="flex w-full items-center gap-2.5 sm:ml-auto sm:w-auto">
+              <label className="flex items-center gap-1.5 text-[11px] text-ink/50">
+                Qty
+                <PriceCell
+                  whole
+                  width="w-14"
+                  label={`Quantity of ${line.name}`}
+                  value={line.quantity}
+                  onSave={(v) => onPatch({ lines: [{ id: line.id, quantity: v === '' ? null : v }] })}
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-[11px] text-ink/50">
+                Price
+                <PriceCell
+                  width="w-20"
+                  label={`Price of ${line.name}`}
+                  value={line.price}
+                  onSave={(v) => onPatch({ lines: [{ id: line.id, price: v === '' ? null : v }] })}
+                />
+              </label>
+              <div className="ml-auto min-w-[5.5rem] text-right sm:w-28">
+                <p className="text-sm font-semibold tabular-nums text-ink">{rs(line.quantity * line.price)}</p>
+                <p className="text-[11px] text-ink/45">
+                  {line.profit === null ? 'No purchase price' : <span className={line.profit < 0 ? 'text-red-600' : ''}>Profit {rs(line.profit)}</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <footer className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-b-xl border-t border-stone-100 bg-stone-50/70 px-4 py-2.5 text-xs text-ink/60">
+        <span>
+          Items <span className="tabular-nums">{rs(order.itemSales)}</span>
+        </span>
+        {order.discounts ? (
+          <span>
+            Discount <span className="tabular-nums">−{rs(order.discounts)}</span>
+          </span>
+        ) : null}
+        <span>
+          Sales <span className="font-semibold tabular-nums text-ink">{rs(order.netSales)}</span>
+        </span>
+        <span>
+          Cost <span className="tabular-nums">{rs(order.cost)}</span>
+        </span>
+        <span>
+          Profit{' '}
+          <span className={`font-semibold tabular-nums ${order.profit < 0 ? 'text-red-600' : 'text-ink'}`}>{rs(order.profit)}</span>
+          {uncosted ? <span className="text-amber-700"> · some items have no purchase price</span> : null}
+        </span>
+        {!order.counted && !deletedView ? <span className="font-medium text-amber-800">Not counted in stock or profit</span> : null}
+      </footer>
+    </article>
+  )
+}
+
+function OrdersTab({ onLocked }: { onLocked: () => void }) {
+  const ranges = useMemo(() => [{ id: 'all', label: 'All time', from: '', to: '' }, ...presets()], [])
+  const [range, setRange] = useState('all')
+  const [source, setSource] = useState<'all' | 'online' | 'offline'>('all')
+  const [status, setStatus] = useState('')
+  const [view, setView] = useState<OrderView>('all')
+  const [search, setSearch] = useState('')
+  const [debounced, setDebounced] = useState('')
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
+  const [rows, setRows] = useState<InvOrder[]>([])
+  const [counts, setCounts] = useState<Record<OrderView, number> | null>(null)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState<InvOrder | null>(null)
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebounced(search.trim()), 300)
+    return () => window.clearTimeout(t)
+  }, [search])
+  useEffect(() => {
+    setPage(1)
+    setSelected(new Set())
+  }, [range, source, status, view, debounced, perPage])
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const chosen = ranges.find((r) => r.id === range) || ranges[0]
+      const params = new URLSearchParams({ source, view, page: String(page), perPage: String(perPage) })
+      if (chosen.from) params.set('from', chosen.from)
+      if (chosen.to) params.set('to', chosen.to)
+      if (status) params.set('status', status)
+      if (debounced) params.set('search', debounced)
+      const data = await api<{ rows: InvOrder[]; counts: Record<OrderView, number>; total: number; totalPages: number }>(
+        `/api/admin/inventory/orders?${params}`
+      )
+      setRows(data.rows)
+      setCounts(data.counts)
+      setTotal(data.total)
+      setTotalPages(data.totalPages)
+    } catch (err) {
+      if ((err as { locked?: boolean }).locked) onLocked()
+      else setMessage((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [ranges, range, source, view, status, debounced, page, perPage, onLocked])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const patchOrder = async (order: InvOrder, body: Record<string, unknown>) => {
+    setBusy(order.id)
+    setMessage('')
+    try {
+      const updated = await api<InvOrder>(`/api/admin/inventory/orders/${order.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+      setRows((prev) => prev.map((r) => (r.id === order.id ? updated : r)))
+      // Counting or putting back moves the order between lists.
+      if (body.counted !== undefined || body.restore) {
+        if (body.restore) setMessage(`Order #${order.orderNumber} is back in Inventory.`)
+        void load()
+      }
+    } catch (err) {
+      if ((err as { locked?: boolean }).locked) onLocked()
+      else setMessage(`#${order.orderNumber}: ${(err as Error).message}`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const bulk = async (counted: boolean) => {
+    const ids = [...selected]
+    setMessage('')
+    try {
+      const data = await api<{ updated: number }>('/api/admin/inventory/orders', { method: 'PATCH', body: JSON.stringify({ ids, counted }) })
+      setMessage(
+        counted
+          ? `${data.updated} ${data.updated === 1 ? 'order now counts' : 'orders now count'} in stock and profit.`
+          : `${data.updated} ${data.updated === 1 ? 'order' : 'orders'} switched off.`
+      )
+      setSelected(new Set())
+      void load()
+    } catch (err) {
+      if ((err as { locked?: boolean }).locked) onLocked()
+      else setMessage((err as Error).message)
+    }
+  }
+
+  const chips: Array<{ id: OrderView; label: string }> = [
+    { id: 'all', label: 'All' },
+    { id: 'counted', label: 'Counted' },
+    { id: 'off', label: 'Switched off' },
+    { id: 'deleted', label: 'Deleted' },
+  ]
+  const allOnPage = rows.length > 0 && rows.every((r) => selected.has(r.id))
+
+  return (
+    <div className="space-y-4">
+      <p className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-ink/70">
+        Every order counts in stock and in Sales &amp; profit. Switch off the ones that shouldn’t (tests, unpaid), or correct a quantity or
+        price here. This only changes Inventory: the order, its invoice and what the customer sees stay as they are.
+      </p>
+
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-2">
+          {chips.map((chip) => (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => setView(chip.id)}
+              className={`rounded-full px-3 py-1.5 text-sm font-medium ${view === chip.id ? 'bg-wine text-white' : 'bg-white text-ink/70 ring-1 ring-stone-200 hover:bg-stone-50'}`}
+            >
+              {chip.label}
+              {counts ? <span className="ml-1 opacity-70">{counts[chip.id].toLocaleString()}</span> : null}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select value={range} onChange={(e) => setRange(e.target.value)} className={`${inputClass} w-auto`} aria-label="Period">
+            {ranges.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          <select value={source} onChange={(e) => setSource(e.target.value as typeof source)} className={`${inputClass} w-auto`} aria-label="Order source">
+            <option value="all">Online + offline</option>
+            <option value="online">Online only</option>
+            <option value="offline">Offline only</option>
+          </select>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} className={`${inputClass} w-auto`} aria-label="Order status">
+            <option value="">Any status</option>
+            {Object.entries(ORDER_STATUS_LABEL).map(([id, text]) => (
+              <option key={id} value={id}>
+                {text}
+              </option>
+            ))}
+          </select>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Order no., customer, product" className={`${inputClass} w-56`} />
+        </div>
+      </div>
+
+      {view !== 'deleted' && rows.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm">
+          <label className="flex items-center gap-2 text-ink/70">
+            <input
+              type="checkbox"
+              checked={allOnPage}
+              onChange={(e) =>
+                setSelected((prev) => {
+                  const next = new Set(prev)
+                  for (const r of rows) {
+                    if (e.target.checked) next.add(r.id)
+                    else next.delete(r.id)
+                  }
+                  return next
+                })
+              }
+              className="h-4 w-4 rounded border-stone-300 accent-wine"
+            />
+            Select all on this page
+          </label>
+          {selected.size > 0 ? (
+            <>
+              <span className="text-ink/55">{selected.size} selected</span>
+              <button type="button" onClick={() => void bulk(false)} className={adminButtonClass.secondary}>
+                Switch off
+              </button>
+              <button type="button" onClick={() => void bulk(true)} className={adminButtonClass.secondary}>
+                Count them
+              </button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {message ? <p className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-sm text-ink/70">{message}</p> : null}
+
+      {deleting ? (
+        <PinConfirm
+          title={`Delete order #${deleting.orderNumber} from Inventory?`}
+          detail="It stops counting in stock and in Sales & profit. The order itself isn’t changed, and you can put it back from Deleted."
+          onLocked={onLocked}
+          onClose={() => setDeleting(null)}
+          onConfirm={async (pin) => {
+            await api(`/api/admin/inventory/orders/${deleting.id}`, { method: 'DELETE', body: JSON.stringify({ pin }) })
+            setMessage(`Order #${deleting.orderNumber} deleted from Inventory.`)
+            setSelected((prev) => {
+              const next = new Set(prev)
+              next.delete(deleting.id)
+              return next
+            })
+            setDeleting(null)
+            void load()
+          }}
+        />
+      ) : null}
+
+      {loading && rows.length === 0 ? (
+        <p className="rounded-xl border border-stone-200 bg-white px-4 py-10 text-center text-sm text-ink/50">Loading orders…</p>
+      ) : rows.length === 0 ? (
+        <p className="rounded-xl border border-stone-200 bg-white px-4 py-10 text-center text-sm text-ink/50">
+          {view === 'deleted' ? 'No orders deleted from Inventory.' : view === 'off' ? 'No orders switched off.' : 'No orders here.'}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              busy={busy === order.id}
+              deletedView={view === 'deleted'}
+              selected={selected.has(order.id)}
+              onSelect={(on) =>
+                setSelected((prev) => {
+                  const next = new Set(prev)
+                  if (on) next.add(order.id)
+                  else next.delete(order.id)
+                  return next
+                })
+              }
+              onPatch={(body) => void patchOrder(order, body)}
+              onDelete={() => setDeleting(order)}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink/55">
+        <span>
+          {total.toLocaleString()} orders
+          <label className="ml-3">
+            Show{' '}
+            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} className="rounded-md border border-stone-300 bg-white px-1.5 py-1">
+              {[20, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>{' '}
+            per page
+          </label>
+        </span>
+        {totalPages > 1 ? (
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className={adminButtonClass.secondary}>
+              Previous
+            </button>
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className={adminButtonClass.secondary}>
+              Next
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+
 function Kpi({ label, value, hint, loading = false, tone }: { label: string; value: string; hint: string; loading?: boolean; tone?: 'red' }) {
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4">
@@ -1356,7 +2010,7 @@ function Kpi({ label, value, hint, loading = false, tone }: { label: string; val
 
 export default function AdminInventoryPage() {
   const [state, setState] = useState<'checking' | 'locked' | 'open' | 'no-pin'>('checking')
-  const [tab, setTab] = useState<'stock' | 'report'>('stock')
+  const [tab, setTab] = useState<'stock' | 'orders' | 'report'>('stock')
   const [changingPin, setChangingPin] = useState(false)
 
   const check = useCallback(() => {
@@ -1377,7 +2031,7 @@ export default function AdminInventoryPage() {
     <div>
       <AdminPageHeader
         title="Inventory"
-        description="Stock in hand, purchase and selling prices, and sales and profit. Locked with a PIN."
+        description="Stock in hand, orders, purchase and selling prices, and sales and profit. Locked with a PIN."
         actions={
           state === 'open' ? (
             <>
@@ -1407,6 +2061,7 @@ export default function AdminInventoryPage() {
             {(
               [
                 ['stock', 'Stock'],
+                ['orders', 'Orders'],
                 ['report', 'Sales & profit'],
               ] as const
             ).map(([id, text]) => (
@@ -1422,7 +2077,13 @@ export default function AdminInventoryPage() {
               </button>
             ))}
           </div>
-          {tab === 'stock' ? <StockTab onLocked={onLocked} /> : <ReportTab onLocked={onLocked} />}
+          {tab === 'stock' ? (
+            <StockTab onLocked={onLocked} />
+          ) : tab === 'orders' ? (
+            <OrdersTab onLocked={onLocked} />
+          ) : (
+            <ReportTab onLocked={onLocked} />
+          )}
         </>
       ) : null}
     </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireInventoryAccess } from '@/lib/inventory-lock'
 import { inventoryRow, listInventory, type InventoryFilter } from '@/lib/inventory'
+import { INVENTORY_ITEM_TAG } from '@/lib/inventory-tags'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       trackStock: stock !== null,
       stockQty: stock,
       stockCountedAt: stock !== null ? new Date() : null,
-      tags: ['inventory-item'],
+      tags: [INVENTORY_ITEM_TAG],
       prepTime: 0,
     },
     select: { id: true },

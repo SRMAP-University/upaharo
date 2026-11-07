@@ -64,6 +64,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const availability = searchParams.get('availability')
     const archived = searchParams.get('archived') === '1'
+    // The offline-order picker also lists products made in Inventory.
+    const includeInventoryItems = searchParams.get('inventory') === '1'
     const sort = searchParams.get('sort')
     const idsParam = searchParams.get('ids')
 
@@ -85,6 +87,7 @@ export async function GET(request: NextRequest) {
       availability,
       archived,
       ids,
+      includeInventoryItems,
     })
 
     const page = Math.max(1, Math.round(toNumber(searchParams.get('page'), 1)))
