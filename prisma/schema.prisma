@@ -1012,3 +1012,18 @@ model AdminPin {
   salt      String
   updatedAt DateTime @updatedAt
 }
+
+/// Inventory → Custom sales: a festival / season working sheet. `data` holds
+/// copied orders with editable quantities, prices and costs (lib/sales-sheet.ts).
+/// It never changes real orders or stock.
+model SalesSheet {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String
+  note      String   @default("")
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, updatedAt])
+}

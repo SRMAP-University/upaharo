@@ -348,6 +348,25 @@ export async function listInventory(
   return { rows, total, page, perPage, totalPages: Math.max(1, Math.ceil(total / perPage)), summary }
 }
 
+/**
+ * Purchase and packing cost for one of each product, kept apart (a hamper's
+ * purchase is its items; its packing is its own). Purchase is null when unknown.
+ */
+export async function costParts(storeId: string, productIds: string[]) {
+  if (productIds.length === 0) return new Map<string, { purchase: number | null; packing: number }>()
+  const products = await prisma.product.findMany({ where: { id: { in: productIds }, storeId }, select: PRODUCT_SELECT })
+  const rows = await rowsFor(storeId, products)
+  return new Map(
+    rows.map((r) => [
+      r.id,
+      {
+        purchase: r.unitCost === null ? null : round2(r.unitCost - (r.packagingCost || 0)),
+        packing: r.packagingCost || 0,
+      },
+    ])
+  )
+}
+
 /** Full unit cost of each product (hampers from their items; null when unknown). */
 export async function unitCosts(storeId: string, productIds: string[]) {
   if (productIds.length === 0) return new Map<string, number | null>()
