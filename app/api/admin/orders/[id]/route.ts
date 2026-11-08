@@ -18,6 +18,7 @@ import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
 import { confirmInventoryPin, hasInventoryPin } from '@/lib/inventory-lock'
+import { DELETED_ORDER_INCLUDE, orderSnapshot } from '@/lib/deleted-orders'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 import { getOfflineOrder, updateOfflineOrder } from '@/lib/offline-order'
 
@@ -292,7 +293,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const order = await prisma.order.findFirst({
       where: { id, storeId: storeContext.store.id },
-      include: { items: true },
+      include: DELETED_ORDER_INCLUDE,
     })
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
@@ -304,10 +305,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           id: order.id,
           storeId: order.storeId,
           orderNumber: order.orderNumber,
-          data: JSON.parse(JSON.stringify(order)),
+          data: orderSnapshot(order),
           deletedBy: admin.id,
         },
-        update: { data: JSON.parse(JSON.stringify(order)), deletedBy: admin.id, deletedAt: new Date() },
+        update: { data: orderSnapshot(order), deletedBy: admin.id, deletedAt: new Date() },
       }),
       // Its items go with it (cascade).
       prisma.order.delete({ where: { id: order.id } }),

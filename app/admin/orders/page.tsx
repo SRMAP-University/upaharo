@@ -8,6 +8,7 @@ import { couponRule, lineOffer, orderBreakdown } from '@/lib/order-breakdown'
 import { CANCEL_REASON_MAX, STORE_CANCEL_REASONS, cancelledByLabel } from '@/lib/order-cancel'
 import { formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 import { api, PinConfirm, TrashIcon } from '@/app/admin/inventory/shared'
+import DeletedOrders from './DeletedOrders'
 
 interface Address {
   label: string
@@ -428,6 +429,7 @@ export default function AdminOrders() {
   const [notice, setNotice] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'UPAHARO' | 'OFFLINE'>('ALL')
+  const [showDeleted, setShowDeleted] = useState(false)
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
   const [estimatedTimeUnit, setEstimatedTimeUnit] = useState<EstimatedTimeUnit>('minutes')
   const [savingEstimatedTime, setSavingEstimatedTime] = useState(false)
@@ -748,15 +750,28 @@ export default function AdminOrders() {
             <button
               key={value}
               type="button"
-              onClick={() => setSourceFilter(value)}
+              onClick={() => {
+                setShowDeleted(false)
+                setSourceFilter(value)
+              }}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                sourceFilter === value ? 'bg-wine text-white' : 'bg-white text-ink/65 ring-1 ring-wine/15'
+                !showDeleted && sourceFilter === value ? 'bg-wine text-white' : 'bg-white text-ink/65 ring-1 ring-wine/15'
               }`}
             >
               {value === 'ALL' ? 'All' : value === 'OFFLINE' ? 'Offline' : 'Upaharo'}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setShowDeleted(true)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              showDeleted ? 'bg-wine text-white' : 'bg-white text-ink/65 ring-1 ring-wine/15'
+            }`}
+          >
+            Deleted
+          </button>
         </div>
+        {showDeleted ? null : (
         <input
           type="text"
           placeholder="Search by order number, customer name or email..."
@@ -764,10 +779,13 @@ export default function AdminOrders() {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-3 py-2 md:px-4 md:py-3 border border-stone-300 bg-white rounded-xl focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink text-sm"
         />
+        )}
       </div>
 
+      {showDeleted ? <DeletedOrders onRestored={() => fetchOrders()} /> : null}
+
       {/* Orders List */}
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+      <div className={`bg-white rounded-xl border border-stone-200 overflow-hidden ${showDeleted ? 'hidden' : ''}`}>
         {loading ? (
           <div className="p-8 text-center text-ink/55">Loading orders...</div>
         ) : filteredOrders.length === 0 ? (
