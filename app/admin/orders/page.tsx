@@ -7,6 +7,7 @@ import { resolveImageUrl } from '@/lib/image-url'
 import { couponRule, lineOffer, orderBreakdown } from '@/lib/order-breakdown'
 import { CANCEL_REASON_MAX, STORE_CANCEL_REASONS, cancelledByLabel } from '@/lib/order-cancel'
 import { formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import { api, PinConfirm, TrashIcon } from '@/app/admin/inventory/shared'
 
 interface Address {
   label: string
@@ -423,6 +424,8 @@ export default function AdminOrders() {
   const [selectedStoreName, setSelectedStoreName] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [cancelling, setCancelling] = useState<Order | null>(null)
+  const [deletingOrder, setDeletingOrder] = useState<Order | null>(null)
+  const [notice, setNotice] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [sourceFilter, setSourceFilter] = useState<'ALL' | 'UPAHARO' | 'OFFLINE'>('ALL')
   const [estimatedTimeDraft, setEstimatedTimeDraft] = useState('')
@@ -730,6 +733,14 @@ export default function AdminOrders() {
           {loadError}
         </div>
       )}
+      {notice ? (
+        <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 text-sm text-ink/70">
+          <span>{notice}</span>
+          <button type="button" onClick={() => setNotice('')} className="text-ink/40 hover:text-ink" aria-label="Dismiss">
+            ×
+          </button>
+        </div>
+      ) : null}
 
       <div className="mb-6 space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -900,6 +911,26 @@ export default function AdminOrders() {
         )}
       </div>
 
+      {deletingOrder ? (
+        <div className="relative z-[70]">
+          <PinConfirm
+            title={`Delete order ${deletingOrder.orderNumber}?`}
+            detail="It's removed for good: from Orders, the customer's order history, Inventory and reports. Wallet money used on it goes back to the customer. This can't be undone."
+            confirmLabel="Delete order"
+            onLocked={() => undefined}
+            onClose={() => setDeletingOrder(null)}
+            onConfirm={async (pin) => {
+              await api(`/api/admin/orders/${deletingOrder.id}`, { method: 'DELETE', body: JSON.stringify({ pin }) })
+              setNotice(`Order ${deletingOrder.orderNumber} deleted.`)
+              setDeletingOrder(null)
+              setSelectedOrder(null)
+              setOrders((prev) => prev.filter((o) => o.id !== deletingOrder.id))
+              fetchOrders()
+            }}
+          />
+        </div>
+      ) : null}
+
       {cancelling ? (
         <CancelOrderDialog order={cancelling} onClose={() => setCancelling(null)} onConfirm={(reason) => confirmCancel(cancelling, reason)} />
       ) : null}
@@ -927,6 +958,14 @@ export default function AdminOrders() {
                     Edit order
                   </Link>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() => setDeletingOrder(selectedOrder)}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                  title="Delete this order for good (asks for the PIN)"
+                >
+                  <TrashIcon /> Delete
+                </button>
                 <button
                   onClick={() => setSelectedOrder(null)}
                   className="text-ink/40 hover:text-ink text-2xl"

@@ -1027,3 +1027,18 @@ model SalesSheet {
 
   @@index([storeId, updatedAt])
 }
+
+/// Orders deleted from admin Orders (with the PIN). A full copy is kept here
+/// so a mistaken delete can be put back by hand; nothing reads it otherwise.
+model DeletedOrder {
+  /// The deleted order's id.
+  id          String   @id
+  storeId     String
+  orderNumber String
+  /// The order with its items, as it was.
+  data        Json
+  deletedBy   String?
+  deletedAt   DateTime @default(now())
+
+  @@index([storeId, deletedAt])
+}

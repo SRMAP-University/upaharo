@@ -17,6 +17,7 @@ import {
 import { releaseOrderWallet } from '@/lib/order-payment-lifecycle'
 import { creditPendingCashback } from '@/lib/wallet'
 import { requireAdmin } from '@/lib/request-auth'
+import { confirmInventoryPin, hasInventoryPin } from '@/lib/inventory-lock'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 import { getOfflineOrder, updateOfflineOrder } from '@/lib/offline-order'
 
@@ -266,5 +267,54 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } catch (error) {
     console.error('Error updating offline order:', error)
     return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+  }
+}
+
+/**
+ * Delete an order for good: { pin }. The admin PIN (the Inventory PIN) is
+ * asked every time. Wallet money the customer used on it is returned and
+ * cashback not yet paid is dropped; a full copy goes to DeletedOrder first.
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdmin(request)
+    if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const storeContext = await resolveAdminStoreContext()
+    if (!storeContext) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
+    const { id } = await params
+
+    if (!(await hasInventoryPin())) {
+      return NextResponse.json({ error: 'Set up the PIN on the Inventory page first.' }, { status: 409 })
+    }
+    const body = await request.json().catch(() => ({}))
+    const pinError = await confirmInventoryPin(admin.id, body?.pin)
+    if (pinError) return NextResponse.json({ error: pinError.error }, { status: pinError.status })
+
+    const order = await prisma.order.findFirst({
+      where: { id, storeId: storeContext.store.id },
+      include: { items: true },
+    })
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+    await releaseOrderWallet(order.id)
+    await prisma.$transaction([
+      prisma.deletedOrder.upsert({
+        where: { id: order.id },
+        create: {
+          id: order.id,
+          storeId: order.storeId,
+          orderNumber: order.orderNumber,
+          data: JSON.parse(JSON.stringify(order)),
+          deletedBy: admin.id,
+        },
+        update: { data: JSON.parse(JSON.stringify(order)), deletedBy: admin.id, deletedAt: new Date() },
+      }),
+      // Its items go with it (cascade).
+      prisma.order.delete({ where: { id: order.id } }),
+    ])
+    return NextResponse.json({ deleted: true, orderNumber: order.orderNumber })
+  } catch (error) {
+    console.error('Error deleting order:', error)
+    return NextResponse.json({ error: 'Failed to delete the order' }, { status: 500 })
   }
 }
