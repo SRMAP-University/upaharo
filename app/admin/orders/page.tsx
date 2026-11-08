@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import AdminPageHeader, { adminButtonClass } from '@/components/admin/AdminPageHeader'
 import Link from 'next/link'
 import { resolveImageUrl } from '@/lib/image-url'
@@ -337,7 +337,7 @@ function CancelOrderDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-ink/50 p-4 sm:items-center"
+      className="fixed inset-0 z-[60] !mt-0 flex items-end justify-center bg-ink/50 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cancel-order-title"
@@ -420,6 +420,15 @@ const toEstimatedTimeMinutes = (rawValue: string, unit: EstimatedTimeUnit): numb
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>([])
+  // /admin/orders?order=<id> (e.g. from the dashboard) opens that order once loaded.
+  const openedFromLink = useRef(false)
+  useEffect(() => {
+    if (openedFromLink.current || orders.length === 0) return
+    openedFromLink.current = true
+    const id = new URLSearchParams(window.location.search).get('order')
+    const found = id ? orders.find((o) => o.id === id) : null
+    if (found) setSelectedOrder(found)
+  }, [orders])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [selectedStoreName, setSelectedStoreName] = useState('')

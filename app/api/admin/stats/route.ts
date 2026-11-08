@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { periodStats, readPeriod } from '@/lib/dashboard-stats'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 // Days start at midnight Nepal time (UTC+5:45).
@@ -80,10 +81,14 @@ export async function GET(request: Request) {
       day.revenue += order.total || 0
     }
     const today = days[days.length - 1]
+    // The period picked on the dashboard (?from&to, Nepal days; none = all time).
+    const period = await periodStats(storeId, readPeriod(new URL(request.url).searchParams))
 
     return NextResponse.json({
       storeName: storeContext.store.name,
       totalOrders,
+      cancelledOrders: await prisma.order.count({ where: { ...orderWhere, status: 'CANCELLED' } }),
+      period,
       // Sales exclude cancelled orders.
       totalRevenue: revenue._sum.total || 0,
       totalProducts,

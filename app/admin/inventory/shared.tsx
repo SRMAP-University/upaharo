@@ -115,7 +115,7 @@ export function PinConfirm({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 !mt-0 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pin-confirm-title"

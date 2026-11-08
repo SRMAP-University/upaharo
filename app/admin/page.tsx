@@ -1,14 +1,37 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
+import DashboardDetails, { type DetailKind, type DetailRequest } from './DashboardDetails'
 import { formatPriceNoDecimals } from '@/lib/utils'
 import { useUserStore } from '@/lib/store/user'
 import { AdminIcons } from '@/components/admin/admin-nav'
 import { adminButtonClass } from '@/components/admin/AdminPageHeader'
 
+type SeriesPoint = { key: string; from: string; to: string; orders: number; revenue: number }
+
+/** Numbers for the period picked on the dashboard (cancelled orders never count as sales). */
+interface PeriodStats {
+  from: string | null
+  to: string | null
+  orders: number
+  cancelled: number
+  sales: number
+  deliveredOrders: number
+  deliveredSales: number
+  customers: number
+  itemsSold: number
+  productsSold: number
+  groupBy: 'day' | 'month'
+  seriesFrom: string
+  seriesTo: string
+  series: SeriesPoint[]
+}
+
 interface Stats {
   storeName?: string
+  period?: PeriodStats
+  cancelledOrders?: number
   totalOrders: number
   totalRevenue: number
   totalProducts: number
@@ -49,6 +72,29 @@ const statusLabel = (status: string) => {
 // Bars use a brand pink validated for contrast on white.
 const BAR_COLOR = '#a8385a'
 
+const NEPAL_OFFSET_MS = (5 * 60 + 45) * 60_000
+const nepalToday = () => new Date(Date.now() + NEPAL_OFFSET_MS).toISOString().slice(0, 10)
+const shiftDay = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10)
+const dayLabel = (day: string, withYear = false) =>
+  new Date(`${day}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' })
+
+type PeriodId = 'today' | 'yesterday' | '7d' | 'month' | 'lastMonth' | 'year' | 'all' | 'custom'
+
+function periodPresets(): Array<{ id: PeriodId; label: string; from: string | null; to: string | null }> {
+  const t = nepalToday()
+  const monthStart = `${t.slice(0, 7)}-01`
+  const lastMonthEnd = shiftDay(monthStart, -1)
+  return [
+    { id: 'today', label: 'Today', from: t, to: t },
+    { id: 'yesterday', label: 'Yesterday', from: shiftDay(t, -1), to: shiftDay(t, -1) },
+    { id: '7d', label: 'Last 7 days', from: shiftDay(t, -6), to: t },
+    { id: 'month', label: 'This month', from: monthStart, to: t },
+    { id: 'lastMonth', label: 'Last month', from: `${lastMonthEnd.slice(0, 7)}-01`, to: lastMonthEnd },
+    { id: 'year', label: 'This year', from: `${t.slice(0, 4)}-01-01`, to: t },
+    { id: 'all', label: 'All time', from: null, to: null },
+  ]
+}
+
 function greeting() {
   const hour = new Date().getHours()
   if (hour < 12) return 'Good morning'
@@ -72,14 +118,33 @@ export default function AdminDashboard() {
   const [failed, setFailed] = useState(false)
 
   const [reloadKey, setReloadKey] = useState(0)
+  const presets = useMemo(periodPresets, [])
+  const [periodId, setPeriodId] = useState<PeriodId>('today')
+  const [customFrom, setCustomFrom] = useState(() => shiftDay(nepalToday(), -6))
+  const [customTo, setCustomTo] = useState(() => nepalToday())
+  const [details, setDetails] = useState<DetailRequest | null>(null)
+  const closeDetails = useCallback(() => setDetails(null), [])
+
+  const preset = presets.find((p) => p.id === periodId)
+  const from = periodId === 'custom' ? (customFrom <= customTo ? customFrom : customTo) : preset?.from ?? null
+  const to = periodId === 'custom' ? (customFrom <= customTo ? customTo : customFrom) : preset?.to ?? null
+  const periodLabel =
+    periodId === 'custom'
+      ? from === to
+        ? dayLabel(from!, true)
+        : `${dayLabel(from!)} – ${dayLabel(to!, true)}`
+      : preset?.label ?? ''
 
   useEffect(() => {
     let cancelled = false
     let retryTimer: number | undefined
     setLoading(true)
     setFailed(false)
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to)
     const load = (attempt: number) =>
-      fetch('/api/admin/stats', { cache: 'no-store' })
+      fetch(`/api/admin/stats?${params}`, { cache: 'no-store' })
         .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
         .then((data) => {
           if (cancelled) return
@@ -102,7 +167,13 @@ export default function AdminDashboard() {
       cancelled = true
       window.clearTimeout(retryTimer)
     }
-  }, [reloadKey])
+  }, [reloadKey, from, to])
+
+  const p = stats?.period
+  const open = (kind: DetailKind, title: string, range?: { from: string; to: string; label: string }) =>
+    setDetails({ kind, title, from: range ? range.from : from, to: range ? range.to : to, periodLabel: range ? range.label : periodLabel })
+  // Only the first load shows placeholders; changing the period keeps the old numbers dimmed.
+  const firstLoad = loading && !stats
 
   const firstName = (user?.name || '').trim().split(/\s+/)[0]
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
@@ -158,75 +229,167 @@ export default function AdminDashboard() {
         </Link>
       ) : null}
 
-      {/* Key numbers */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      {/* Period */}
+      <div className="flex flex-wrap items-center gap-2">
+        {[...presets.map((x) => ({ id: x.id, label: x.label })), { id: 'custom' as const, label: 'Custom dates' }].map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            onClick={() => setPeriodId(x.id)}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              periodId === x.id ? 'bg-wine text-white' : 'bg-white text-ink/65 ring-1 ring-wine/15 hover:bg-stone-50'
+            }`}
+          >
+            {x.label}
+          </button>
+        ))}
+        {periodId === 'custom' ? (
+          <span className="flex flex-wrap items-center gap-2 text-xs text-ink/60">
+            <label className="flex items-center gap-1.5">
+              From
+              <input
+                type="date"
+                value={customFrom}
+                max={nepalToday()}
+                onChange={(e) => e.target.value && setCustomFrom(e.target.value)}
+                className="rounded-lg border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
+              />
+            </label>
+            <label className="flex items-center gap-1.5">
+              To
+              <input
+                type="date"
+                value={customTo}
+                max={nepalToday()}
+                onChange={(e) => e.target.value && setCustomTo(e.target.value)}
+                className="rounded-lg border border-stone-300 bg-white px-2 py-1 text-sm text-ink"
+              />
+            </label>
+          </span>
+        ) : null}
+      </div>
+
+      {/* Key numbers for the period; each opens what's behind it */}
+      <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4 ${loading && stats ? 'opacity-60' : ''}`}>
         <KpiCard
-          loading={loading}
+          loading={firstLoad}
           failed={failed}
           icon={<AdminIcons.Orders className="h-5 w-5" />}
-          label="Orders today"
-          value={String(stats?.todayOrders ?? 0)}
-          hint={`${(stats?.totalOrders ?? 0).toLocaleString()} all time`}
+          label={`Orders · ${periodLabel}`}
+          value={(p?.orders ?? 0).toLocaleString()}
+          hint={p?.cancelled ? `${p.cancelled} cancelled, not counted` : 'None cancelled'}
+          onClick={() => open('orders', 'Orders')}
         />
         <KpiCard
-          loading={loading}
+          loading={firstLoad}
           failed={failed}
           icon={<AdminIcons.Receipt className="h-5 w-5" />}
-          label="Sales today"
-          value={formatPriceNoDecimals(stats?.todayRevenue ?? 0)}
+          label={`Sales · ${periodLabel}`}
+          value={formatPriceNoDecimals(p?.sales ?? 0)}
           hint={`${formatPriceNoDecimals(stats?.totalRevenue ?? 0)} all time`}
+          onClick={() => open('orders', 'Sales')}
         />
         <KpiCard
-          loading={loading}
+          loading={firstLoad}
+          failed={failed}
+          icon={<AdminIcons.Gift className="h-5 w-5" />}
+          label="Delivered sales"
+          value={formatPriceNoDecimals(p?.deliveredSales ?? 0)}
+          hint={`${(p?.deliveredOrders ?? 0).toLocaleString()} ${p?.deliveredOrders === 1 ? 'order' : 'orders'} delivered`}
+          onClick={() => open('delivered', 'Delivered orders')}
+        />
+        <KpiCard
+          loading={firstLoad}
+          failed={failed}
+          icon={<AdminIcons.Close className="h-5 w-5" />}
+          label="Cancelled"
+          value={(p?.cancelled ?? 0).toLocaleString()}
+          hint="Not counted in sales"
+          onClick={() => open('cancelled', 'Cancelled orders')}
+        />
+        <KpiCard
+          loading={firstLoad}
+          failed={failed}
+          icon={<AdminIcons.Stock className="h-5 w-5" />}
+          label="Items sold"
+          value={(p?.itemsSold ?? 0).toLocaleString()}
+          hint={p?.productsSold === 1 ? '1 product' : `${(p?.productsSold ?? 0).toLocaleString()} different products`}
+          onClick={() => open('products', 'Products sold')}
+        />
+        <KpiCard
+          loading={firstLoad}
+          failed={failed}
+          icon={<AdminIcons.Users className="h-5 w-5" />}
+          label="Customers"
+          value={(p?.customers ?? 0).toLocaleString()}
+          hint={`${(stats?.totalUsers ?? 0).toLocaleString()} all time`}
+          onClick={() => open('customers', 'Customers')}
+        />
+        <KpiCard
+          loading={firstLoad}
+          failed={failed}
+          icon={<AdminIcons.Ticket className="h-5 w-5" />}
+          label="Average order"
+          value={p?.orders ? formatPriceNoDecimals(p.sales / p.orders) : '—'}
+          hint="Sales ÷ orders"
+          onClick={() => open('orders', 'Orders')}
+        />
+        <KpiCard
+          loading={firstLoad}
           failed={failed}
           icon={<AdminIcons.Gift className="h-5 w-5" />}
           label="Active products"
           value={(stats?.activeProducts ?? stats?.totalProducts ?? 0).toLocaleString()}
           hint={`${(stats?.inactiveProducts ?? 0).toLocaleString()} inactive`}
-        />
-        <KpiCard
-          loading={loading}
-          failed={failed}
-          icon={<AdminIcons.Users className="h-5 w-5" />}
-          label="Customers"
-          value={(stats?.totalUsers ?? 0).toLocaleString()}
-          hint="who have ordered"
+          href="/admin/products?availability=available"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Panel
           className="lg:col-span-2"
-          title="Sales, last 7 days"
-          subtitle="Cancelled orders are not counted"
+          title={
+            p && p.from && p.from === p.to
+              ? `Sales, week to ${dayLabel(p.seriesTo)}`
+              : `Sales, ${periodLabel === 'All time' ? 'all time' : periodLabel}`
+          }
+          subtitle="Cancelled orders are not counted. Tap a bar for its orders."
           aside={
-            stats?.last7Days ? (
+            p ? (
               <span className="text-sm font-semibold text-ink">
-                {formatPriceNoDecimals(stats.last7Days.reduce((sum, d) => sum + d.revenue, 0))}
+                {formatPriceNoDecimals(p.series.reduce((sum, d) => sum + d.revenue, 0))}
               </span>
             ) : null
           }
         >
-          {loading ? <div className="h-48 animate-pulse rounded-lg bg-stone-100" /> : <SalesChart days={stats?.last7Days || []} />}
+          {firstLoad ? (
+            <div className="h-48 animate-pulse rounded-lg bg-stone-100" />
+          ) : (
+            <SalesChart
+              points={p?.series || []}
+              groupBy={p?.groupBy || 'day'}
+              onPick={(point, label) => open('orders', `Orders, ${label}`, { from: point.from, to: point.to, label })}
+            />
+          )}
         </Panel>
 
         <Panel title="Needs attention">
           <ul className="divide-y divide-stone-100">
-            <AttentionRow href="/admin/orders" label="Waiting to be accepted" count={stats?.pendingOrders} tone="amber" loading={loading} />
-            <AttentionRow href="/admin/orders" label="Being prepared or delivered" count={stats?.inProgressOrders} tone="blue" loading={loading} />
+            <AttentionRow href="/admin/orders" label="Waiting to be accepted" count={stats?.pendingOrders} tone="amber" loading={firstLoad} />
+            <AttentionRow href="/admin/orders" label="Being prepared or delivered" count={stats?.inProgressOrders} tone="blue" loading={firstLoad} />
             <AttentionRow
               href="/admin/products?sort=stock"
               label="Out of stock"
               count={stats?.outOfStockProducts ?? undefined}
               tone="red"
-              loading={loading}
+              loading={firstLoad}
             />
             <AttentionRow
               href="/admin/products?availability=unavailable"
               label="Inactive products"
               count={stats?.inactiveProducts}
               tone="stone"
-              loading={loading}
+              loading={firstLoad}
             />
           </ul>
         </Panel>
@@ -243,7 +406,7 @@ export default function AdminDashboard() {
           }
           flush
         >
-          {loading ? (
+          {firstLoad ? (
             <div className="space-y-2 p-4">
               {Array.from({ length: 4 }, (_, i) => (
                 <div key={i} className="h-10 animate-pulse rounded-lg bg-stone-100" />
@@ -263,7 +426,7 @@ export default function AdminDashboard() {
                 {stats.recentOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-stone-50">
                     <td className="px-4 py-3">
-                      <Link href="/admin/orders" className="font-medium text-ink hover:text-wine">
+                      <Link href={`/admin/orders?order=${order.id}`} className="font-medium text-ink hover:text-wine">
                         {order.orderNumber}
                       </Link>
                       <div className="text-xs text-ink/45">{timeAgo(order.createdAt)}</div>
@@ -299,6 +462,8 @@ export default function AdminDashboard() {
           </div>
         </Panel>
       </div>
+
+      {details ? <DashboardDetails request={details} onClose={closeDetails} /> : null}
     </div>
   )
 }
@@ -339,6 +504,8 @@ function KpiCard({
   hint,
   loading,
   failed = false,
+  onClick,
+  href,
 }: {
   icon: ReactNode
   label: string
@@ -346,21 +513,43 @@ function KpiCard({
   hint: string
   loading: boolean
   failed?: boolean
+  /** Opens what's behind the number. */
+  onClick?: () => void
+  href?: string
 }) {
-  return (
-    <div className="rounded-xl border border-stone-200 bg-white p-4">
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium text-ink/55">{label}</p>
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-wine/[0.07] text-wine">{icon}</span>
+        <p className="min-w-0 truncate text-sm font-medium text-ink/55">{label}</p>
+        <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-wine/[0.07] text-wine sm:flex">{icon}</span>
       </div>
       {loading ? (
         <div className="mt-2 h-8 w-24 animate-pulse rounded-md bg-stone-100" />
       ) : (
         <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums text-ink">{failed ? '—' : value}</p>
       )}
-      <p className="mt-1 truncate text-xs text-ink/45">{loading || failed ? ' ' : hint}</p>
-    </div>
+      <p className="mt-1 flex items-center justify-between gap-1 text-xs text-ink/45">
+        <span className="truncate">{loading || failed ? ' ' : hint}</span>
+        {onClick || href ? <AdminIcons.ChevronRight className="h-3.5 w-3.5 shrink-0 text-ink/30" /> : null}
+      </p>
+    </>
   )
+  const cls = 'block w-full rounded-xl border border-stone-200 bg-white p-4 text-left transition hover:border-wine/30 hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-wine/30'
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {body}
+      </Link>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} disabled={loading || failed} className={cls}>
+        {body}
+      </button>
+    )
+  }
+  return <div className="rounded-xl border border-stone-200 bg-white p-4">{body}</div>
 }
 
 const toneStyle = {
@@ -418,50 +607,72 @@ function QuickAction({ href, icon, label }: { href: string; icon: ReactNode; lab
   )
 }
 
-/** One bar per day; hover or focus a bar for that day's sales and orders. */
-function SalesChart({ days }: { days: Array<{ date: string; orders: number; revenue: number }> }) {
+/** One bar per day (or month); hover for the numbers, click for that day's orders. */
+function SalesChart({
+  points,
+  groupBy,
+  onPick,
+}: {
+  points: SeriesPoint[]
+  groupBy: 'day' | 'month'
+  onPick: (point: SeriesPoint, label: string) => void
+}) {
   const [hover, setHover] = useState<number | null>(null)
-  const max = Math.max(...days.map((d) => d.revenue), 0)
-  const label = (date: string, style: 'short' | 'long') =>
-    new Date(`${date}T00:00:00`).toLocaleDateString(
-      undefined,
-      style === 'short' ? { weekday: 'short' } : { weekday: 'long', month: 'short', day: 'numeric' }
-    )
+  const max = Math.max(...points.map((d) => d.revenue), 0)
+  const today = nepalToday()
+  const longLabel = (pt: SeriesPoint) =>
+    groupBy === 'month'
+      ? new Date(`${pt.key}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+      : new Date(`${pt.key}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
+  const shortLabel = (pt: SeriesPoint) =>
+    groupBy === 'month'
+      ? new Date(`${pt.key}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })
+      : pt.key === today
+        ? 'Today'
+        : points.length <= 7
+          ? new Date(`${pt.key}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })
+          : dayLabel(pt.key)
+  const every = Math.max(1, Math.ceil(points.length / 8))
 
-  if (!days.length) return <div className="py-10 text-center text-sm text-ink/50">No sales data yet.</div>
+  if (!points.length) return <div className="py-10 text-center text-sm text-ink/50">No sales data yet.</div>
 
   return (
     <div>
-      <div className="relative flex h-48 items-end gap-2 border-b border-stone-200 pt-4 sm:gap-3">
+      <div className="relative flex h-48 items-end gap-1 border-b border-stone-200 pt-4 sm:gap-2">
         {/* Recessive guide at the top value */}
         {max > 0 ? (
           <div className="pointer-events-none absolute inset-x-0 top-4 border-t border-dashed border-stone-200">
             <span className="absolute -top-2.5 right-0 bg-white pl-1 text-[11px] text-ink/40">{formatPriceNoDecimals(max)}</span>
           </div>
         ) : null}
-        {days.map((day, index) => {
-          const height = max > 0 ? Math.max((day.revenue / max) * 100, day.revenue > 0 ? 3 : 0) : 0
+        {points.map((pt, index) => {
+          const height = max > 0 ? Math.max((pt.revenue / max) * 100, pt.revenue > 0 ? 3 : 0) : 0
           const active = hover === index
           return (
             <button
-              key={day.date}
+              key={pt.key}
               type="button"
-              className="relative flex h-full flex-1 items-end justify-center focus:outline-none"
+              className="relative flex h-full min-w-0 flex-1 items-end justify-center focus:outline-none"
               onMouseEnter={() => setHover(index)}
               onMouseLeave={() => setHover(null)}
               onFocus={() => setHover(index)}
               onBlur={() => setHover(null)}
-              aria-label={`${label(day.date, 'long')}: ${formatPriceNoDecimals(day.revenue)} from ${day.orders} order${day.orders === 1 ? '' : 's'}`}
+              onClick={() => onPick(pt, longLabel(pt))}
+              aria-label={`${longLabel(pt)}: ${formatPriceNoDecimals(pt.revenue)} from ${pt.orders} order${pt.orders === 1 ? '' : 's'}. Show orders.`}
             >
               <span
                 className="block w-full max-w-[44px] rounded-t transition-opacity"
                 style={{ height: `${height}%`, backgroundColor: BAR_COLOR, opacity: hover === null || active ? 1 : 0.45 }}
               />
               {active ? (
-                <span className="pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-xs shadow-lg">
-                  <span className="block font-medium text-ink">{label(day.date, 'long')}</span>
+                <span
+                  className={`pointer-events-none absolute bottom-full z-10 mb-1 whitespace-nowrap rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-xs shadow-lg ${
+                    index > points.length / 2 ? 'right-0' : 'left-0'
+                  }`}
+                >
+                  <span className="block font-medium text-ink">{longLabel(pt)}</span>
                   <span className="block text-ink/70">
-                    {formatPriceNoDecimals(day.revenue)} · {day.orders} order{day.orders === 1 ? '' : 's'}
+                    {formatPriceNoDecimals(pt.revenue)} · {pt.orders} order{pt.orders === 1 ? '' : 's'}
                   </span>
                 </span>
               ) : null}
@@ -469,31 +680,31 @@ function SalesChart({ days }: { days: Array<{ date: string; orders: number; reve
           )
         })}
       </div>
-      <div className="mt-2 flex gap-2 sm:gap-3">
-        {days.map((day, index) => (
+      <div className="mt-2 flex gap-1 sm:gap-2">
+        {points.map((pt, index) => (
           <span
-            key={day.date}
-            className={`flex-1 text-center text-xs ${index === days.length - 1 ? 'font-semibold text-ink' : 'text-ink/45'}`}
+            key={pt.key}
+            className={`min-w-0 flex-1 truncate text-center text-[11px] ${pt.key === today ? 'font-semibold text-ink' : 'text-ink/45'}`}
           >
-            {index === days.length - 1 ? 'Today' : label(day.date, 'short')}
+            {index % every === 0 || index === points.length - 1 ? shortLabel(pt) : ''}
           </span>
         ))}
       </div>
       <table className="sr-only">
-        <caption>Sales for each of the last 7 days</caption>
+        <caption>Sales for each {groupBy === 'month' ? 'month' : 'day'}</caption>
         <thead>
           <tr>
-            <th>Day</th>
+            <th>{groupBy === 'month' ? 'Month' : 'Day'}</th>
             <th>Sales</th>
             <th>Orders</th>
           </tr>
         </thead>
         <tbody>
-          {days.map((day) => (
-            <tr key={day.date}>
-              <td>{label(day.date, 'long')}</td>
-              <td>{formatPriceNoDecimals(day.revenue)}</td>
-              <td>{day.orders}</td>
+          {points.map((pt) => (
+            <tr key={pt.key}>
+              <td>{longLabel(pt)}</td>
+              <td>{formatPriceNoDecimals(pt.revenue)}</td>
+              <td>{pt.orders}</td>
             </tr>
           ))}
         </tbody>
