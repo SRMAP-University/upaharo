@@ -13,7 +13,7 @@ export default function PromoPage() {
     <main className="min-h-screen bg-cream">
       <Header />
       <div className="mx-auto max-w-3xl px-4 pb-28 pt-6 sm:px-6 lg:pb-16">
-        <section className="overflow-hidden rounded-[28px] border border-blush/20 bg-gradient-to-br from-blush-soft via-white to-cream p-6 text-center shadow-[0_28px_60px_-40px_rgba(232,90,140,0.45)] lg:p-10">
+        <section className="overflow-hidden rounded-[28px] border border-blush/20 bg-gradient-to-br from-blush-soft via-white to-cream p-6 text-center shadow-[0_28px_60px_-40px_rgba(232,50,43,0.45)] lg:p-10">
           <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-blush">
             Daily rewards
           </p>

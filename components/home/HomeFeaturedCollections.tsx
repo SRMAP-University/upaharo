@@ -20,7 +20,7 @@ export default function HomeFeaturedCollections({
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-ink/55">{title}</h2>
+      <h2 className="text-[22px] font-extrabold tracking-tight text-ink lg:text-[28px]">{title}</h2>
       <div className={`grid gap-3 lg:gap-4 ${tiles.length === 1 ? 'grid-cols-1' : tiles.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {tiles.map((item) => (
           <Link

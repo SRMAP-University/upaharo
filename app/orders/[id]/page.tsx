@@ -246,7 +246,7 @@ export default function OrderTrackingPage() {
         <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-[22px] bg-gradient-to-br from-wine to-wine-deep p-5 text-white shadow-[0_24px_60px_-40px_rgba(124,42,71,0.9)]"
+          className="overflow-hidden rounded-[22px] bg-gradient-to-br from-wine to-wine-deep p-5 text-white shadow-[0_24px_60px_-40px_rgba(17,17,17,0.9)]"
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -291,7 +291,7 @@ export default function OrderTrackingPage() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
+          className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]"
         >
           <h2 className="mb-4 font-display text-lg font-semibold text-ink">Tracking Timeline</h2>
           <div className="space-y-4">
@@ -339,7 +339,7 @@ export default function OrderTrackingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
+            className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]"
           >
             <h2 className="mb-3 font-display text-lg font-semibold text-ink">
               {isPickup ? 'Pickup Location' : 'Delivery Address'}
@@ -379,7 +379,7 @@ export default function OrderTrackingPage() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.12 }}
-            className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
+            className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]"
           >
             <h2 className="mb-3 font-display text-lg font-semibold text-ink">Bill Summary</h2>
             <BillSummary order={order} isPickup={isPickup} />
@@ -390,7 +390,7 @@ export default function OrderTrackingPage() {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16 }}
-          className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
+          className="rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]"
         >
           <h2 className="mb-4 font-display text-lg font-semibold text-ink">Items in This Order</h2>
           <div className="space-y-3">

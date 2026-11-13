@@ -88,7 +88,7 @@ export default function StripeReturnPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-cream px-4">
-      <div className="w-full max-w-md rounded-[22px] border border-wine/10 bg-white p-6 text-center shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+      <div className="w-full max-w-md rounded-[22px] border border-wine/10 bg-white p-6 text-center shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-soft text-wine">
           {state === 'failed' || state === 'error' ? (
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

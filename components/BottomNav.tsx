@@ -136,7 +136,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
           </svg>
           {mounted && cartCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-blush text-white text-[10px] font-semibold rounded-full h-4 w-4 flex items-center justify-center shadow-md">
+            <span className="absolute -top-1.5 -right-1.5 bg-brand text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center shadow-md">
               {cartCount > 9 ? '9+' : cartCount}
             </span>
           )}
@@ -172,7 +172,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
     <button
       type="button"
       onClick={() => router.push('/cart')}
-      className="w-full rounded-2xl bg-blush px-3.5 py-2.5 text-left text-white shadow-[0_12px_28px_-16px_rgba(232,90,140,0.55)]"
+      className="w-full rounded-2xl bg-ink px-3.5 py-2.5 text-left text-white shadow-[0_12px_28px_-16px_rgba(0,0,0,0.5)]"
     >
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
@@ -242,19 +242,19 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         {mounted && showProgress && (
           <div className="px-3 pb-2">{freeDeliveryChip}</div>
         )}
-        <div className="border-t border-wine/10 bg-white/95 backdrop-blur-sm">
-          <div className="grid h-14 grid-cols-5">
+        <div className="border-t border-ink/[0.07] bg-white/95 backdrop-blur-sm">
+          <div className="grid h-[60px] grid-cols-5">
             {navItems.map((item) => (
               <motion.button
                 key={item.path}
                 onClick={() => router.push(item.path)}
                 whileTap={{ scale: 0.9 }}
                 className={`flex flex-col items-center justify-center gap-0.5 ${
-                  item.active ? 'text-blush' : 'text-ink/40'
+                  item.active ? 'text-ink' : 'text-ink/40'
                 }`}
               >
                 {item.icon(item.active)}
-                <span className="text-[10px]">{item.label}</span>
+                <span className={`text-[11px] ${item.active ? 'font-bold' : 'font-semibold'}`}>{item.label}</span>
               </motion.button>
             ))}
           </div>
@@ -271,7 +271,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
         <div className="relative flex w-[min(480px,90vw)] flex-col gap-2">
           <NavMascot className="bottom-full left-7" script={mascotScript} scriptKey={pathname ?? '/'} />
           {mounted && showProgress && freeDeliveryChip}
-          <div className="rounded-full border border-wine/10 bg-white/90 px-4 py-2 shadow-[0_22px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur">
+          <div className="rounded-full border border-ink/[0.07] bg-white/95 px-3 py-2 shadow-[0_22px_50px_-30px_rgba(0,0,0,0.45)] backdrop-blur">
             <div className="flex items-center gap-4">
               {navItems.map((item) => (
                 <motion.button
@@ -279,7 +279,7 @@ export default function BottomNav({ hideDesktop = false }: { hideDesktop?: boole
                   onClick={() => router.push(item.path)}
                   whileTap={{ scale: 0.9 }}
                   className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    item.active ? 'text-blush bg-blush-soft' : 'text-ink/55 hover:text-ink'
+                    item.active ? 'bg-ink text-white' : 'text-ink/55 hover:bg-mist hover:text-ink'
                   }`}
                 >
                   {item.icon(item.active)}

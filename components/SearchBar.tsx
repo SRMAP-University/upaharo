@@ -13,7 +13,7 @@ export default function SearchBar() {
             <input
               type="text"
               placeholder="Search gifts, flowers, cakes..."
-              className="w-full pl-10 pr-4 py-3 bg-white border border-wine/15 rounded-full text-sm shadow-[0_14px_36px_-30px_rgba(124,42,71,0.7)] focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink placeholder-ink/40 cursor-pointer"
+              className="w-full pl-10 pr-4 py-3 bg-white border border-wine/15 rounded-full text-sm shadow-[0_14px_36px_-30px_rgba(17,17,17,0.7)] focus:outline-none focus:ring-2 focus:ring-wine/15 focus:border-wine/40 text-ink placeholder-ink/40 cursor-pointer"
               onClick={() => router.push('/search')}
               readOnly
             />

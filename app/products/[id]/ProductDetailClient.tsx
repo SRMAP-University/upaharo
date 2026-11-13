@@ -83,7 +83,7 @@ function salePrice(item: { price: number; discount?: number | null }) {
 }
 
 const iconButtonClass =
-  'flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-ink shadow-[0_6px_18px_-8px_rgba(43,29,34,0.45)] backdrop-blur-sm transition hover:bg-white'
+  'flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-ink shadow-[0_6px_18px_-8px_rgba(17,17,17,0.45)] backdrop-blur-sm transition hover:bg-white'
 
 function ShareIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -516,7 +516,7 @@ export default function ProductDetailClient({ params }: { params: Promise<{ id: 
                         onClick={() => scrollToImage(idx)}
                         aria-label={`Show photo ${idx + 1}`}
                         aria-current={activeIndex === idx}
-                        className={`relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border-2 bg-cream-deep shadow-[0_4px_12px_-4px_rgba(43,29,34,0.45)] transition lg:h-16 lg:w-16 lg:rounded-2xl ${
+                        className={`relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border-2 bg-cream-deep shadow-[0_4px_12px_-4px_rgba(17,17,17,0.45)] transition lg:h-16 lg:w-16 lg:rounded-2xl ${
                           activeIndex === idx ? 'border-white' : 'border-white/40 opacity-80 hover:opacity-100'
                         }`}
                       >

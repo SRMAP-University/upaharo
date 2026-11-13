@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getAppSettings } from '@/lib/app-settings'
 import { prisma } from '@/lib/prisma'
 import { buildMoments } from '@/lib/context-recommendations'
 import { parseList } from '@/lib/festive-ranking'
@@ -35,10 +36,13 @@ export async function GET(request: NextRequest) {
       viewedProductIds.push(...events.map((e) => e.productId))
     }
 
+    const settings = await getAppSettings(storeContext.store).catch(() => null)
     const context = await getShoppingContext({
       lat: Number(searchParams.get('lat')),
       lng: Number(searchParams.get('lng')),
       storeSlug: storeContext.slug,
+      // Festival mode off in admin: no festival rows (Tihar, Bhai Tika…).
+      festivals: settings?.festivalMode !== false,
     })
     const moments = await buildMoments(storeId, context, { searches, viewedProductIds, viewedCategories })
 

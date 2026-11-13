@@ -13,7 +13,7 @@ import HomeFeedBannerSection, { type HomeFeedBanner } from '@/components/home/Ho
 import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
 import AppDownloadCta from '@/components/AppDownloadCta'
-import BhaiTikaEntry from '@/components/home/BhaiTikaEntry'
+import StudioHero from '@/components/home/StudioHero'
 import RightNowPicks from '@/components/home/RightNowPicks'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
@@ -24,6 +24,7 @@ import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
 import { festiveFirst } from '@/lib/festive-products'
 import { contextLeadingFeed } from '@/lib/context-recommendations'
+import { formatPriceNoDecimals } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -263,6 +264,28 @@ async function getHomeData() {
       }
     }
 
+    // Hero products: the newest from a few everyday categories (one each),
+    // leaving out festival lines.
+    const FESTIVAL_NAME = /bhai\s*tika|bhaitika|tihar|dashain|diyo|deepawali/i
+    const heroCategories = ['Cakes', 'Flowers', 'Gift Hampers', 'Soft Toys', 'Personalized', 'Mini Cakes']
+    const heroCandidates = await prisma.product.findMany({
+      where: { ...productWhere, category: { in: heroCategories }, image: { not: '' } },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+      select: { id: true, name: true, image: true, price: true, discount: true, category: true },
+    })
+    const heroPool = heroCandidates.filter((p) => !FESTIVAL_NAME.test(p.name))
+    const heroProducts: typeof heroPool = []
+    for (const name of heroCategories) {
+      const pick = heroPool.find((p) => p.category === name)
+      if (pick) heroProducts.push(pick)
+      if (heroProducts.length === 3) break
+    }
+    for (const p of heroPool) {
+      if (heroProducts.length === 3) break
+      if (!heroProducts.includes(p)) heroProducts.push(p)
+    }
+
     const homepageBanners = await Promise.all(banners.map(withBannerProducts))
     const feedBannerSections = await Promise.all(
       bannerSections.map(async (section) => ({
@@ -275,6 +298,7 @@ async function getHomeData() {
     )
 
     return {
+      storeSlug: storeContext?.slug ?? '',
       settings,
       categories,
       occasionCategories,
@@ -283,6 +307,7 @@ async function getHomeData() {
       latestProducts,
       homepageRecommendationProducts,
       homepageBanners,
+      heroProducts,
       feedBannerSections,
       miniBanners,
       valueDealProducts,
@@ -297,6 +322,7 @@ async function getHomeData() {
   } catch (error) {
     console.error('Error fetching home data:', error)
     return {
+      storeSlug: '',
       settings: await getAppSettings(),
       categories: [],
       occasionCategories: [],
@@ -305,6 +331,7 @@ async function getHomeData() {
       latestProducts: [],
       homepageRecommendationProducts: [],
       homepageBanners: [],
+      heroProducts: [],
       feedBannerSections: [],
       miniBanners: [],
       valueDealProducts: [],
@@ -346,6 +373,7 @@ function ProductGridSection({
 
 export default async function Home() {
   const {
+    storeSlug,
     settings,
     categories,
     occasionCategories,
@@ -354,6 +382,7 @@ export default async function Home() {
     latestProducts,
     homepageRecommendationProducts,
     homepageBanners,
+    heroProducts,
     feedBannerSections,
     miniBanners,
     valueDealProducts,
@@ -394,7 +423,7 @@ export default async function Home() {
           <Link
             key={`spin-${section.key || section.id}`}
             href="/promo"
-            className="flex items-center justify-between rounded-[20px] border border-blush/25 bg-gradient-to-r from-blush-soft via-white to-blush-mid px-4 py-3 shadow-[0_12px_28px_-24px_rgba(232,90,140,0.5)] lg:rounded-[28px] lg:px-6 lg:py-5"
+            className="flex items-center justify-between rounded-[22px] bg-brand-soft px-4 py-3.5 lg:rounded-[28px] lg:px-6 lg:py-5"
           >
             <div>
               <p className="text-sm font-extrabold text-ink">
@@ -404,7 +433,7 @@ export default async function Home() {
                 {section.subtitle || 'Daily roulette in the app · extra savings'}
               </p>
             </div>
-            <span className="rounded-full bg-blush px-3 py-1.5 text-xs font-bold text-white">
+            <span className="rounded-full bg-ink px-3.5 py-1.5 text-xs font-bold text-white">
               Play
             </span>
           </Link>
@@ -546,9 +575,29 @@ export default async function Home() {
     }
   }
 
+  const FESTIVAL_NAME = /bhai\s*tika|bhaitika|tihar|dashain|diyo|deepawali/i
+  const freeDeliveryMin = Number(settings.freeDeliveryMinAmount) || 0
+  const showHero = storeSlug !== 'grocery' && heroProducts.length > 0
+
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-white">
       <HomepageTopLayout
+        hero={
+          showHero ? (
+            <StudioHero
+              products={heroProducts.map((p) => ({ id: p.id, name: p.name, image: p.image }))}
+              occasions={occasionCategories
+                .filter((o) => !FESTIVAL_NAME.test(o.name))
+                .slice(0, 8)
+                .map((o) => ({ id: o.id, name: o.name }))}
+              promise={
+                freeDeliveryMin > 0
+                  ? `Cakes, flowers and gifts. Free delivery over ${formatPriceNoDecimals(freeDeliveryMin).replace(' ', ' ')}.`
+                  : 'Cakes, flowers and gifts, delivered across Nepal.'
+              }
+            />
+          ) : undefined
+        }
         categories={categories}
         occasionCategories={occasionCategories}
         showTopCategories={settings.homepageShowTopCategories}
@@ -560,9 +609,7 @@ export default async function Home() {
         bannerProductHeight={bannerProductHeight}
       />
 
-      <div className="mx-auto max-w-7xl space-y-8 px-4 pb-28 pt-5 sm:px-6 lg:space-y-12 lg:px-8 lg:pb-16 lg:pt-8">
-        {/* Admin "festival mode" switches the Bhai Tika entry on and off. */}
-        {settings.festivalMode !== false ? <BhaiTikaEntry /> : null}
+      <div className="mx-auto max-w-7xl space-y-10 px-4 pb-28 pt-6 sm:px-6 lg:space-y-16 lg:px-8 lg:pb-16 lg:pt-12">
         <RightNowPicks />
         {visibleSections.map((section) => renderSection(section))}
 
@@ -592,8 +639,8 @@ export default async function Home() {
         ) : null}
 
         {products.length === 0 && homepageRecommendationProducts.length === 0 ? (
-          <div className="rounded-[30px] border border-blush/15 bg-white py-16 text-center">
-            <h2 className="font-display text-xl font-semibold text-ink">
+          <div className="rounded-[28px] bg-mist py-16 text-center">
+            <h2 className="text-xl font-extrabold text-ink">
               Our shelves are being restocked
             </h2>
             <p className="mt-1 text-sm text-ink/50">
@@ -604,21 +651,24 @@ export default async function Home() {
 
         <AppDownloadCta />
 
-        <div className="gold-divider" />
-        <TrustStrip />
+        <TrustStrip
+          freeDeliveryMin={freeDeliveryMin}
+          deliveryFee={Number(settings.deliveryFeeAmount) || 0}
+          deliveryEstimate={settings.deliveryEstimate}
+        />
 
-        <footer className="hidden border-t border-wine/10 pt-8 lg:block">
+        <footer className="hidden border-t border-ink/[0.07] pt-8 lg:block">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <div className="flex items-center gap-2">
                 <BrandLogo size={36} />
-                <p className="font-display text-xl font-semibold text-wine">Upaharo</p>
+                <p className="text-[22px] font-extrabold tracking-tight text-ink">upaharo</p>
               </div>
               <p className="mt-1 max-w-md text-sm text-ink/50">
                 Flowers, cakes and thoughtful gifts — same-day in Kathmandu, delivered across Nepal.
               </p>
             </div>
-            <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-ink/60">
+            <nav className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-ink/60">
               <Link href="/search" className="hover:text-ink">Shop</Link>
               <Link href="/promo" className="hover:text-ink">Spin &amp; Win</Link>
               <Link href="/orders" className="hover:text-ink">Orders</Link>

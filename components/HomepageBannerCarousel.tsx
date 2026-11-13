@@ -38,7 +38,7 @@ export default function HomepageBannerCarousel({ banners }: { banners: Banner[] 
   const imageUrl = resolveImageUrl(activeBanner.image)
 
   const content = (
-    <div className="group relative overflow-hidden rounded-[30px] border border-blush/15 bg-white p-[3px] shadow-[0_28px_60px_-40px_rgba(232,90,140,0.45)] ring-1 ring-blush/20">
+    <div className="group relative overflow-hidden rounded-[30px] border border-blush/15 bg-white p-[3px] shadow-[0_28px_60px_-40px_rgba(232,50,43,0.45)] ring-1 ring-blush/20">
       <div className="relative min-h-[230px] overflow-hidden rounded-[27px] bg-gradient-to-br from-blush-soft to-cream-deep md:min-h-[300px]">
         <AnimatePresence initial={false} mode="popLayout">
           <motion.div
@@ -68,7 +68,7 @@ export default function HomepageBannerCarousel({ banners }: { banners: Banner[] 
         </AnimatePresence>
 
         {/* Soft inner edge so the artwork sits gently inside the cream frame */}
-        <div className="pointer-events-none absolute inset-0 rounded-[27px] shadow-[inset_0_0_0_1px_rgba(232,90,140,0.08)]" />
+        <div className="pointer-events-none absolute inset-0 rounded-[27px] shadow-[inset_0_0_0_1px_rgba(232,50,43,0.08)]" />
       </div>
     </div>
   )

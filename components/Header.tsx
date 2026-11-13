@@ -86,9 +86,9 @@ export default function Header() {
       <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="sticky top-0 z-50 border-b border-wine/10 bg-cream/90 backdrop-blur safe-area-top"
+        className="sticky top-0 z-50 border-b border-ink/[0.07] bg-white/95 backdrop-blur safe-area-top"
       >
-        <div className="max-w-7xl mx-auto px-4 py-3">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 lg:px-6 lg:py-3">
           <div className="flex items-center justify-between gap-3">
             {/* Logo */}
             <Link href="/" className="flex items-center shrink-0">
@@ -96,8 +96,8 @@ export default function Header() {
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center gap-2"
               >
-                <BrandLogo size={36} />
-                <span className="font-display text-xl font-semibold tracking-tight text-wine">Upaharo</span>
+                <BrandLogo size={34} />
+                <span className="hidden text-[20px] font-extrabold tracking-tight text-ink sm:inline">upaharo</span>
               </motion.div>
             </Link>
 
@@ -105,24 +105,24 @@ export default function Header() {
             {mounted ? (
               <button
                 onClick={() => setIsLocationModalOpen(true)}
-                className="flex items-center gap-2 flex-1 py-2 px-3 rounded-full hover:bg-white/70 transition-colors min-w-0"
+                className="flex h-10 min-w-0 flex-1 items-center gap-1.5 rounded-full bg-mist px-3 transition-colors hover:bg-mist-deep lg:max-w-[240px] lg:flex-none"
               >
-                <svg className="w-4 h-4 text-wine flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-brand flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                 </svg>
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-medium text-ink/75 truncate">
+                  <p className="truncate text-[13px] font-semibold text-ink">
                     {deliveryAddress?.label || 'Select location'}
                   </p>
                 </div>
-                <svg className="w-4 h-4 text-ink/30 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-3.5 w-3.5 flex-shrink-0 text-ink/45" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
             ) : (
               <div className="flex items-center gap-2 flex-1 py-2 px-3 min-w-0">
-                <div className="w-4 h-4 bg-cream-deep rounded animate-pulse" />
-                <div className="h-4 bg-cream-deep rounded flex-1 animate-pulse" />
+                <div className="w-4 h-4 bg-mist rounded animate-pulse" />
+                <div className="h-4 bg-mist rounded flex-1 animate-pulse" />
               </div>
             )}
 
@@ -133,12 +133,12 @@ export default function Header() {
             >
               <motion.div
                 whileTap={{ scale: 0.95 }}
-                className="flex items-center gap-1.5 rounded-full border border-wine/15 bg-white/80 px-2.5 py-1.5 hover:border-wine/35 hover:bg-white transition-colors"
+                className="flex h-10 items-center gap-1.5 rounded-full bg-mist px-3 transition-colors hover:bg-mist-deep"
               >
-                <svg className="w-4 h-4 text-wine shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-ink shrink-0" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5m0 0h-5a2 2 0 010-4h5m0 4a2 2 0 100-4" />
                 </svg>
-                <span className="text-xs font-semibold text-wine whitespace-nowrap">
+                <span className="whitespace-nowrap text-[13px] font-semibold text-ink">
                   {mounted && user && walletEnabled && walletBalance != null
                     ? formatPriceNoDecimals(walletBalance)
                     : 'Wallet'}
@@ -150,13 +150,13 @@ export default function Header() {
             <Link href="/cart" className="hidden lg:block">
               <motion.div
                 whileTap={{ scale: 0.95 }}
-                className="relative p-2 hover:bg-white/70 rounded-full transition-colors"
+                className="relative flex h-10 w-10 items-center justify-center rounded-full bg-mist transition-colors hover:bg-mist-deep"
               >
-                <svg className="w-5 h-5 text-ink/70" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-ink" fill="none" stroke="currentColor" strokeWidth={1.7} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
                 </svg>
                 {mounted && totalItems > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-wine text-white text-[10px] font-semibold rounded-full h-4 w-4 flex items-center justify-center shadow-md">
+                  <span className="absolute -top-0.5 -right-0.5 bg-brand text-white text-[10px] font-bold rounded-full h-[18px] w-[18px] flex items-center justify-center ring-2 ring-white">
                     {totalItems > 9 ? '9+' : totalItems}
                   </span>
                 )}
@@ -171,13 +171,13 @@ export default function Header() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={handleInstallClick}
-                className="hidden lg:flex items-center gap-2 bg-wine text-white px-3.5 py-2 rounded-full shadow-[0_14px_30px_-18px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-all"
+                className="hidden lg:flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-white transition-all hover:bg-black"
                 title="Install App"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                <span className="text-sm font-medium">Install</span>
+                <span className="text-[13px] font-semibold">Install</span>
               </motion.button>
             )}
 
@@ -186,9 +186,9 @@ export default function Header() {
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="p-2 hover:bg-white/70 rounded-full"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-ink text-white hover:bg-black"
                 >
-                  <svg className="w-6 h-6 text-ink/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </motion.div>

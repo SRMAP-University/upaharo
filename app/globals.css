@@ -14,16 +14,38 @@
   --text-secondary: #6b7280;
   --border: #e5e7eb;
 
-  /* Premium brand palette (Upaharo) */
-  --wine: #7c2a47;
-  --wine-deep: #5d1d34;
-  --rose: #c2496a;
-  --rose-soft: #f6e3e8;
-  --gold: #b8893f;
-  --gold-soft: #f3e7d0;
-  --cream: #faf5f0;
-  --cream-deep: #f3ebe2;
-  --ink: #2b1d22;
+  /* Studio theme (Nov 2026): white, near-black, the logo red. Channels are
+     "R G B" so Tailwind can add opacity (bg-wine/10). */
+  --c-ink: 17 17 17;
+  --c-wine: 17 17 17; /* main actions: near-black */
+  --c-wine-deep: 0 0 0;
+  --c-brand: 232 50 43; /* the logo red */
+  --c-brand-dark: 201 36 30;
+  --c-brand-soft: 253 236 234;
+  --c-blush: 232 50 43; /* accent = brand red */
+  --c-blush-soft: 253 236 234;
+  --c-blush-mid: 250 212 208;
+  --c-blush-deep: 246 189 183;
+  --c-rose-brand: 232 50 43;
+  --c-rose-soft: 253 236 234;
+  --c-gold: 232 50 43; /* small labels */
+  --c-gold-soft: 253 236 234;
+  --c-gold-bright: 255 255 255;
+  --c-cream: 246 246 246; /* page grey */
+  --c-cream-deep: 237 237 237;
+  --c-mist: 244 244 244;
+  --c-mist-deep: 232 232 232;
+
+  /* Old names some styles still read */
+  --wine: #111111;
+  --wine-deep: #000000;
+  --rose: #e8322b;
+  --rose-soft: #fdecea;
+  --gold: #e8322b;
+  --gold-soft: #fdecea;
+  --cream: #f6f6f6;
+  --cream-deep: #ededed;
+  --ink: #111111;
 }
 
 * {
@@ -39,6 +61,8 @@ body {
 }
 
 body {
+  /* Plus Jakarta Sans on the shop; admin switches back to Inter. */
+  --font-ui: var(--font-studio), var(--font-sans);
   color: var(--text-primary);
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -51,6 +75,25 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Admin keeps the classic Upaharo look (wine, pink, cream, Inter). */
+.theme-classic {
+  --font-ui: var(--font-sans);
+  --c-ink: 43 29 34;
+  --c-wine: 124 42 71;
+  --c-wine-deep: 93 29 52;
+  --c-blush: 232 90 140;
+  --c-blush-soft: 255 228 236;
+  --c-blush-mid: 255 208 222;
+  --c-blush-deep: 255 192 212;
+  --c-rose-brand: 194 73 106;
+  --c-rose-soft: 246 227 232;
+  --c-gold: 184 137 63;
+  --c-gold-soft: 243 231 208;
+  --c-gold-bright: 226 189 107;
+  --c-cream: 250 245 240;
+  --c-cream-deep: 243 235 226;
 }
 
 /* Custom Scrollbar */
@@ -206,7 +249,7 @@ select:focus {
 /* ===== Upaharo premium UI primitives ===== */
 @layer components {
   .u-eyebrow {
-    @apply flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold;
+    @apply flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-brand;
   }
 
   .u-title {
@@ -214,12 +257,13 @@ select:focus {
   }
 
   .u-card {
-    @apply rounded-[22px] border border-wine/10 bg-white;
-    box-shadow: 0 24px 60px -46px rgba(43, 29, 34, 0.5);
+    @apply rounded-[22px] bg-white;
+    box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.06);
   }
 
   .u-surface {
-    @apply rounded-[22px] border border-wine/10 bg-white;
+    @apply rounded-[22px] bg-white;
+    box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.06);
   }
 
   .u-btn {
@@ -227,12 +271,11 @@ select:focus {
   }
 
   .u-btn-primary {
-    @apply u-btn bg-blush px-5 py-2.5 text-white hover:bg-[#d44f7c];
-    box-shadow: 0 16px 34px -22px rgba(232, 90, 140, 0.85);
+    @apply u-btn bg-ink px-5 py-2.5 text-white hover:bg-black;
   }
 
   .u-btn-secondary {
-    @apply u-btn border border-blush/25 bg-white px-5 py-2.5 text-blush hover:border-blush/40 hover:bg-blush-soft;
+    @apply u-btn bg-mist px-5 py-2.5 text-ink hover:bg-mist-deep;
   }
 
   .u-btn-ghost {
@@ -240,18 +283,18 @@ select:focus {
   }
 
   .u-input {
-    @apply w-full rounded-xl border border-wine/15 bg-white px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink/40 focus:border-wine/40 focus:ring-2 focus:ring-wine/15;
+    @apply w-full rounded-2xl border border-transparent bg-mist px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink/40 focus:border-ink/20 focus:bg-white focus:ring-2 focus:ring-ink/10;
   }
 
   .u-chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-wine/15 bg-white px-3.5 py-1.5 text-xs font-medium text-ink/70 transition hover:border-wine/30;
+    @apply inline-flex items-center gap-1.5 rounded-full bg-mist px-4 py-2 text-[13px] font-semibold text-ink transition hover:bg-mist-deep;
   }
 
   .u-chip-active {
-    @apply border-transparent bg-blush text-white hover:border-transparent;
+    @apply bg-ink text-white hover:bg-ink;
   }
 
   .u-badge {
-    @apply inline-flex items-center rounded-full bg-blush-soft px-2.5 py-0.5 text-[11px] font-semibold text-blush;
+    @apply inline-flex items-center rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white;
   }
 }

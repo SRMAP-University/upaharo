@@ -27,13 +27,13 @@ export default function HomeValueDeals({
   if (products.length === 0) return null
 
   return (
-    <section className="space-y-3 rounded-[24px] border border-[#D9D2E8] bg-[#F3F0F8] p-4 lg:rounded-[30px] lg:p-6">
+    <section className="space-y-4 rounded-[28px] bg-brand-soft p-4 lg:p-7">
       <div className="flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blush">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">
             {title}
           </p>
-          <h2 className="text-xl font-extrabold tracking-tight text-ink lg:text-3xl">
+          <h2 className="text-[22px] font-extrabold tracking-tight text-ink lg:text-[28px]">
             {subtitle || 'DEALS'}
           </h2>
           {promoText ? (
@@ -42,7 +42,7 @@ export default function HomeValueDeals({
         </div>
         <Link
           href="/search?sort=discount"
-          className="text-xs font-bold text-blush lg:text-sm"
+          className="text-[13px] font-bold text-brand lg:text-sm"
         >
           See all
         </Link>

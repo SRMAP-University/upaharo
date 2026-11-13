@@ -54,7 +54,7 @@ export default function CategorySlider() {
               <div
                 className={`w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mb-2 transition-all ${
                   selectedCategory === category.id
-                    ? 'bg-rose-soft shadow-[0_14px_30px_-20px_rgba(124,42,71,0.8)] ring-1 ring-wine/20'
+                    ? 'bg-rose-soft shadow-[0_14px_30px_-20px_rgba(17,17,17,0.8)] ring-1 ring-wine/20'
                     : 'bg-cream-deep'
                 }`}
               >

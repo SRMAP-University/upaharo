@@ -26,20 +26,17 @@ export default function SectionHeading({
       }`}
     >
       <div className={isCenter ? 'mx-auto max-w-xl' : ''}>
-        {eyebrow ? (
-          <p className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.28em] text-gold">
-            <span className="h-px w-6 bg-gold/60" />
-            {eyebrow}
-          </p>
-        ) : null}
-        <h2 className="font-display text-2xl font-semibold leading-tight text-ink sm:text-[28px]">{title}</h2>
-        {description ? <p className="mt-1.5 text-sm text-ink/55">{description}</p> : null}
+        {/* Studio keeps headings plain: the eyebrow is not shown. */}
+        <h2 className="text-[22px] font-extrabold leading-tight tracking-tight text-ink sm:text-[28px]" data-eyebrow={eyebrow || undefined}>
+          {title}
+        </h2>
+        {description ? <p className="mt-1 text-[13px] text-ink/50 sm:text-sm">{description}</p> : null}
       </div>
 
       {href ? (
         <Link
           href={href}
-          className="group inline-flex flex-shrink-0 items-center gap-1.5 self-start whitespace-nowrap rounded-full border border-wine/15 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.15em] text-wine transition hover:border-wine/40 hover:bg-wine hover:text-white sm:self-auto"
+          className="group inline-flex flex-shrink-0 items-center gap-0.5 self-start whitespace-nowrap py-1.5 text-[13px] font-bold text-brand transition hover:text-brand-dark sm:self-auto sm:text-sm"
         >
           {ctaLabel}
           <svg

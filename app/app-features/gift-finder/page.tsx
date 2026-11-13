@@ -29,7 +29,7 @@ const STEPS: Array<{ id: 'who' | 'occasion' | 'budget'; question: string; option
     options: [
       { label: 'Birthday', emoji: '🎂', value: 'birthday' },
       { label: 'Anniversary', emoji: '💍', value: 'anniversary' },
-      { label: 'Tihar', emoji: '✨', value: 'tihar' },
+      { label: 'Wedding', emoji: '💐', value: 'wedding' },
       { label: 'Thank you', emoji: '🙏', value: 'thank you' },
       { label: 'Just because', emoji: '💝', value: 'surprise' },
       { label: 'Get well', emoji: '🤗', value: 'get well soon' },

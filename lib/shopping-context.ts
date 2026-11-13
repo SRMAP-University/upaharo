@@ -276,11 +276,24 @@ export function parseLocation(lat: unknown, lng: unknown) {
 
 /** Everything that should shape recommendations right now. */
 export async function getShoppingContext(
-  options: { now?: Date; lat?: number; lng?: number; withWeather?: boolean; storeSlug?: string } = {}
+  options: {
+    now?: Date
+    lat?: number
+    lng?: number
+    withWeather?: boolean
+    storeSlug?: string
+    /**
+     * False when admin has festival mode off: festivals (and Bhai Tika, the
+     * last day of Tihar) are left out; Christmas, New Year, love and family days stay.
+     */
+    festivals?: boolean
+  } = {}
 ): Promise<ShoppingContext> {
   const now = options.now ?? new Date()
   const daypart = daypartAt(now)
-  const occasions = activeOccasions(now)
+  const occasions = activeOccasions(now).filter(
+    (o) => options.festivals !== false || (o.kind !== 'festival' && o.id !== 'bhai-tika')
+  )
   const location = parseLocation(options.lat, options.lng)
   const weather = options.withWeather === false ? null : await currentWeather(location.lat, location.lng)
 

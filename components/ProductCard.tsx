@@ -61,12 +61,14 @@ export default function ProductCard({ product }: ProductCardProps) {
   const cardDescription = String(product.miniDescription || product.description || '').trim()
   const imageUrl = resolveImageUrl(product.image)
 
+  const hasDiscount = Boolean(product.discount && product.discount > 0)
+
+  // Studio card: the photo sits in a soft grey well with a round "+" on it;
+  // name and a bold price underneath, no box around the card.
   return (
-    <Link href={`/products/${product.id}`}>
-      {/* Hover lift only on mouse devices — on phones it sticks after a tap. */}
-      <div className="group bg-white rounded-[22px] overflow-hidden border border-wine/10 cursor-pointer transition-all duration-300 [@media(hover:hover)]:hover:-translate-y-1 [@media(hover:hover)]:hover:border-wine/20 [@media(hover:hover)]:hover:shadow-[0_26px_55px_-38px_rgba(124,42,71,0.85)] active:scale-[0.985]">
-      <div className="relative aspect-square w-full overflow-hidden">
-        {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-cream-deep" /> : null}
+    <Link href={`/products/${product.id}`} className="group block active:scale-[0.985] transition-transform">
+      <div className="relative aspect-square w-full overflow-hidden rounded-[22px] bg-mist">
+        {!imageLoaded ? <div className="absolute inset-0 animate-pulse bg-mist-deep" /> : null}
         <Image
           src={imageUrl}
           alt={product.name}
@@ -74,80 +76,65 @@ export default function ProductCard({ product }: ProductCardProps) {
           loading="lazy"
           quality={70}
           onLoad={() => setImageLoaded(true)}
-          className={`object-cover transition-all duration-500 group-hover:scale-[1.05] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`object-cover transition-all duration-500 [@media(hover:hover)]:group-hover:scale-[1.04] ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
         />
-        
-        {/* Veg/Non-veg indicator */}
+
+        {hasDiscount ? (
+          <span className="absolute left-2 top-2 rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white">
+            −{Math.round(product.discount!)}%
+          </span>
+        ) : null}
+
         {product.showFoodTypeLabel && isFoodProduct(product) && (
-          <div className="absolute top-2.5 left-2.5">
+          <div className="absolute right-2.5 top-2.5">
             <FoodTypeBadge isVeg={product.isVeg} />
           </div>
         )}
 
-        {/* Discount badge */}
-        {product.discount && product.discount > 0 ? (
-          <div className="absolute top-2.5 right-2.5 bg-wine text-white px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide shadow-[0_10px_22px_-14px_rgba(124,42,71,0.9)]">
-            {Math.round(product.discount)}% OFF
-          </div>
-        ) : null}
-      </div>
-
-      <div className="p-3">
-        <h3 className="font-display text-[15px] font-semibold text-ink mb-0.5 line-clamp-1">
-          {product.name}
-        </h3>
-        <p className="text-xs text-ink/40 mb-2.5 line-clamp-1">
-          {cardDescription}
-        </p>
-
-        {/* Prices never break mid-amount; the button drops below if both cannot fit. */}
-        <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-2">
-          <div className="min-w-0 leading-tight">
-            {product.discount && product.discount > 0 ? (
-              <>
-                <p className="whitespace-nowrap text-[15px] font-semibold text-wine">
-                  {formatCardPrice(discountedPrice)}
-                </p>
-                <p className="whitespace-nowrap text-[11px] text-ink/35 line-through">
-                  {formatCardPrice(product.price)}
-                </p>
-              </>
-            ) : (
-              <p className="whitespace-nowrap text-[15px] font-semibold text-ink">
-                {formatCardPrice(product.price)}
-              </p>
-            )}
-          </div>
-
-          {quantity === 0 ? (
+        {quantity === 0 ? (
+          <button
+            onClick={handleAdd}
+            aria-label={`Add ${product.name} to cart`}
+            className="absolute bottom-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white text-ink shadow-[0_4px_14px_-4px_rgba(0,0,0,0.25)] transition hover:bg-ink hover:text-white active:scale-90"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.6} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        ) : (
+          <div className="absolute bottom-2 right-2 flex items-center rounded-full bg-ink text-white shadow-[0_4px_14px_-4px_rgba(0,0,0,0.35)]">
             <button
-              onClick={handleAdd}
-              className="ml-auto flex-shrink-0 bg-wine text-white px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.08em] shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] whitespace-nowrap transition hover:bg-wine-deep active:scale-95"
+              onClick={handleDecrement}
+              aria-label="One less"
+              className="flex h-9 w-9 items-center justify-center text-base font-bold leading-none active:scale-90"
             >
-              Add
+              −
             </button>
-          ) : (
-            <div className="ml-auto flex flex-shrink-0 items-center bg-wine text-white rounded-full shadow-[0_12px_26px_-18px_rgba(124,42,71,0.9)] overflow-hidden">
-              <button
-                onClick={handleDecrement}
-                className="w-7 h-7 flex items-center justify-center text-sm font-bold leading-none transition hover:bg-wine-deep active:scale-90"
-              >
-                −
-              </button>
-              <span className="text-[12px] font-semibold px-0.5 min-w-[16px] text-center">{quantity}</span>
-              <button
-                onClick={handleIncrement}
-                className="w-7 h-7 flex items-center justify-center text-sm font-bold leading-none transition hover:bg-wine-deep active:scale-90"
-              >
-                &#43;
-              </button>
-            </div>
-          )}
-        </div>
+            <span className="min-w-[14px] text-center text-[13px] font-bold">{quantity}</span>
+            <button
+              onClick={handleIncrement}
+              aria-label="One more"
+              className="flex h-9 w-9 items-center justify-center text-base font-bold leading-none active:scale-90"
+            >
+              +
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+
+      <div className="px-0.5 pt-2.5">
+        <h3 className="line-clamp-1 text-[14px] font-semibold leading-snug text-ink">{product.name}</h3>
+        {cardDescription ? (
+          <p className="mt-0.5 line-clamp-1 text-[12px] text-ink/45">{cardDescription}</p>
+        ) : null}
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 leading-tight">
+          <span className="whitespace-nowrap text-[15px] font-extrabold text-ink">{formatCardPrice(discountedPrice)}</span>
+          {hasDiscount ? (
+            <s className="whitespace-nowrap text-[12px] font-medium text-ink/35">{formatCardPrice(product.price)}</s>
+          ) : null}
+        </p>
+      </div>
     </Link>
   )
 }
-

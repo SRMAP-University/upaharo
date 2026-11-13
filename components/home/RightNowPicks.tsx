@@ -65,10 +65,10 @@ export default function RightNowPicks() {
   return (
     <section aria-labelledby="right-now-title">
       <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">
           {active ? `${active.emoji} ${active.eyebrow}` : 'Right now'}
         </p>
-        <h2 id="right-now-title" className="mt-1 text-xl font-semibold tracking-tight text-ink lg:text-3xl">
+        <h2 id="right-now-title" className="mt-1 text-[22px] font-extrabold tracking-tight text-ink lg:text-[28px]">
           {active?.title || 'Picked for right now'}
         </h2>
         {active?.subtitle ? <p className="mt-1 text-sm text-ink/60">{active.subtitle}</p> : null}
@@ -85,8 +85,8 @@ export default function RightNowPicks() {
                 role="tab"
                 aria-selected={selected}
                 onClick={() => setActiveId(moment.id)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors ${
-                  selected ? 'border-wine bg-wine text-white' : 'border-wine/15 bg-white text-ink/75 hover:border-wine/30'
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+                  selected ? 'bg-ink text-white' : 'bg-mist text-ink hover:bg-mist-deep'
                 }`}
               >
                 <span aria-hidden>{moment.emoji}</span>
@@ -100,11 +100,11 @@ export default function RightNowPicks() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5" role="tabpanel">
         {moments === null
           ? Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="overflow-hidden rounded-[22px] border border-wine/10 bg-white">
-                <div className="aspect-square animate-pulse bg-cream-deep" />
-                <div className="space-y-2 p-3">
-                  <div className="h-4 w-4/5 animate-pulse rounded bg-cream-deep" />
-                  <div className="h-4 w-1/2 animate-pulse rounded bg-cream-deep" />
+              <div key={i}>
+                <div className="aspect-square animate-pulse rounded-[22px] bg-mist" />
+                <div className="space-y-2 pt-3">
+                  <div className="h-4 w-4/5 animate-pulse rounded bg-mist" />
+                  <div className="h-4 w-1/2 animate-pulse rounded bg-mist" />
                 </div>
               </div>
             ))

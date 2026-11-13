@@ -357,7 +357,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
               role="dialog"
               aria-modal="true"
               aria-label={step === 'select' ? 'Choose delivery location' : 'Address details'}
-              className="flex h-[100dvh] w-full flex-col overflow-hidden bg-cream lg:h-[min(760px,90vh)] lg:max-w-xl lg:rounded-[28px] lg:shadow-[0_40px_90px_-50px_rgba(43,29,34,0.7)]"
+              className="flex h-[100dvh] w-full flex-col overflow-hidden bg-cream lg:h-[min(760px,90vh)] lg:max-w-xl lg:rounded-[28px] lg:shadow-[0_40px_90px_-50px_rgba(17,17,17,0.7)]"
             >
               <div className="flex flex-shrink-0 items-center gap-2 border-b border-ink/10 bg-white px-3 py-2.5 pt-[calc(env(safe-area-inset-top)+0.625rem)] lg:pt-2.5">
                 <button
@@ -409,7 +409,7 @@ export default function LocationModal({ isOpen, onClose, onSaved }: LocationModa
                     />
                   </div>
 
-                  <div className="relative z-10 -mt-5 flex-shrink-0 rounded-t-[28px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 shadow-[0_-16px_40px_-24px_rgba(43,29,34,0.45)] lg:pb-5">
+                  <div className="relative z-10 -mt-5 flex-shrink-0 rounded-t-[28px] bg-white px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 shadow-[0_-16px_40px_-24px_rgba(17,17,17,0.45)] lg:pb-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ink/45">Deliver to</p>
                     <div className="mt-2.5 flex items-start gap-3">
                       <PinBadge />

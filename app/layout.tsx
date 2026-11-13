@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Inter, Plus_Jakarta_Sans } from 'next/font/google'
 import { Suspense } from 'react'
 import './globals.css'
+import ShopAssistant from '@/components/assistant/ShopAssistant'
 import { Providers } from './providers'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import AppDownloadReminder from '@/components/AppDownloadReminder'
@@ -39,6 +40,15 @@ const inter = Inter({
   variable: '--font-sans',
 })
 
+// Studio theme (Nov 2026): the shop's typeface. Admin keeps Inter.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-studio',
+})
+
 export function generateViewport(): Viewport {
   return {
     width: 'device-width',
@@ -46,7 +56,7 @@ export function generateViewport(): Viewport {
     maximumScale: 5,
     userScalable: true,
     viewportFit: 'cover',
-    themeColor: '#ec4899',
+    themeColor: '#ffffff',
   }
 }
 
@@ -150,7 +160,7 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={`${inter.variable} font-sans`} suppressHydrationWarning>
+      <body className={`${inter.variable} ${jakarta.variable} font-sans`} suppressHydrationWarning>
         <Providers>
           <Suspense fallback={null}>
             <RouteLoader />
@@ -161,6 +171,7 @@ export default function RootLayout({
           <ChooseLocationPrompt />
           <AppDownloadReminder />
           {children}
+          <ShopAssistant />
         </Providers>
       </body>
     </html>

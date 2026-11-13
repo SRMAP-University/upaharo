@@ -193,7 +193,7 @@ export default function OrdersPage() {
             <h2 className="font-display text-lg font-semibold text-ink mb-2">No orders yet</h2>
             <a
               href="/"
-              className="inline-block bg-wine text-white px-6 py-2.5 rounded-full font-semibold text-sm mt-4 shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-colors"
+              className="inline-block bg-wine text-white px-6 py-2.5 rounded-full font-semibold text-sm mt-4 shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep transition-colors"
             >
               Browse Gifts
             </a>
@@ -210,7 +210,7 @@ export default function OrdersPage() {
               )
 
               return (
-              <div key={order.id} className="p-4 pb-6 rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] active:bg-cream-deep/40 transition-colors">
+              <div key={order.id} className="p-4 pb-6 rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] active:bg-cream-deep/40 transition-colors">
                 <div className="flex items-center justify-between mb-3 gap-2">
                   <div className="flex-1 min-w-0">
                     <p className="font-display text-xs font-semibold text-ink">#{order.id.slice(0, 8).toUpperCase()}</p>
@@ -325,7 +325,7 @@ export default function OrdersPage() {
                     type="button"
                     onClick={() => handleReorder(order)}
                     disabled={reorderingOrderId === order.id || order.items.length === 0}
-                    className="flex-1 px-4 py-2.5 bg-wine text-white rounded-full shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-all text-sm font-semibold active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="flex-1 px-4 py-2.5 bg-wine text-white rounded-full shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep transition-all text-sm font-semibold active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {reorderingOrderId === order.id ? 'Adding...' : 'Reorder'}
                   </button>

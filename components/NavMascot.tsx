@@ -31,14 +31,15 @@ type Particle = {
   size: number
 }
 
-const INK = '#2b1d22'
-const BLUSH = '#E85A8C'
-const LID = '#F27BA4'
+const INK = '#111111'
+// A red box with a gold bow, like the logo.
+const BLUSH = '#E8322B'
+const LID = '#F0544D'
 const BOW = '#F1C35A'
 const BOW_EDGE = '#b8893f'
 const CHEEK = '#FFC0D4'
 const TONGUE = '#FF8FB1'
-const WINE = '#7c2a47'
+const WINE = '#111111'
 
 // Taps rotate through these so back-to-back taps never feel the same.
 const CYCLE: Reaction[] = ['jump', 'wiggle', 'pop']
@@ -699,7 +700,7 @@ function GiftBuddy({ className = '', hidden = false, script, scriptKey }: NavMas
           {line && (
             <motion.p
               key="bubble"
-              className="absolute bottom-0 left-0 w-max max-w-[min(210px,58vw)] origin-bottom-left rounded-2xl rounded-bl-md border border-wine/10 bg-white px-2.5 py-1 text-[11px] font-semibold leading-snug text-ink shadow-[0_8px_20px_-10px_rgba(43,29,34,0.45)]"
+              className="absolute bottom-0 left-0 w-max max-w-[min(210px,58vw)] origin-bottom-left rounded-2xl rounded-bl-md border border-ink/[0.07] bg-white px-2.5 py-1 text-[11px] font-semibold leading-snug text-ink shadow-[0_8px_20px_-10px_rgba(0,0,0,0.35)]"
               initial={{ opacity: 0, scale: 0.6, y: 4 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -4 }}

@@ -180,7 +180,7 @@ export default function RecipientsPage() {
                 notes: '',
               })
             }}
-            className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-colors"
+            className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep transition-colors"
           >
             {showForm ? '✕ Close' : '+ Add Recipient'}
           </motion.button>
@@ -191,7 +191,7 @@ export default function RecipientsPage() {
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] p-8 mb-8"
+            className="bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] p-8 mb-8"
           >
             <h2 className="font-display text-2xl font-semibold text-ink mb-6">
               {editingId ? 'Edit Recipient' : 'Add New Recipient'}
@@ -322,7 +322,7 @@ export default function RecipientsPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   type="submit"
-                  className="flex-1 bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-colors"
+                  className="flex-1 bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep transition-colors"
                 >
                   {editingId ? 'Update Recipient' : 'Add Recipient'}
                 </motion.button>
@@ -360,13 +360,13 @@ export default function RecipientsPage() {
             <SkeletonLoader variant="list" count={4} />
           </div>
         ) : recipients.length === 0 ? (
-          <div className="bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] p-12 text-center">
+          <div className="bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] p-12 text-center">
             <p className="text-ink/55 text-lg mb-4">No recipients saved yet</p>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowForm(true)}
-              className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep transition-colors"
+              className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep transition-colors"
             >
               Add First Recipient
             </motion.button>
@@ -377,7 +377,7 @@ export default function RecipientsPage() {
               <motion.div
                 key={recipient.id}
                 whileHover={{ scale: 1.02 }}
-                className="bg-white rounded-[22px] shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] p-6 border border-wine/10 hover:border-wine/30 transition-colors"
+                className="bg-white rounded-[22px] shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] p-6 border border-wine/10 hover:border-wine/30 transition-colors"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div>

@@ -39,7 +39,7 @@ export default function RecommendationShelf({
         {products.map((product) => (
           <div
             key={product.id}
-            className="group rounded-[22px] border border-wine/10 bg-white p-3 transition hover:-translate-y-1 hover:border-wine/20 hover:shadow-[0_26px_55px_-38px_rgba(124,42,71,0.85)]"
+            className="group rounded-[22px] border border-wine/10 bg-white p-3 transition hover:-translate-y-1 hover:border-wine/20 hover:shadow-[0_26px_55px_-38px_rgba(17,17,17,0.85)]"
           >
             <Link href={`/products/${product.id}`} className="block space-y-2">
               <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-cream-deep">

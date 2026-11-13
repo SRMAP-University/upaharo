@@ -148,7 +148,7 @@ export default function AdminLayout({
 
   if (!mounted || !_hasHydrated || !user || user.role !== 'ADMIN') {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-stone-100">
+      <div className="theme-classic flex min-h-[100dvh] items-center justify-center bg-stone-100">
         <div className="text-center">
           <div className="mx-auto mb-3 h-10 w-10 animate-pulse rounded-xl bg-wine/15" />
           <p className="text-sm text-ink/55">Checking access...</p>
@@ -255,7 +255,7 @@ export default function AdminLayout({
   )
 
   return (
-    <div className="min-h-[100dvh] bg-stone-100 text-ink antialiased">
+    <div className="theme-classic min-h-[100dvh] bg-stone-100 text-ink antialiased">
       {/* Desktop sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-stone-200 bg-white transition-[width] duration-200 md:flex ${

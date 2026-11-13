@@ -68,7 +68,7 @@ export default function HomeFeedBannerSection({
       {title || subtitle ? (
         <div>
           {title ? (
-            <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-ink/55">
+            <h2 className="text-[22px] font-extrabold tracking-tight text-ink lg:text-[28px]">
               {title}
             </h2>
           ) : null}
@@ -143,7 +143,7 @@ export default function HomeFeedBannerSection({
                           <p className="line-clamp-2 text-[10px] font-medium leading-tight text-white">
                             {product.name}
                           </p>
-                          <p className="mt-0.5 text-[10px] font-semibold text-[#D4AF37]">
+                          <p className="mt-0.5 text-[10px] font-semibold text-white">
                             {formatPriceNoDecimals(product.finalPrice ?? product.price)}
                           </p>
                         </div>

@@ -514,7 +514,7 @@ export default function AdminSettingsPage() {
                     />
                     <Toggle
                       label="Festival mode"
-                      hint="Navratri marigolds around the search bar and falling petals on the gifts home screen."
+                      hint="Festive decorations, festival picks first, and festival rows (Tihar, Bhai Tika, Dashain…) on the home screen. Switch off when the festival is over."
                       checked={formData.festivalMode}
                       onChange={(checked) => set('festivalMode', checked)}
                     />

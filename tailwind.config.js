@@ -8,10 +8,12 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        // Headings use the same sans as body text (was Playfair serif).
-        display: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // --font-ui: Plus Jakarta Sans on the shop, Inter in admin (see globals.css).
+        sans: ['var(--font-ui)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-ui)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      // Theme colours come from CSS variables (globals.css): the shop uses the
+      // "Studio" theme; admin pages keep the classic wine theme (.theme-classic).
       colors: {
         primary: {
           DEFAULT: '#fc8019',
@@ -23,27 +25,39 @@ module.exports = {
           light: '#3a3a3a'
         },
         wine: {
-          DEFAULT: '#7c2a47',
-          deep: '#5d1d34',
+          DEFAULT: 'rgb(var(--c-wine) / <alpha-value>)',
+          deep: 'rgb(var(--c-wine-deep) / <alpha-value>)',
         },
         rose: {
-          brand: '#c2496a',
-          soft: '#f6e3e8',
+          brand: 'rgb(var(--c-rose-brand) / <alpha-value>)',
+          soft: 'rgb(var(--c-rose-soft) / <alpha-value>)',
         },
         gold: {
-          DEFAULT: '#b8893f',
-          soft: '#f3e7d0',
+          DEFAULT: 'rgb(var(--c-gold) / <alpha-value>)',
+          soft: 'rgb(var(--c-gold-soft) / <alpha-value>)',
+          bright: 'rgb(var(--c-gold-bright) / <alpha-value>)',
         },
         cream: {
-          DEFAULT: '#faf5f0',
-          deep: '#f3ebe2',
+          DEFAULT: 'rgb(var(--c-cream) / <alpha-value>)',
+          deep: 'rgb(var(--c-cream-deep) / <alpha-value>)',
         },
-        ink: '#2b1d22',
+        ink: 'rgb(var(--c-ink) / <alpha-value>)',
         blush: {
-          DEFAULT: '#E85A8C',
-          soft: '#FFE4EC',
-          mid: '#FFD0DE',
-          deep: '#FFC0D4',
+          DEFAULT: 'rgb(var(--c-blush) / <alpha-value>)',
+          soft: 'rgb(var(--c-blush-soft) / <alpha-value>)',
+          mid: 'rgb(var(--c-blush-mid) / <alpha-value>)',
+          deep: 'rgb(var(--c-blush-deep) / <alpha-value>)',
+        },
+        // Studio: the logo red, for sale badges, links and highlights.
+        brand: {
+          DEFAULT: 'rgb(var(--c-brand) / <alpha-value>)',
+          dark: 'rgb(var(--c-brand-dark) / <alpha-value>)',
+          soft: 'rgb(var(--c-brand-soft) / <alpha-value>)',
+        },
+        // Light grey surfaces (search, chips, image wells).
+        mist: {
+          DEFAULT: 'rgb(var(--c-mist) / <alpha-value>)',
+          deep: 'rgb(var(--c-mist-deep) / <alpha-value>)',
         },
       },
       animation: {
@@ -79,6 +93,7 @@ module.exports = {
           '0%': { transform: 'translateX(-50%)' },
           '100%': { transform: 'translateX(0)' },
         },
+
       }
     },
   },

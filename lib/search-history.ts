@@ -23,3 +23,7 @@ export async function recordUserSearch(storeId: string, userId: string, query: s
   const next = [phrase, ...existing.filter((q) => q.toLowerCase() !== phrase.toLowerCase())].slice(0, MAX_SEARCHES)
   await redis.setex(key(storeId, userId), KEEP_SECONDS, JSON.stringify(next))
 }
+
+export async function clearUserSearches(storeId: string, userId: string) {
+  await redis.del(key(storeId, userId))
+}

@@ -25,7 +25,7 @@ export default function CartSidebar() {
     <motion.div
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-wine/10 bg-white/95 shadow-[0_-20px_50px_-30px_rgba(43,29,34,0.5)] backdrop-blur md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-wine/10 bg-white/95 shadow-[0_-20px_50px_-30px_rgba(17,17,17,0.5)] backdrop-blur md:hidden"
     >
       <div className="px-4 py-3">
         <div className="flex items-center justify-between mb-2">
@@ -37,7 +37,7 @@ export default function CartSidebar() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-wine text-white px-6 py-3 rounded-full font-semibold hover:bg-wine-deep smooth-transition flex items-center space-x-2 shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)]"
+              className="bg-wine text-white px-6 py-3 rounded-full font-semibold hover:bg-wine-deep smooth-transition flex items-center space-x-2 shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)]"
             >
               <span>View Cart</span>
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

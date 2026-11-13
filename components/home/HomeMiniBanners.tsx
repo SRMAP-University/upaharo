@@ -37,7 +37,7 @@ export default function HomeMiniBanners({
   return (
     <section className="space-y-3">
       {title ? (
-        <h2 className="text-sm font-bold uppercase tracking-[0.18em] text-ink/55">
+        <h2 className="text-[22px] font-extrabold tracking-tight text-ink lg:text-[28px]">
           {title}
         </h2>
       ) : null}
@@ -49,7 +49,7 @@ export default function HomeMiniBanners({
           const href = hrefFor(banner)
           const image = (
             <div
-              className="relative w-full overflow-hidden rounded-2xl border border-blush/20 bg-blush-soft shadow-[0_12px_28px_-24px_rgba(232,90,140,0.55)] lg:rounded-[22px] lg:!h-[220px]"
+              className="relative w-full overflow-hidden rounded-[20px] bg-mist lg:rounded-[24px] lg:!h-[220px]"
               style={{ height }}
             >
               <Image

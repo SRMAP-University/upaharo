@@ -856,7 +856,7 @@ export default function CheckoutPage() {
                   ) : null}
                   {addresses.map((addr) => (
                     <label key={addr.id} className="flex items-start space-x-2 lg:space-x-3 p-3 lg:p-4 bg-white border-2 rounded-2xl cursor-pointer hover:border-wine/40 hover:shadow-sm transition-all active:scale-[0.98]"
-                      style={{ borderColor: selectedAddressId === addr.id ? '#7c2a47' : 'rgba(124,42,71,0.12)' }}>
+                      style={{ borderColor: selectedAddressId === addr.id ? '#111111' : 'rgba(17,17,17,0.12)' }}>
                       <input
                         type="radio"
                         name="address"
@@ -882,7 +882,7 @@ export default function CheckoutPage() {
                   <p className="text-ink/55 mb-3 lg:mb-4 text-sm lg:text-base">No delivery address added</p>
                   <button
                     onClick={() => setShowAddressForm(true)}
-                    className="bg-wine text-white px-5 py-2.5 lg:px-6 rounded-full shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep text-sm lg:text-base active:scale-95"
+                    className="bg-wine text-white px-5 py-2.5 lg:px-6 rounded-full shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep text-sm lg:text-base active:scale-95"
                   >
                     Add Delivery Address
                   </button>
@@ -891,7 +891,7 @@ export default function CheckoutPage() {
 
               {/* Add Address Form */}
               {!isPickup && showAddressForm && (
-                <div className="mt-3 lg:mt-4 p-3 lg:p-4 bg-white border border-wine/15 rounded-2xl shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+                <div className="mt-3 lg:mt-4 p-3 lg:p-4 bg-white border border-wine/15 rounded-2xl shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]">
                   <h3 className="font-display font-semibold text-ink mb-2 lg:mb-3 text-sm lg:text-base">New Address</h3>
                   <div className="space-y-2 lg:space-y-3">
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-wine/20 bg-rose-soft px-3 py-2 text-xs text-wine">
@@ -964,7 +964,7 @@ export default function CheckoutPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={handleCreateAddress}
-                        className="flex-1 bg-wine text-white py-2.5 rounded-full shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] hover:bg-wine-deep text-sm lg:text-base active:scale-95"
+                        className="flex-1 bg-wine text-white py-2.5 rounded-full shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] hover:bg-wine-deep text-sm lg:text-base active:scale-95"
                       >
                         Save Address
                       </button>
@@ -1264,7 +1264,7 @@ export default function CheckoutPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="hidden lg:block bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] p-6 sticky top-24"
+              className="hidden lg:block bg-white rounded-[22px] border border-wine/10 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] p-6 sticky top-24"
             >
               <h2 className="font-display text-xl font-semibold text-ink mb-4">Order Summary</h2>
 
@@ -1366,7 +1366,7 @@ export default function CheckoutPage() {
                   outOfDeliveryRange ||
                   (giftOptions.isGift && !giftOptions.recipientId)
                 }
-                className="w-full bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-wine-deep"
+                className="w-full bg-wine text-white py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed hover:bg-wine-deep"
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center space-x-2">
@@ -1386,7 +1386,7 @@ export default function CheckoutPage() {
             </motion.div>
 
             {/* Mobile Fixed Bottom Summary with Expandable Breakdown */}
-            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-wine/10 z-50 shadow-[0_-12px_40px_-30px_rgba(43,29,34,0.5)]">
+            <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-wine/10 z-50 shadow-[0_-12px_40px_-30px_rgba(17,17,17,0.5)]">
               {/* Expandable Cost Breakdown */}
               <motion.div
                 initial={false}
@@ -1470,7 +1470,7 @@ export default function CheckoutPage() {
                   outOfDeliveryRange ||
                   (giftOptions.isGift && !giftOptions.recipientId)
                 }
-                    className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(124,42,71,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:bg-wine-deep"
+                    className="bg-wine text-white px-6 py-3 rounded-full font-semibold shadow-[0_16px_34px_-22px_rgba(17,17,17,0.95)] smooth-transition disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 hover:bg-wine-deep"
                   >
                     {isLoading ? (
                       <div className="flex items-center space-x-2">

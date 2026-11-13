@@ -306,7 +306,7 @@ export default function ProfilePage() {
                       <h3 className="text-xs font-semibold text-ink/55 uppercase tracking-wider mb-3">
                         Wallet
                       </h3>
-                      <div className="overflow-hidden rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+                      <div className="overflow-hidden rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]">
                         <div className="flex items-end justify-between gap-4 px-4 py-4 border-b border-wine/10">
                           <div>
                             <p className="text-[11px] text-ink/45 uppercase tracking-wide font-medium">
@@ -364,7 +364,7 @@ export default function ProfilePage() {
                   {/* Profile Info - Minimal */}
                   <div>
                     <h3 className="text-xs font-semibold text-ink/55 uppercase tracking-wider mb-3">👤 Personal Information</h3>
-                    <div className="overflow-hidden rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+                    <div className="overflow-hidden rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]">
                       <div className="flex items-center gap-3 px-4 py-3.5 border-b border-wine/10">
                         <div className="w-9 h-9 bg-cream-deep rounded-xl flex items-center justify-center flex-shrink-0">
                           <svg className="w-4 h-4 text-wine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,7 +407,7 @@ export default function ProfilePage() {
                   {deliveryAddress && (
                     <div>
                       <h3 className="text-xs font-semibold text-ink/55 uppercase tracking-wider mb-3">📍 Current Location</h3>
-                      <div className="p-4 border border-wine/10 rounded-[22px] bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]">
+                      <div className="p-4 border border-wine/10 rounded-[22px] bg-white shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]">
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 bg-cream-deep rounded-xl flex items-center justify-center flex-shrink-0">
                             <svg className="w-5 h-5 text-wine" fill="currentColor" viewBox="0 0 20 20">
@@ -516,7 +516,7 @@ export default function ProfilePage() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="p-4 pb-5 rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)] hover:bg-cream transition-colors"
+                          className="p-4 pb-5 rounded-[22px] border border-wine/10 bg-white shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)] hover:bg-cream transition-colors"
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
@@ -597,7 +597,7 @@ export default function ProfilePage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-white border border-wine/10 rounded-[22px] p-4 shadow-[0_24px_60px_-46px_rgba(43,29,34,0.5)]"
+                        className="bg-white border border-wine/10 rounded-[22px] p-4 shadow-[0_24px_60px_-46px_rgba(17,17,17,0.5)]"
                       >
                         <div className="flex items-start gap-3">
                           <div className="w-10 h-10 bg-cream-deep rounded-xl flex items-center justify-center flex-shrink-0">

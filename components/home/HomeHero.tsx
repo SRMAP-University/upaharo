@@ -196,7 +196,7 @@ export default function HomeHero({ siteName, tagline }: HomeHeroProps) {
       <button
         type="button"
         onClick={() => router.push('/search')}
-        className="relative mt-6 flex w-full max-w-xl items-center gap-3 rounded-full border border-wine/15 bg-white px-5 py-3.5 text-left shadow-[0_18px_44px_-30px_rgba(124,42,71,0.7)] transition hover:border-wine/30"
+        className="relative mt-6 flex w-full max-w-xl items-center gap-3 rounded-full border border-wine/15 bg-white px-5 py-3.5 text-left shadow-[0_18px_44px_-30px_rgba(17,17,17,0.7)] transition hover:border-wine/30"
       >
         <svg className="h-5 w-5 flex-shrink-0 text-wine" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />

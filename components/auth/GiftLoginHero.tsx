@@ -66,11 +66,11 @@ function MarqueeRow({
         {sequence.map((gift, i) => (
           <div
             key={`${gift.label}-${i}`}
-            className="flex h-[88px] w-[82px] shrink-0 flex-col items-center justify-center rounded-[18px] border border-white/85 px-1.5 py-2 shadow-[0_4px_10px_rgba(232,90,140,0.12)]"
+            className="flex h-[88px] w-[82px] shrink-0 flex-col items-center justify-center rounded-[18px] border border-white/85 px-1.5 py-2 shadow-[0_6px_14px_-6px_rgba(0,0,0,0.25)]"
             style={{ backgroundColor: gift.tint }}
           >
             <span className="text-[30px] leading-none">{gift.emoji}</span>
-            <span className="mt-1.5 truncate text-center text-[11px] font-bold text-[#5C2A3A]">
+            <span className="mt-1.5 truncate text-center text-[11px] font-bold text-ink">
               {gift.label}
             </span>
           </div>
@@ -82,21 +82,18 @@ function MarqueeRow({
 
 export default function GiftLoginHero() {
   return (
-    <div className="relative flex h-full min-h-[280px] flex-col overflow-hidden bg-gradient-to-b from-[#FFE4EC] via-[#FFD0DE] to-[#FFC0D4]">
+    <div className="relative flex h-full min-h-[280px] flex-col overflow-hidden bg-gradient-to-b from-[#F0544D] via-[#E8322B] to-[#E8322B]">
       <div className="flex flex-1 flex-col justify-center gap-2.5 px-0 pb-16 pt-10">
         <MarqueeRow items={ROW_A} durationSec={28} />
         <MarqueeRow items={ROW_B} reverse durationSec={34} />
         <MarqueeRow items={ROW_C} durationSec={24} />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-10 text-center">
-        <p className="text-[26px] font-extrabold tracking-wide text-[#5C2A3A] drop-shadow-[0_0_12px_rgba(255,255,255,0.7)]">
-          Upaharo
-        </p>
-        <p className="mt-1 text-[13px] font-semibold text-[#5C2A3A]/70">
-          Gifts for every occasion
-        </p>
+      {/* Red band under the tiles so the name reads clearly */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#E8322B] via-[#E8322B]/90 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-10 z-10 text-center">
+        <p className="text-[30px] font-extrabold tracking-tight text-white">upaharo</p>
+        <p className="mt-0.5 text-[13px] font-semibold text-white/85">Gifts for every occasion</p>
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-white to-transparent" />
     </div>
   )
 }

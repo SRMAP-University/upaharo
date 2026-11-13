@@ -39,7 +39,7 @@ export default function AppDownloadReminder() {
 
   return (
     <div className="fixed inset-x-3 bottom-[5.5rem] z-[45] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[380px]">
-      <div className="relative rounded-2xl border border-wine/10 bg-white p-4 shadow-[0_22px_50px_-28px_rgba(43,29,34,0.55)]">
+      <div className="relative rounded-2xl border border-wine/10 bg-white p-4 shadow-[0_22px_50px_-28px_rgba(17,17,17,0.55)]">
         <button
           type="button"
           aria-label="Dismiss"

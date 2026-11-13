@@ -8,7 +8,7 @@ import { getGoogleOAuthConfigError } from '@/lib/google-auth'
 type Mode = 'phone' | 'email'
 type PhoneStep = 'enterPhone' | 'enterOtp' | 'completeSignup'
 
-const ACCENT = '#E85A8C'
+const ACCENT = '#111111'
 
 async function establishSession(otpAccessToken: string) {
   const result = await signIn('credentials', {
@@ -234,7 +234,7 @@ export default function PhoneOtpForm() {
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
             disabled={loading}
             placeholder="Enter mobile number"
-            className="h-[54px] flex-1 rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold text-[#1F1F1F] outline-none placeholder:font-medium placeholder:text-[#3E3E3E]/40 focus:border-[#E85A8C]/50"
+            className="h-[54px] flex-1 rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold text-[#1F1F1F] outline-none placeholder:font-medium placeholder:text-[#3E3E3E]/40 focus:border-[#E8322B]/50"
           />
         </div>
       ) : null}
@@ -252,7 +252,7 @@ export default function PhoneOtpForm() {
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
             disabled={loading}
             placeholder="6-digit OTP"
-            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E85A8C]/50"
+            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E8322B]/50"
           />
         </>
       ) : null}
@@ -269,7 +269,7 @@ export default function PhoneOtpForm() {
             onChange={(e) => setName(e.target.value)}
             disabled={loading}
             placeholder="Full name"
-            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E85A8C]/50"
+            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E8322B]/50"
           />
           <input
             type="email"
@@ -278,7 +278,7 @@ export default function PhoneOtpForm() {
             onChange={(e) => setSignupEmail(e.target.value)}
             disabled={loading}
             placeholder="Email"
-            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E85A8C]/50"
+            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E8322B]/50"
           />
         </>
       ) : null}
@@ -293,7 +293,7 @@ export default function PhoneOtpForm() {
             disabled={loading}
             placeholder="Email"
             required
-            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E85A8C]/50"
+            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E8322B]/50"
           />
           <input
             type="password"
@@ -303,7 +303,7 @@ export default function PhoneOtpForm() {
             disabled={loading}
             placeholder="Password"
             required
-            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E85A8C]/50"
+            className="h-[54px] w-full rounded-[14px] border border-[#E0E0E0] px-4 text-[15px] font-semibold outline-none focus:border-[#E8322B]/50"
           />
         </>
       ) : null}

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
 import { resolveStoreContext } from '@/lib/store-context'
+import { resolveUserId } from '@/lib/request-auth'
+import { buildShopperProfile, describeProfile, personalRank, sanitizeSignals } from '@/lib/shopper-profile'
+
+/** Open asks ("suggest something", "anything for me?") can lean on the shopper's history. */
+const OPEN_ASK = /suggest|recommend|anything|something|ideas?|surprise me|for me|what should|show me|help me|you pick/i
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -62,12 +67,8 @@ export async function POST(request: NextRequest) {
     const accountId = process.env.CF_ACCOUNT_ID
     const apiToken = process.env.CF_API_TOKEN
 
-    if (!accountId || !apiToken) {
-      return NextResponse.json(
-        { error: 'AI service is not configured. Set CF_ACCOUNT_ID and CF_API_TOKEN.' },
-        { status: 503 }
-      )
-    }
+    const aiConfigured = Boolean(accountId && apiToken)
+    if (!aiConfigured) console.warn('AI chat: CF_ACCOUNT_ID / CF_API_TOKEN not set, answering without the model.')
 
     const body = await request.json().catch(() => ({}))
     const incomingMessages: ChatMessage[] = Array.isArray(body?.messages) ? body.messages : []
@@ -81,6 +82,17 @@ export async function POST(request: NextRequest) {
 
     const catalog = await getCatalogSnapshot(storeId)
     const lastUser = [...incomingMessages].reverse().find((m) => m.role === 'user')?.content ?? ''
+
+    // Website assistant: the device sends recent clicks, searches and cart adds.
+    const profile =
+      body?.signals != null
+        ? await buildShopperProfile(
+            storeId,
+            sanitizeSignals(body.signals),
+            await resolveUserId(request).catch(() => null)
+          ).catch(() => null)
+        : null
+    const profileNote = profile ? describeProfile(profile) : ''
 
     const systemPrompt = `You are Upaharo's friendly shopping assistant for delivery ${storeContext.slug === 'grocery' ? 'in Kathmandu Valley' : 'across Nepal (same day in Kathmandu, 2-5 days elsewhere)'}.
 Speak like a helpful shop associate: warm, natural, and concise (usually 1-3 sentences).
@@ -107,7 +119,15 @@ Filter rules (NPR):
 - "between A and B" → minPrice and maxPrice
 - "search": 1–3 useful gift keywords only (e.g. roses, cake, birthday). Omit if unsure.
 - "category": only a category we carry. Omit if unsure.
-- Omit unused filter fields entirely.`
+- Omit unused filter fields entirely.${
+      profileNote
+        ? `
+
+About this shopper, from their recent browsing on Upaharo: ${profileNote}
+- For open requests ("suggest something", "anything for me?"), recommend from what they like, near their usual price, and include the JSON block.
+- You may say "based on what you've been looking at". Do not recite their history back to them.`
+        : ''
+    }`
 
     const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
@@ -129,7 +149,12 @@ Filter rules (NPR):
         Boolean(earlyFilters.category))
 
     const [aiResponse, earlyProducts] = await Promise.all([
-      fetchCloudflareAI(accountId, apiToken, messages),
+      aiConfigured
+        ? fetchCloudflareAI(accountId!, apiToken!, messages).catch((error) => {
+            console.error('AI chat model error:', error)
+            return ''
+          })
+        : Promise.resolve(''),
       canPrefetch && earlyFilters
         ? fetchRecommendedProducts(earlyFilters, storeId)
         : Promise.resolve([] as any[]),
@@ -138,6 +163,16 @@ Filter rules (NPR):
     const { text: cleanedText, payload } = parseRecommendPayload(aiResponse)
     let filters = enrichFiltersFromChat(payload?.filters, incomingMessages)
     filters = scrubJunkSearch(filters)
+    // No model reply: use what we could read from the words and budget.
+    if (!aiResponse && earlyFilters) filters = scrubJunkSearch(earlyFilters)
+
+    // An open ask with nothing to search on: use their favourite category and usual price.
+    if (profile && profile.categories.length > 0 && (!filters || !hasAnyFilter(filters)) && OPEN_ASK.test(lastUser)) {
+      filters = {
+        category: profile.categories[0],
+        ...(profile.priceBand ? { maxPrice: profile.priceBand.max } : {}),
+      }
+    }
 
     let products: any[] = []
     if (filters && hasAnyFilter(filters)) {
@@ -154,9 +189,13 @@ Filter rules (NPR):
         : await fetchRecommendedProducts(filters, storeId)
     }
 
+    if (profile && products.length > 1) products = personalRank(products, profile)
+
     let content =
       cleanedText ||
-      "Happy to help you find something! What's the occasion, who is it for, or what's your budget?"
+      (products.length > 0
+        ? 'Here are some I think you will like.'
+        : "Happy to help you find something! What's the occasion, who is it for, or what's your budget?")
 
     // Soften empty recommend results without sounding robotic.
     if (filters && hasAnyFilter(filters) && products.length === 0) {
@@ -225,7 +264,12 @@ function inferSafeFilters(text: string, categoryNames: string[]): RecommendFilte
 
   const matchedCategory = categoryNames.find((name) => {
     const n = name.toLowerCase()
-    return n.length >= 3 && lower.includes(n)
+    if (n.length < 3) return false
+    if (lower.includes(n)) return true
+    // "cake" should find "Cakes", "flower" should find "Flowers".
+    const one = n.endsWith('s') ? n.slice(0, -1) : ''
+    const padded = ` ${lower.replace(/[^a-z0-9]+/g, ' ')} `
+    return one.length >= 3 && padded.includes(` ${one} `)
   })
   if (matchedCategory) next.category = matchedCategory
 

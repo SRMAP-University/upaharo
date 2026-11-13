@@ -309,7 +309,7 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
             ) : null}
             <div className={`transition-transform duration-150 ${isDragging ? '-translate-y-2' : ''}`}>
               <svg width="40" height="48" viewBox="0 0 40 48" aria-hidden>
-                <path d="M20 47s16-15.2 16-27A16 16 0 004 20c0 11.8 16 27 16 27z" fill="#7c2a47" />
+                <path d="M20 47s16-15.2 16-27A16 16 0 004 20c0 11.8 16 27 16 27z" fill="#111111" />
                 <circle cx="20" cy="20" r="6.5" fill="#fff" />
               </svg>
             </div>
@@ -323,7 +323,7 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
           <button
             type="button"
             onClick={() => map && locateUser(map)}
-            className="absolute bottom-4 right-4 z-10 flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-semibold text-wine shadow-[0_8px_24px_-10px_rgba(43,29,34,0.5)] transition hover:bg-cream"
+            className="absolute bottom-4 right-4 z-10 flex h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-semibold text-wine shadow-[0_8px_24px_-10px_rgba(17,17,17,0.5)] transition hover:bg-cream"
           >
             {isLocating ? (
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-wine/20 border-t-wine" />
@@ -340,7 +340,7 @@ export default function MapPicker({ onLocationSelect, initialLat, initialLng }: 
 
       {/* Search */}
       <div className="absolute left-3 right-3 top-3 z-20">
-        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_28px_-12px_rgba(43,29,34,0.45)]">
+        <div className="overflow-hidden rounded-2xl bg-white shadow-[0_8px_28px_-12px_rgba(17,17,17,0.45)]">
           <div className="flex items-center gap-3 px-4 py-3">
             <svg className="h-5 w-5 shrink-0 text-ink/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z" />

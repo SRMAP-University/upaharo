@@ -23,7 +23,7 @@ export default function PersonalizationConsentBanner() {
   }
 
   return (
-    <div className="fixed inset-x-3 bottom-4 z-[90] mx-auto max-w-xl rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-30px_rgba(43,29,34,0.5)]">
+    <div className="fixed inset-x-3 bottom-4 z-[90] mx-auto max-w-xl rounded-[22px] border border-wine/10 bg-white p-4 shadow-[0_24px_60px_-30px_rgba(17,17,17,0.5)]">
       <div className="space-y-3">
         <div>
           <p className="font-display text-base font-semibold text-ink">Personalized recommendations</p>
