@@ -13,7 +13,6 @@ import HomeFeedBannerSection, { type HomeFeedBanner } from '@/components/home/Ho
 import HomeFeaturedCollections from '@/components/home/HomeFeaturedCollections'
 import HomeValueDeals from '@/components/home/HomeValueDeals'
 import AppDownloadCta from '@/components/AppDownloadCta'
-import StudioHero from '@/components/home/StudioHero'
 import RightNowPicks from '@/components/home/RightNowPicks'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
@@ -264,26 +263,15 @@ async function getHomeData() {
       }
     }
 
-    // Hero products: the newest from a few everyday categories (one each),
-    // leaving out festival lines.
-    const FESTIVAL_NAME = /bhai\s*tika|bhaitika|tihar|dashain|diyo|deepawali/i
-    const heroCategories = ['Cakes', 'Flowers', 'Gift Hampers', 'Soft Toys', 'Personalized', 'Mini Cakes']
-    const heroCandidates = await prisma.product.findMany({
-      where: { ...productWhere, category: { in: heroCategories }, image: { not: '' } },
-      orderBy: { createdAt: 'desc' },
-      take: 60,
-      select: { id: true, name: true, image: true, price: true, discount: true, category: true },
-    })
-    const heroPool = heroCandidates.filter((p) => !FESTIVAL_NAME.test(p.name))
-    const heroProducts: typeof heroPool = []
-    for (const name of heroCategories) {
-      const pick = heroPool.find((p) => p.category === name)
-      if (pick) heroProducts.push(pick)
-      if (heroProducts.length === 3) break
-    }
-    for (const p of heroPool) {
-      if (heroProducts.length === 3) break
-      if (!heroProducts.includes(p)) heroProducts.push(p)
+    // Best discount in each category, for the "Up to N% off" tag on the cards.
+    const categoryDeals: Record<string, number> = {}
+    if (storeId) {
+      const deals = await prisma.product
+        .groupBy({ by: ['category'], where: productWhere, _max: { discount: true } })
+        .catch(() => [])
+      for (const row of deals) {
+        if (row.category) categoryDeals[row.category] = Number(row._max.discount) || 0
+      }
     }
 
     const homepageBanners = await Promise.all(banners.map(withBannerProducts))
@@ -307,7 +295,7 @@ async function getHomeData() {
       latestProducts,
       homepageRecommendationProducts,
       homepageBanners,
-      heroProducts,
+      categoryDeals,
       feedBannerSections,
       miniBanners,
       valueDealProducts,
@@ -331,7 +319,7 @@ async function getHomeData() {
       latestProducts: [],
       homepageRecommendationProducts: [],
       homepageBanners: [],
-      heroProducts: [],
+      categoryDeals: {} as Record<string, number>,
       feedBannerSections: [],
       miniBanners: [],
       valueDealProducts: [],
@@ -382,7 +370,7 @@ export default async function Home() {
     latestProducts,
     homepageRecommendationProducts,
     homepageBanners,
-    heroProducts,
+    categoryDeals,
     feedBannerSections,
     miniBanners,
     valueDealProducts,
@@ -575,29 +563,28 @@ export default async function Home() {
     }
   }
 
-  const FESTIVAL_NAME = /bhai\s*tika|bhaitika|tihar|dashain|diyo|deepawali/i
   const freeDeliveryMin = Number(settings.freeDeliveryMinAmount) || 0
-  const showHero = storeSlug !== 'grocery' && heroProducts.length > 0
+  // Gifts store: animated spotlight and 3D category cards. Grocery keeps its plain top.
+  const spotlight =
+    storeSlug !== 'grocery'
+      ? {
+          promise:
+            freeDeliveryMin > 0
+              ? `Free delivery over ${formatPriceNoDecimals(freeDeliveryMin).replace(' ', '\u00a0')}`
+              : 'Delivered across Nepal',
+          categories: categories.map((c) => ({
+            id: c.id,
+            name: c.name,
+            shortName: c.shortName,
+            maxDiscount: categoryDeals[c.name] || 0,
+          })),
+        }
+      : undefined
 
   return (
     <main className="min-h-screen bg-white">
       <HomepageTopLayout
-        hero={
-          showHero ? (
-            <StudioHero
-              products={heroProducts.map((p) => ({ id: p.id, name: p.name, image: p.image }))}
-              occasions={occasionCategories
-                .filter((o) => !FESTIVAL_NAME.test(o.name))
-                .slice(0, 8)
-                .map((o) => ({ id: o.id, name: o.name }))}
-              promise={
-                freeDeliveryMin > 0
-                  ? `Cakes, flowers and gifts. Free delivery over ${formatPriceNoDecimals(freeDeliveryMin).replace(' ', ' ')}.`
-                  : 'Cakes, flowers and gifts, delivered across Nepal.'
-              }
-            />
-          ) : undefined
-        }
+        spotlight={spotlight}
         categories={categories}
         occasionCategories={occasionCategories}
         showTopCategories={settings.homepageShowTopCategories}

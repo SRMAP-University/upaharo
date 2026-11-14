@@ -13,6 +13,8 @@ import { useCartStore } from '@/lib/store/cart'
 import { formatPriceNoDecimals } from '@/lib/utils'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { studioTint } from '@/lib/studio-tints'
+import { HeroSpotlightDesktop, HeroSpotlightPhone } from '@/components/home/HeroSpotlight'
+import CategoryShowcase, { type ShowcaseCategory } from '@/components/home/CategoryShowcase'
 import {
   bannerWashCss,
   normalizeBannerBgGradient,
@@ -50,6 +52,8 @@ type Banner = {
 type HomepageTopLayoutProps = {
   /** Seasonal hero, shown under the search and categories, above the banners. */
   hero?: ReactNode
+  /** Gifts store: the animated spotlight hero (with this promise line) and 3D category cards. */
+  spotlight?: { promise: string; categories: ShowcaseCategory[] }
   categories: Category[]
   occasionCategories?: Category[]
   showTopCategories?: boolean
@@ -402,6 +406,7 @@ function AppStyleBanner({
 /** App-matching sticky home chrome: location, search, category chips, banner. */
 export default function HomepageTopLayout({
   hero,
+  spotlight,
   categories,
   showTopCategories = true,
   deliveryEstimate = '',
@@ -516,6 +521,38 @@ export default function HomepageTopLayout({
     <>
       <section className="bg-white">
         {/* Phone / tablet */}
+        {spotlight ? (
+          <div className="lg:hidden">
+            <HeroSpotlightPhone
+              promise={spotlight.promise}
+              header={{
+                locationLabel: hasLocation ? locationLabel : 'Set location',
+                locationNote: hasLocation ? 'Delivering today' : 'Tap to choose your area',
+                onLocation: () => setIsLocationModalOpen(true),
+                cartCount: mounted ? cartCount : 0,
+                accountHref: user ? '/profile' : '/login',
+                initial: mounted ? initial : null,
+              }}
+            />
+            <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
+              <CategoryShowcase categories={spotlight.categories} />
+              {showBanner && banners.length > 0 ? (
+                <div className="mt-8">
+                  <h2 className="mb-3 text-[22px] font-extrabold tracking-tight text-ink">Featured</h2>
+                  <AppStyleBanner
+                    banners={banners}
+                    height={mobileBannerH}
+                    productStripHeight={productH}
+                    onWashChange={({ color, background }) => {
+                      setWash(color)
+                      setWashBackground(background)
+                    }}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : (
         <div className="mx-auto max-w-7xl px-4 pb-2 pt-3 sm:px-6 lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex min-w-0 items-center gap-2">
@@ -595,6 +632,7 @@ export default function HomepageTopLayout({
             </div>
           ) : null}
         </div>
+        )}
 
         {/* Desktop */}
         <div className="hidden lg:block">
@@ -706,9 +744,21 @@ export default function HomepageTopLayout({
             ) : null}
           </div>
 
-          {hero ? <div className="mx-auto max-w-7xl px-6 pt-6 xl:px-8">{hero}</div> : null}
+          {spotlight ? (
+            <>
+              <div className="mx-auto max-w-7xl px-6 pt-6 xl:px-8">
+                <HeroSpotlightDesktop promise={spotlight.promise} />
+              </div>
+              <div className="mx-auto max-w-7xl px-6 pt-10 xl:px-8">
+                <h2 className="mb-4 text-[28px] font-extrabold tracking-tight text-ink">Shop by category</h2>
+                <CategoryShowcase categories={spotlight.categories} />
+              </div>
+            </>
+          ) : hero ? (
+            <div className="mx-auto max-w-7xl px-6 pt-6 xl:px-8">{hero}</div>
+          ) : null}
 
-          {headerCategories.length > 0 ? (
+          {!spotlight && headerCategories.length > 0 ? (
             <div className="mx-auto max-w-7xl px-6 pt-10 xl:px-8">
               <h2 className="mb-4 text-[28px] font-extrabold tracking-tight text-ink">Shop by category</h2>
               <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">{categoryRow('desktop')}</div>

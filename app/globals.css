@@ -298,3 +298,112 @@ select:focus {
     @apply inline-flex items-center rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold text-white;
   }
 }
+/* Home spotlight: soft hero and category cards. Motion is kept quiet. */
+@keyframes hs-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hs-drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.hs-rise { animation: hs-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0s) backwards; }
+.hs-drift { animation: hs-drift 6s ease-in-out 1s infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hs-rise, .hs-drift { animation: none !important; }
+}
+@keyframes hs-word-in {
+  from { transform: translateY(70%); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes hs-word-out {
+  from { transform: none; opacity: 1; }
+  to { transform: translateY(-70%); opacity: 0; }
+}
+@keyframes hs-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(var(--bx, 24px), var(--by, -16px)) scale(1.12); }
+}
+.hs-word-in { display: inline-block; animation: hs-word-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.hs-word-out { display: inline-block; animation: hs-word-out 0.45s cubic-bezier(0.4, 0, 0.6, 1) both; }
+.hs-blob { animation: hs-blob var(--t, 12s) ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hs-blob, .hs-word-in, .hs-word-out { animation: none !important; }
+}
+
+/* Hero delivery story: one 12 s loop. Shop -> ride -> doorstep -> delivered. */
+@keyframes sc-ride {
+  0% { transform: translateX(0); opacity: 0; }
+  4% { transform: translateX(0); opacity: 1; }
+  12% { transform: translateX(0); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
+  52% { transform: translateX(140px); }
+  86% { transform: translateX(140px); opacity: 1; }
+  92% { transform: translateX(140px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 0; }
+}
+@keyframes sc-wheel {
+  0%, 12% { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
+  52%, 100% { transform: rotate(1440deg); }
+}
+@keyframes sc-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.2px); }
+}
+@keyframes sc-speed {
+  0%, 16% { opacity: 0; }
+  22%, 44% { opacity: 0.35; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes sc-rackbox {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+@keyframes sc-drop {
+  0%, 55% { opacity: 0; transform: translate(-79px, -32px); }
+  56% { opacity: 1; transform: translate(-79px, -32px); animation-timing-function: ease-out; }
+  60% { transform: translate(-40px, -50px); animation-timing-function: ease-in; }
+  64% { transform: translate(0, 0); }
+  66% { transform: translate(0, -4px); }
+  68%, 86% { opacity: 1; transform: translate(0, 0); }
+  92%, 100% { opacity: 0; transform: translate(0, 0); }
+}
+@keyframes sc-door {
+  0%, 62% { transform: scaleX(1); }
+  66%, 84% { transform: scaleX(0.18); }
+  90%, 100% { transform: scaleX(1); }
+}
+@keyframes sc-heart {
+  0%, 66% { opacity: 0; transform: translate(0, 6px) scale(0.5); }
+  70% { opacity: 1; }
+  82% { opacity: 0.9; transform: translate(var(--hx, 0px), -30px) scale(1); }
+  88%, 100% { opacity: 0; transform: translate(var(--hx, 0px), -40px) scale(1); }
+}
+@keyframes sc-badge {
+  0%, 68% { opacity: 0; transform: translateY(6px) scale(0.85); }
+  72%, 86% { opacity: 1; transform: none; }
+  91%, 100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes sc-flags {
+  0% { transform: skewX(-3deg); }
+  100% { transform: skewX(3deg); }
+}
+@keyframes sc-cloud {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(var(--cx, 18px)); }
+}
+.sc-ride { animation: sc-ride 12s linear infinite; }
+.sc-wheel { transform-box: fill-box; transform-origin: center; animation: sc-wheel 12s linear infinite; }
+.sc-bob { animation: sc-bob 0.4s ease-in-out infinite; }
+.sc-speed { opacity: 0; animation: sc-speed 12s linear infinite; }
+.sc-rackbox { animation: sc-rackbox 12s linear infinite; }
+.sc-drop { opacity: 0; animation: sc-drop 12s linear infinite; }
+.sc-door { transform-box: fill-box; transform-origin: 0 50%; animation: sc-door 12s ease-in-out infinite; }
+.sc-heart { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-heart 12s ease-out var(--d, 0s) infinite; }
+.sc-badge { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-badge 12s ease-out infinite; }
+.sc-flags { transform-box: fill-box; transform-origin: 50% 0; animation: sc-flags 3s ease-in-out infinite alternate; }
+.sc-cloud { animation: sc-cloud var(--t, 18s) ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-ride, .sc-wheel, .sc-bob, .sc-speed, .sc-rackbox, .sc-door, .sc-flags, .sc-cloud { animation: none !important; }
+  .sc-ride { opacity: 1; }
+  .sc-drop, .sc-heart, .sc-badge { animation: none !important; opacity: 0; }
+}
