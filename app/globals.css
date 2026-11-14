@@ -331,57 +331,122 @@ select:focus {
   .hs-blob, .hs-word-in, .hs-word-out { animation: none !important; }
 }
 
-/* Hero delivery story: one 12 s loop. Shop -> ride -> doorstep -> delivered. */
+/* Hero delivery story: one 14 s loop.
+   0-14%   the gift pops out of the shop and hops onto the scooter
+   14-23%  exhaust puffs, little wheelie, off it goes
+   18-52%  the ride (a bump at 34%), braking dip at 53%
+   55-62%  the gift hops to the doorstep; door opens at 60%
+   64-86%  receiver lifts the gift and jumps; hearts; "Delivered"; rider waves
+   80-92%  rider rides off to the right; door closes; loop */
 @keyframes sc-ride {
   0% { transform: translateX(0); opacity: 0; }
   4% { transform: translateX(0); opacity: 1; }
-  12% { transform: translateX(0); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
+  18% { transform: translateX(0); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
   52% { transform: translateX(140px); }
-  86% { transform: translateX(140px); opacity: 1; }
-  92% { transform: translateX(140px); opacity: 0; }
+  80% { transform: translateX(140px); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.6); }
+  91% { transform: translateX(280px); opacity: 1; }
+  92% { transform: translateX(280px); opacity: 0; }
   100% { transform: translateX(0); opacity: 0; }
 }
 @keyframes sc-wheel {
-  0%, 12% { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
-  52%, 100% { transform: rotate(1440deg); }
+  0%, 18% { transform: rotate(0deg); animation-timing-function: cubic-bezier(0.45, 0, 0.3, 1); }
+  52%, 80% { transform: rotate(1440deg); animation-timing-function: cubic-bezier(0.55, 0, 0.9, 0.6); }
+  91%, 100% { transform: rotate(2880deg); }
+}
+@keyframes sc-lean {
+  0%, 16% { transform: none; }
+  19% { transform: rotate(-5deg); }
+  23% { transform: none; }
+  32% { transform: none; }
+  34% { transform: translateY(-4px) rotate(-2deg); }
+  36% { transform: none; }
+  37.5% { transform: translateY(-1.5px); }
+  39%, 50% { transform: none; }
+  53% { transform: rotate(1.5deg); }
+  56%, 80% { transform: none; }
+  82% { transform: rotate(-4deg); }
+  85%, 100% { transform: none; }
 }
 @keyframes sc-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-1.2px); }
 }
 @keyframes sc-speed {
-  0%, 16% { opacity: 0; }
-  22%, 44% { opacity: 0.35; }
-  50%, 100% { opacity: 0; }
+  0%, 20% { opacity: 0; }
+  24%, 46% { opacity: 0.35; }
+  50%, 82% { opacity: 0; }
+  85%, 90% { opacity: 0.35; }
+  92%, 100% { opacity: 0; }
+}
+@keyframes sc-puff {
+  0%, 13% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  15% { opacity: 0.6; }
+  22% { opacity: 0; transform: translate(-12px, -8px) scale(1.25); }
+  78% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  80% { opacity: 0.6; }
+  87% { opacity: 0; transform: translate(-12px, -8px) scale(1.25); }
+  100% { opacity: 0; }
+}
+@keyframes sc-load {
+  0%, 2% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  5% { opacity: 1; transform: translate(0, 0) scale(1.1); }
+  7%, 9% { opacity: 1; transform: translate(0, 0) scale(1); animation-timing-function: ease-out; }
+  11.5% { transform: translate(10px, -46px); animation-timing-function: ease-in; }
+  14% { opacity: 1; transform: translate(19px, -32px); }
+  14.5%, 100% { opacity: 0; transform: translate(19px, -32px); }
 }
 @keyframes sc-rackbox {
-  0%, 55% { opacity: 1; }
-  56%, 100% { opacity: 0; }
+  0%, 14% { opacity: 0; }
+  14.5%, 55% { opacity: 1; }
+  55.5%, 100% { opacity: 0; }
 }
 @keyframes sc-drop {
   0%, 55% { opacity: 0; transform: translate(-79px, -32px); }
-  56% { opacity: 1; transform: translate(-79px, -32px); animation-timing-function: ease-out; }
-  60% { transform: translate(-40px, -50px); animation-timing-function: ease-in; }
-  64% { transform: translate(0, 0); }
-  66% { transform: translate(0, -4px); }
-  68%, 86% { opacity: 1; transform: translate(0, 0); }
-  92%, 100% { opacity: 0; transform: translate(0, 0); }
+  55.5% { opacity: 1; transform: translate(-79px, -32px); animation-timing-function: ease-out; }
+  59% { transform: translate(-40px, -50px); animation-timing-function: ease-in; }
+  62% { transform: translate(0, 0); }
+  63.5% { transform: translate(0, -3px); }
+  65%, 69% { transform: translate(0, 0); }
+  72% { transform: translate(0, -9px); }
+  74% { transform: translate(0, -13px); }
+  76% { transform: translate(0, -9px); }
+  78% { transform: translate(0, -13px); }
+  80%, 85% { opacity: 1; transform: translate(0, -9px); }
+  88%, 100% { opacity: 0; transform: translate(0, -9px); }
 }
 @keyframes sc-door {
-  0%, 62% { transform: scaleX(1); }
-  66%, 84% { transform: scaleX(0.18); }
-  90%, 100% { transform: scaleX(1); }
+  0%, 59% { transform: scaleX(1); }
+  63%, 85% { transform: scaleX(0.18); }
+  89%, 100% { transform: scaleX(1); }
+}
+@keyframes sc-person {
+  0%, 61% { opacity: 0; transform: translateY(3px); }
+  64%, 71% { opacity: 1; transform: none; }
+  74% { transform: translateY(-4px); }
+  76% { transform: none; }
+  78% { transform: translateY(-4px); }
+  80%, 85% { opacity: 1; transform: none; }
+  88%, 100% { opacity: 0; transform: translateY(3px); }
 }
 @keyframes sc-heart {
-  0%, 66% { opacity: 0; transform: translate(0, 6px) scale(0.5); }
-  70% { opacity: 1; }
-  82% { opacity: 0.9; transform: translate(var(--hx, 0px), -30px) scale(1); }
+  0%, 72% { opacity: 0; transform: translate(0, 6px) scale(0.5); }
+  75% { opacity: 1; }
+  84% { opacity: 0.9; transform: translate(var(--hx, 0px), -30px) scale(1); }
   88%, 100% { opacity: 0; transform: translate(var(--hx, 0px), -40px) scale(1); }
 }
 @keyframes sc-badge {
-  0%, 68% { opacity: 0; transform: translateY(6px) scale(0.85); }
-  72%, 86% { opacity: 1; transform: none; }
-  91%, 100% { opacity: 0; transform: translateY(-4px); }
+  0%, 72% { opacity: 0; transform: translateY(6px) scale(0.85); }
+  76%, 86% { opacity: 1; transform: none; }
+  90%, 100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes sc-rwave {
+  0%, 67% { opacity: 0; }
+  69%, 79% { opacity: 1; }
+  81%, 100% { opacity: 0; }
+}
+@keyframes sc-wave {
+  0%, 100% { transform: rotate(-18deg); }
+  50% { transform: rotate(16deg); }
 }
 @keyframes sc-flags {
   0% { transform: skewX(-3deg); }
@@ -391,19 +456,46 @@ select:focus {
   0% { transform: translateX(0); }
   100% { transform: translateX(var(--cx, 18px)); }
 }
-.sc-ride { animation: sc-ride 12s linear infinite; }
-.sc-wheel { transform-box: fill-box; transform-origin: center; animation: sc-wheel 12s linear infinite; }
+@keyframes sc-bird {
+  0% { transform: translateX(0); opacity: 0; }
+  6% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { transform: translateX(410px); opacity: 0; }
+}
+/* Opening: each mountain layer rises into place, far first. */
+@keyframes sc-in {
+  from { opacity: 0; transform: translateY(var(--from, 24px)); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sc-flap {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.35); }
+}
+.sc-ride { animation: sc-ride 14s linear infinite; }
+.sc-wheel { transform-box: fill-box; transform-origin: center; animation: sc-wheel 14s linear infinite; }
+.sc-lean { transform-box: fill-box; transform-origin: 0% 100%; animation: sc-lean 14s ease-in-out infinite; }
 .sc-bob { animation: sc-bob 0.4s ease-in-out infinite; }
-.sc-speed { opacity: 0; animation: sc-speed 12s linear infinite; }
-.sc-rackbox { animation: sc-rackbox 12s linear infinite; }
-.sc-drop { opacity: 0; animation: sc-drop 12s linear infinite; }
-.sc-door { transform-box: fill-box; transform-origin: 0 50%; animation: sc-door 12s ease-in-out infinite; }
-.sc-heart { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-heart 12s ease-out var(--d, 0s) infinite; }
-.sc-badge { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-badge 12s ease-out infinite; }
+.sc-speed { opacity: 0; animation: sc-speed 14s linear infinite; }
+.sc-puff { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-puff 14s ease-out infinite; }
+.sc-puff-2 { animation-delay: 0.25s; }
+.sc-load { transform-box: fill-box; transform-origin: 50% 100%; opacity: 0; animation: sc-load 14s linear infinite; }
+.sc-rackbox { opacity: 0; animation: sc-rackbox 14s linear infinite; }
+.sc-drop { opacity: 0; animation: sc-drop 14s linear infinite; }
+.sc-door { transform-box: fill-box; transform-origin: 0 50%; animation: sc-door 14s ease-in-out infinite; }
+.sc-person { opacity: 0; animation: sc-person 14s ease-out infinite; }
+.sc-heart { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-heart 14s ease-out var(--d, 0s) infinite; }
+.sc-badge { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-badge 14s ease-out infinite; }
+.sc-rwave { opacity: 0; animation: sc-rwave 14s linear infinite; }
+.sc-wave { transform-box: fill-box; transform-origin: 0% 100%; animation: sc-wave 0.5s ease-in-out infinite; }
+.sc-wave-r { transform-box: fill-box; transform-origin: 100% 100%; animation: sc-wave 0.5s ease-in-out infinite; }
 .sc-flags { transform-box: fill-box; transform-origin: 50% 0; animation: sc-flags 3s ease-in-out infinite alternate; }
 .sc-cloud { animation: sc-cloud var(--t, 18s) ease-in-out infinite alternate; }
+.sc-bird { opacity: 0; animation: sc-bird var(--t, 16s) linear var(--d, 0s) infinite; }
+.sc-in { animation: sc-in 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0s) both; }
+.sc-flap { transform-box: fill-box; transform-origin: center; animation: sc-flap 0.45s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .sc-ride, .sc-wheel, .sc-bob, .sc-speed, .sc-rackbox, .sc-door, .sc-flags, .sc-cloud { animation: none !important; }
+  .sc-ride, .sc-wheel, .sc-lean, .sc-bob, .sc-door, .sc-flags, .sc-cloud, .sc-flap, .sc-wave, .sc-wave-r, .sc-in { animation: none !important; }
   .sc-ride { opacity: 1; }
-  .sc-drop, .sc-heart, .sc-badge { animation: none !important; opacity: 0; }
+  .sc-rackbox { animation: none !important; opacity: 1; }
+  .sc-speed, .sc-puff, .sc-load, .sc-drop, .sc-person, .sc-heart, .sc-badge, .sc-rwave, .sc-bird { animation: none !important; opacity: 0; }
 }

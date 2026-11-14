@@ -59,22 +59,6 @@ function Glows() {
   )
 }
 
-function ExploreButton({ big }: { big?: boolean }) {
-  return (
-    <Link
-      href="/search"
-      className={`group inline-flex items-center gap-1.5 rounded-full bg-ink font-bold text-white transition hover:bg-black active:scale-[0.97] ${
-        big ? 'h-12 px-6 text-[15px]' : 'h-10 px-4 text-[13px]'
-      }`}
-    >
-      Explore gifts
-      <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24" aria-hidden>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h13M13 6l6 6-6 6" />
-      </svg>
-    </Link>
-  )
-}
-
 export type SpotlightHeader = {
   locationLabel: string
   locationNote: string
@@ -135,20 +119,15 @@ export function HeroSpotlightPhone({ promise, header }: { promise: string; heade
         </Link>
       </div>
 
-      <div className="relative z-10 px-5 pt-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink/55">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          Delivered across Kathmandu
-        </p>
-        <h1 className="mt-1 text-[26px] font-extrabold leading-[1.1] tracking-tight text-ink">
+      <div className="relative z-10 flex items-end justify-between gap-3 px-5 pt-5">
+        <h1 className="whitespace-nowrap text-[24px] font-extrabold leading-[1.1] tracking-tight text-ink">
           Same-day <RotatingWord />
         </h1>
-        <div className="mt-2 flex items-center justify-between gap-3">
-          <p className="min-w-0 text-[12.5px] leading-snug text-ink/55">{promise}</p>
-          <ExploreButton />
-        </div>
+        <p className="max-w-[96px] pb-0.5 text-right text-[11px] font-medium leading-tight text-ink/55">{promise}</p>
       </div>
-      <DeliveryScene className="relative z-0 mt-1 block h-auto w-full" />
+      <Link href="/search" aria-label="Explore gifts" className="relative z-0 mt-1 block">
+        <DeliveryScene className="block h-auto w-full" />
+      </Link>
     </section>
   )
 }
@@ -159,11 +138,7 @@ export function HeroSpotlightDesktop({ promise }: { promise: string }) {
       <Glows />
       <div className="grid grid-cols-[0.9fr_1.1fr] items-center gap-8 py-8 pl-14 pr-8">
         <div>
-          <p className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.16em] text-ink/55">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-            Delivered across Kathmandu
-          </p>
-          <h1 className="mt-3 text-[52px] font-extrabold leading-[1.04] tracking-tight text-ink">
+          <h1 className="text-[52px] font-extrabold leading-[1.04] tracking-tight text-ink">
             Same-day
             <br />
             <RotatingWord />
@@ -171,11 +146,10 @@ export function HeroSpotlightDesktop({ promise }: { promise: string }) {
           <p className="mt-3 max-w-md text-[16px] leading-relaxed text-ink/60">
             Cakes, flowers and keepsakes, wrapped with care. {promise}.
           </p>
-          <div className="mt-6">
-            <ExploreButton big />
-          </div>
         </div>
-        <DeliveryScene className="h-auto w-full" />
+        <Link href="/search" aria-label="Explore gifts" className="block">
+          <DeliveryScene className="h-auto w-full" />
+        </Link>
       </div>
     </section>
   )

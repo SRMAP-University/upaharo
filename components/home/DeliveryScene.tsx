@@ -1,11 +1,19 @@
-import type { CSSProperties } from 'react'
+'use client'
+
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
 
 /**
- * The home hero's animated story (a 12 s loop, CSS only, see globals.css):
- * a rider leaves the Upaharo shop on a red scooter with a gift on the back,
- * rides past the hills and a stupa with prayer flags, stops at a house, the
- * gift hops to the doorstep, the door opens, hearts rise and a "Delivered"
- * badge pops up. Then it starts again. Drawn in the same line style as the
+ * The home hero's animated story (a 14 s loop, CSS only, see globals.css):
+ * a gift pops out of the Upaharo shop and hops onto the scooter; puffs of
+ * exhaust, a little wheelie and off it goes past the stupa, over a bump,
+ * braking at the house. The gift hops to the doorstep, the door opens, the
+ * receiver lifts it and jumps for joy, hearts rise, "Delivered" pops up, the
+ * rider waves and rides off, and the door closes. Then it starts again.
+ *
+ * Depth: three mountain layers (far snowy range, middle hills, near hills)
+ * plus the sun and clouds. On opening they rise into place one after the
+ * other; after that they move at different speeds when the page scrolls and,
+ * with a mouse, shift slightly with the pointer (parallax). Drawn in the same line style as the
  * category illustrations.
  */
 
@@ -61,27 +69,114 @@ function SmallGift({ x, y, s = 1 }: { x: number; y: number; s?: number }) {
   )
 }
 
-export default function DeliveryScene({ className = '' }: { className?: string }) {
+function Bird({ y, d, t }: { y: number; d: number; t: number }) {
   return (
-    <svg viewBox="0 14 360 142" className={className} fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {/* sky */}
-      <circle cx="322" cy="38" r="13" fill="#FFE7B0" />
-      <g className="sc-cloud" style={{ '--t': '17s' } as CSSProperties}>
-        <path d="M52 40a8 8 0 0 1 14-6 10 10 0 0 1 18 2 7 7 0 0 1 4 12H54a6 6 0 0 1-2-8z" fill="#fff" stroke="#F1D3D7" strokeWidth={1.2} />
+    <g className="sc-bird" style={{ '--d': `${d}s`, '--t': `${t}s` } as CSSProperties}>
+      <g transform={`translate(-24 ${y})`}>
+        <path className="sc-flap" d="M0 0q3-3.5 6 0q3-3.5 6 0" stroke={INK} strokeWidth={1.3} opacity="0.55" />
       </g>
-      <g className="sc-cloud" style={{ '--t': '21s', '--cx': '-16px' } as CSSProperties}>
-        <path d="M232 30a7 7 0 0 1 12-5 9 9 0 0 1 16 2 6 6 0 0 1 3 10h-29a5 5 0 0 1-2-7z" fill="#fff" stroke="#F1D3D7" strokeWidth={1.2} />
-      </g>
+    </g>
+  )
+}
 
-      {/* hills */}
-      <path
-        d="M0 118L30 98l18 8 34-34 22 18 20-10 26 20 26-16 22 12 34-34 30 30 26-10 30 22 42-14v56H0z"
-        fill="#FBE6E9"
-        stroke={SOFT_LINE}
-        strokeWidth={1.3}
-      />
-      <path d="M74 80l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
-      <path d="M224 70l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
+/** A layer that drifts with scroll (k) and the pointer (m), and rises in on load. */
+function Layer({ k, m, d, from, children }: { k: number; m: number; d: number; from: number; children: ReactNode }) {
+  return (
+    <g
+      style={{
+        transform: `translate(calc(var(--mx, 0) * ${m}px), calc(var(--py, 0) * ${k}px))`,
+      }}
+    >
+      <g className="sc-in" style={{ '--d': `${d}s`, '--from': `${from}px` } as CSSProperties}>
+        {children}
+      </g>
+    </g>
+  )
+}
+
+export default function DeliveryScene({ className = '' }: { className?: string }) {
+  const ref = useRef<SVGSVGElement>(null)
+
+  // Parallax: scroll (all devices) and pointer (mouse only). Off for reduced motion.
+  useEffect(() => {
+    const svg = ref.current
+    if (!svg || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    let frame = 0
+    const onScroll = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => svg.style.setProperty('--py', String(Math.min(window.scrollY, 420))))
+    }
+    const onPointer = (e: PointerEvent) => {
+      if (e.pointerType !== 'mouse') return
+      const x = (e.clientX / window.innerWidth) * 2 - 1
+      svg.style.setProperty('--mx', x.toFixed(3))
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('pointermove', onPointer, { passive: true })
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('pointermove', onPointer)
+    }
+  }, [])
+
+  return (
+    <svg ref={ref} viewBox="0 -26 360 182" className={className} fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {/* sun, behind everything */}
+      <Layer k={0.36} m={-2} d={0.1} from={30}>
+        <circle cx="298" cy="22" r="13" fill="#FFE2A6" />
+        <circle cx="298" cy="22" r="20" fill="#FFE2A6" opacity="0.35" />
+      </Layer>
+
+      {/* far range: snowy peaks */}
+      <Layer k={0.28} m={-4} d={0} from={40}>
+        <path
+          d="M0 80L22 62l16 8 24-36 18 16 18-8 22 18 26-30 24 22 20-8 24 20 26-38 22 20 22-8 22 20 28-22 26 18v72H0z"
+          fill="#F2E3EE"
+          stroke="#E3C6D6"
+          strokeWidth={1.1}
+        />
+        <path d="M55 44l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
+        <path d="M139 40l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
+        <path d="M233 36l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
+        <path d="M327 46l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
+      </Layer>
+
+      {/* clouds */}
+      <Layer k={0.22} m={-6} d={0.2} from={12}>
+        <g className="sc-cloud" style={{ '--t': '17s' } as CSSProperties}>
+          <path d="M52 34a8 8 0 0 1 14-6 10 10 0 0 1 18 2 7 7 0 0 1 4 12H54a6 6 0 0 1-2-8z" fill="#fff" stroke="#F1D3D7" strokeWidth={1.2} />
+        </g>
+        <g className="sc-cloud" style={{ '--t': '21s', '--cx': '-16px' } as CSSProperties}>
+          <path d="M214 18a7 7 0 0 1 12-5 9 9 0 0 1 16 2 6 6 0 0 1 3 10h-29a5 5 0 0 1-2-7z" fill="#fff" stroke="#F1D3D7" strokeWidth={1.2} />
+        </g>
+      </Layer>
+
+      {/* birds crossing the sky */}
+      <Bird y={24} d={0} t={16} />
+      <Bird y={32} d={1.2} t={16} />
+
+      {/* middle hills */}
+      <Layer k={0.16} m={-7} d={0.12} from={28}>
+        <path
+          d="M0 118L30 98l18 8 34-34 22 18 20-10 26 20 26-16 22 12 34-34 30 30 26-10 30 22 42-14v56H0z"
+          fill="#FBE6E9"
+          stroke={SOFT_LINE}
+          strokeWidth={1.3}
+        />
+        <path d="M74 80l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
+        <path d="M224 70l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
+      </Layer>
+
+      {/* near hills */}
+      <Layer k={0.07} m={-10} d={0.24} from={16}>
+        <path
+          d="M-10 130c30-14 62-16 96-6s62 8 92-4 64-14 98-2 56 10 94-4v40H-10z"
+          fill="#F7D8DE"
+          stroke="#EDBCC5"
+          strokeWidth={1.1}
+        />
+      </Layer>
 
       {/* stupa with prayer flags */}
       <g stroke="#D99AA2" strokeWidth={1.3}>
@@ -131,6 +226,11 @@ export default function DeliveryScene({ className = '' }: { className?: string }
       </text>
       <SmallGift x={26} y={102} s={0.7} />
 
+      {/* the gift coming out of the shop and hopping onto the scooter */}
+      <g className="sc-load">
+        <SmallGift x={58} y={130} />
+      </g>
+
       {/* the house */}
       <g stroke={INK} strokeWidth={1.6}>
         <rect x="278" y="92" width="66" height="54" fill="#FFF6EC" />
@@ -139,6 +239,16 @@ export default function DeliveryScene({ className = '' }: { className?: string }
         <rect x="324" y="104" width="13" height="15" fill={RED_SOFT} />
         <path d="M330.5 104v15M324 111.5h13" strokeWidth={1} />
         <rect x="292" y="108" width="20" height="38" fill="#5E3A2B" />
+      </g>
+      <g className="sc-person">
+        <path d="M296 146v-15c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5v15z" fill={GOLD} stroke={INK} strokeWidth={1.3} />
+        <circle cx="302" cy="119" r="4.6" fill={TAN} stroke={INK} strokeWidth={1.3} />
+        <path d="M297.5 117.5a4.8 4.8 0 0 1 9 0c-2-1-6.5-1-9 0z" fill={INK} />
+        <g className="sc-wave">
+          <path d="M307.5 130l5-8" stroke={INK} strokeWidth={2} />
+        </g>
+      </g>
+      <g stroke={INK} strokeWidth={1.6}>
         <rect className="sc-door" x="292" y="108" width="20" height="38" fill="#9A6A50" />
         <rect x="287" y="145" width="30" height="2.5" fill={RED_SOFT} stroke="none" />
       </g>
@@ -166,6 +276,9 @@ export default function DeliveryScene({ className = '' }: { className?: string }
           <g className="sc-speed" stroke={INK} strokeWidth={1.4} opacity="0.35">
             <path d="M-30-22h10M-34-14h12M-28-6h8" />
           </g>
+          <circle className="sc-puff" cx="-16" cy="-5" r="3.2" fill="#fff" stroke={INK} strokeWidth={1} />
+          <circle className="sc-puff sc-puff-2" cx="-14" cy="-9" r="2.4" fill="#fff" stroke={INK} strokeWidth={1} />
+          <g className="sc-lean">
           <g className="sc-bob" stroke={INK} strokeWidth={1.6}>
             <g className="sc-rackbox">
               <SmallGift x={-15} y={-40} />
@@ -174,6 +287,11 @@ export default function DeliveryScene({ className = '' }: { className?: string }
             <path d="M10-24l11 9 7 7" strokeWidth={3.2} />
             <path d="M5-24c-1-8 3-18 9-20l6 2c0 8-3 15-6 18z" fill={JACKET} />
             <path d="M16-40l13 6 8-2" strokeWidth={2.2} />
+            <g className="sc-rwave">
+              <g className="sc-wave-r">
+                <path d="M17-41l-5-11" strokeWidth={2.2} />
+              </g>
+            </g>
             <circle cx="16" cy="-50" r="6" fill={TAN} />
             <path d="M9.6-50a6.6 6.6 0 0 1 12.8 0l-.4 2H10z" fill={RED} />
             <path d="M19-49.5h3.5" stroke="#fff" strokeWidth={1.2} />
@@ -188,6 +306,7 @@ export default function DeliveryScene({ className = '' }: { className?: string }
           </g>
           <Wheel x={0} />
           <Wheel x={40} />
+          </g>
         </g>
       </g>
     </svg>
