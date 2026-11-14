@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { APP_PROMPT_EVENT } from '@/components/AppDownloadReminder'
 import { isInApp } from '@/lib/app-bridge'
 import { resolveImageUrl } from '@/lib/image-url'
 import { clearShopperMemory, getShopperSignals, MEMORY_EVENT } from '@/lib/shopper-memory'
@@ -117,6 +118,13 @@ export default function ShopAssistant() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const cartCount = useCartStore((s) => s.items.length)
+  // The "Download the app" pop-up sits in the same corner: step aside while it shows.
+  const [appPrompt, setAppPrompt] = useState(false)
+  useEffect(() => {
+    const onPrompt = (e: Event) => setAppPrompt(Boolean((e as CustomEvent<boolean>).detail))
+    window.addEventListener(APP_PROMPT_EVENT, onPrompt)
+    return () => window.removeEventListener(APP_PROMPT_EVENT, onPrompt)
+  }, [])
   const bodyRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -221,7 +229,7 @@ export default function ShopAssistant() {
   return (
     <>
       {/* Launcher */}
-      {!open ? (
+      {!open && !appPrompt ? (
         <button
           type="button"
           onClick={() => setOpen(true)}

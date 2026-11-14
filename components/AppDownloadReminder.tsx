@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 
 const STORAGE_KEY = 'upaharo-app-download-dismissed'
+/** Fired with detail true/false when the pop-up shows or hides (the shop helper steps aside). */
+export const APP_PROMPT_EVENT = 'upaharo-app-prompt'
 const DISMISS_DAYS = 5
 
 function shouldHide(pathname: string) {
@@ -35,7 +37,13 @@ export default function AppDownloadReminder() {
     return () => window.clearTimeout(timer)
   }, [pathname])
 
-  if (shouldHide(pathname) || !visible) return null
+  const shown = visible && !shouldHide(pathname)
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent(APP_PROMPT_EVENT, { detail: shown }))
+  }, [shown])
+  useEffect(() => () => void window.dispatchEvent(new CustomEvent(APP_PROMPT_EVENT, { detail: false })), [])
+
+  if (!shown) return null
 
   return (
     <div className="fixed inset-x-3 bottom-[5.5rem] z-[45] lg:inset-x-auto lg:bottom-6 lg:right-6 lg:w-[380px]">
