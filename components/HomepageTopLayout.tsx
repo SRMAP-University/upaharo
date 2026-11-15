@@ -537,7 +537,7 @@ export default function HomepageTopLayout({
             />
             <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
               <CategoryShowcase categories={spotlight.categories} />
-              <div className="mt-5">
+              <div className="mt-4">
                 <PlayWinCard />
               </div>
               {showBanner && banners.length > 0 ? (
@@ -756,7 +756,7 @@ export default function HomepageTopLayout({
               <div className="mx-auto max-w-7xl px-6 pt-10 xl:px-8">
                 <h2 className="mb-4 text-[28px] font-extrabold tracking-tight text-ink">Shop by category</h2>
                 <CategoryShowcase categories={spotlight.categories} />
-                <div className="mt-8">
+                <div className="mt-6">
                   <PlayWinCard />
                 </div>
               </div>

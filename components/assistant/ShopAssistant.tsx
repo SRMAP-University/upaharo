@@ -53,6 +53,23 @@ function Sparkle({ className = 'h-5 w-5' }: { className?: string }) {
   )
 }
 
+/** The mascot's face (red gift box, gold bow), used as the helper's avatar. */
+function MascotFace({ className = 'h-10 w-10' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <rect x="9" y="19" width="30" height="23" rx="5" fill="#E8322B" stroke="#2A2024" strokeWidth="2" />
+      <rect x="7" y="14" width="34" height="8" rx="3" fill="#F0544D" stroke="#2A2024" strokeWidth="2" />
+      <rect x="22" y="14" width="4" height="28" fill="#F5B83D" />
+      <path d="M24 14c-4-7-12-8-11-3 1 3 7 3 11 3zM24 14c4-7 12-8 11-3-1 3-7 3-11 3z" fill="#F5B83D" stroke="#2A2024" strokeWidth="1.6" />
+      <circle cx="17" cy="29" r="2.2" fill="#2A2024" />
+      <circle cx="31" cy="29" r="2.2" fill="#2A2024" />
+      <circle cx="13.5" cy="33" r="2.2" fill="#FFC0D4" />
+      <circle cx="34.5" cy="33" r="2.2" fill="#FFC0D4" />
+      <path d="M20.5 33.5c1.8 2 5.2 2 7 0" stroke="#2A2024" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function MiniCard({ product, onOpen }: { product: Product; onOpen: () => void }) {
   const addItem = useCartStore((s) => s.addItem)
   const inCart = useCartStore((s) => s.items.some((i) => i.id === product.id))
@@ -118,6 +135,9 @@ export default function ShopAssistant() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const cartCount = useCartStore((s) => s.items.length)
+  // The floating mascot is the helper's face: when it is on screen, its tap
+  // opens the helper and this separate button stays hidden.
+  const [mascotShown, setMascotShown] = useState(false)
   // The "Download the app" pop-up sits in the same corner: step aside while it shows.
   const [appPrompt, setAppPrompt] = useState(false)
   useEffect(() => {
@@ -177,6 +197,34 @@ export default function ShopAssistant() {
     setOpen(false)
   }, [pathname])
 
+  // Open from the mascot.
+  useEffect(() => {
+    const openFromMascot = () => setOpen(true)
+    window.addEventListener('upaharo-open-helper', openFromMascot)
+    return () => window.removeEventListener('upaharo-open-helper', openFromMascot)
+  }, [])
+
+  // Is a mascot visible on this page (phone bar or desktop bar)?
+  useEffect(() => {
+    const check = () =>
+      setMascotShown(
+        Array.from(document.querySelectorAll<HTMLElement>('[data-upaharo-mascot]')).some(
+          (el) => el.getClientRects().length > 0 && el.offsetParent !== null
+        )
+      )
+    const soon = () => window.setTimeout(check, 60)
+    const first = window.setTimeout(check, 400)
+    const again = window.setTimeout(check, 1500)
+    window.addEventListener('resize', check)
+    window.addEventListener('upaharo-mascot', soon)
+    return () => {
+      window.clearTimeout(first)
+      window.clearTimeout(again)
+      window.removeEventListener('resize', check)
+      window.removeEventListener('upaharo-mascot', soon)
+    }
+  }, [pathname])
+
   useEffect(() => {
     bodyRef.current?.scrollTo({ top: bodyRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, sending])
@@ -229,7 +277,7 @@ export default function ShopAssistant() {
   return (
     <>
       {/* Launcher */}
-      {!open && !appPrompt ? (
+      {!open && !appPrompt && !mascotShown ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -252,8 +300,8 @@ export default function ShopAssistant() {
           <div className="absolute inset-x-0 bottom-0 top-[6vh] flex flex-col overflow-hidden rounded-t-[28px] bg-white lg:pointer-events-auto lg:inset-auto lg:bottom-6 lg:right-6 lg:top-auto lg:h-[min(680px,calc(100vh-48px))] lg:w-[400px] lg:rounded-[28px] lg:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.45)] lg:ring-1 lg:ring-ink/[0.06]">
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-ink/[0.06] px-4 py-3.5">
-              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-brand text-white">
-                <Sparkle />
+              <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-brand-soft">
+                <MascotFace className="h-9 w-9" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-[16px] font-extrabold leading-tight text-ink">Upaharo helper</p>

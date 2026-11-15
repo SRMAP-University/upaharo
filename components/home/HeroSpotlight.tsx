@@ -3,7 +3,9 @@
 import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
 import BrandLogo from '@/components/BrandLogo'
-import DeliveryScene from '@/components/home/DeliveryScene'
+import DeliveryScene, { type SceneWeather } from '@/components/home/DeliveryScene'
+import WeatherOverlay, { heroPalette } from '@/components/home/WeatherOverlay'
+import { useLocationStore } from '@/lib/store/location'
 
 /**
  * Home hero, kept compact: "Same-day <cakes/flowers/gifts>" (the word
@@ -59,6 +61,37 @@ function Glows() {
   )
 }
 
+const SCENES = ['clear', 'clouds', 'rain', 'storm', 'snow', 'fog'] as const
+
+/** Live weather for the hero scene. `?weather=rain` (or `&night=1`) previews one. */
+function useHeroWeather(): SceneWeather | undefined {
+  const delivery = useLocationStore((s) => s.deliveryAddress)
+  const current = useLocationStore((s) => s.currentLocation)
+  const [weather, setWeather] = useState<SceneWeather>()
+  const lat = delivery?.latitude ?? current?.latitude
+  const lng = delivery?.longitude ?? current?.longitude
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const preview = params.get('weather')
+    if (preview && (SCENES as readonly string[]).includes(preview)) {
+      setWeather({ scene: preview as SceneWeather['scene'], night: params.get('night') === '1' })
+      return
+    }
+    let cancelled = false
+    const query = lat != null && lng != null ? `?lat=${lat}&lng=${lng}` : ''
+    fetch(`/api/weather${query}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.scene) setWeather({ scene: data.scene, night: Boolean(data.night) })
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [lat, lng])
+  return weather
+}
+
 export type SpotlightHeader = {
   locationLabel: string
   locationNote: string
@@ -70,23 +103,44 @@ export type SpotlightHeader = {
 
 const PILL = 'bg-white shadow-[0_6px_16px_-10px_rgba(90,30,40,0.35)] ring-1 ring-ink/[0.04]'
 
+/** Phone address bar: hero pink at the top of the page, white once scrolled past it. */
+function useThemeColourOnScroll(top: string) {
+  useEffect(() => {
+    const set = (colour: string) => {
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+      if (meta && meta.content !== colour) meta.content = colour
+    }
+    const onScroll = () => set(window.scrollY > 260 ? '#ffffff' : top)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [top])
+}
+
 export function HeroSpotlightPhone({ promise, header }: { promise: string; header: SpotlightHeader }) {
+  const weather = useHeroWeather()
+  const palette = heroPalette(weather)
+  useThemeColourOnScroll(palette.from)
   return (
-    <section className="relative isolate overflow-hidden rounded-b-[28px] bg-gradient-to-b from-[#FFF6F3] to-[#FDEBEE]">
-      <Glows />
-      <div className="relative z-10 flex items-center gap-2 px-4 pt-3">
+    <section
+      className="relative isolate overflow-hidden rounded-b-[28px] transition-colors duration-700"
+      style={{ backgroundImage: `linear-gradient(to bottom, ${palette.from}, ${palette.to})` }}
+    >
+      {weather?.scene === 'clear' || !weather ? <Glows /> : null}
+      <WeatherOverlay w={weather} fall={360} />
+      <div className="relative z-10 flex items-center gap-2 px-4 pt-[calc(12px+env(safe-area-inset-top))]">
         <button type="button" onClick={header.onLocation} className="flex min-w-0 flex-1 items-center gap-2.5 text-left">
           <span className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl ${PILL}`}>
             <BrandLogo size={30} />
           </span>
           <span className="min-w-0">
-            <span className="flex items-center gap-1 text-[15px] font-extrabold text-ink">
+            <span className={`flex items-center gap-1 text-[15px] font-extrabold ${palette.dark ? 'text-white' : 'text-ink'}`}>
               <span className="truncate">{header.locationLabel}</span>
               <svg className="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2.4} viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="m19 9-7 7-7-7" />
               </svg>
             </span>
-            <span className="block truncate text-[12px] text-ink/55">{header.locationNote}</span>
+            <span className={`block truncate text-[12px] ${palette.dark ? 'text-white/65' : 'text-ink/55'}`}>{header.locationNote}</span>
           </span>
         </button>
         <div className={`flex h-11 flex-shrink-0 items-center rounded-2xl px-1 ${PILL}`}>
@@ -120,35 +174,41 @@ export function HeroSpotlightPhone({ promise, header }: { promise: string; heade
       </div>
 
       <div className="relative z-10 flex items-end justify-between gap-3 px-5 pt-5">
-        <h1 className="whitespace-nowrap text-[24px] font-extrabold leading-[1.1] tracking-tight text-ink">
+        <h1 className={`whitespace-nowrap text-[24px] font-extrabold leading-[1.1] tracking-tight ${palette.dark ? 'text-white' : 'text-ink'}`}>
           Same-day <RotatingWord />
         </h1>
-        <p className="max-w-[96px] pb-0.5 text-right text-[11px] font-medium leading-tight text-ink/55">{promise}</p>
+        <p className={`max-w-[96px] pb-0.5 text-right text-[11px] font-medium leading-tight ${palette.dark ? 'text-white/65' : 'text-ink/55'}`}>{promise}</p>
       </div>
       <Link href="/search" aria-label="Explore gifts" className="relative z-0 mt-1 block">
-        <DeliveryScene className="block h-auto w-full" />
+        <DeliveryScene className="block h-auto w-full" weather={weather} />
       </Link>
     </section>
   )
 }
 
 export function HeroSpotlightDesktop({ promise }: { promise: string }) {
+  const weather = useHeroWeather()
+  const palette = heroPalette(weather)
   return (
-    <section className="relative isolate overflow-hidden rounded-[32px] bg-gradient-to-br from-[#FFF6F3] via-[#FFF1EF] to-[#FDE8EC]">
-      <Glows />
+    <section
+      className="relative isolate overflow-hidden rounded-[32px]"
+      style={{ backgroundImage: `linear-gradient(135deg, ${palette.from}, ${palette.to})` }}
+    >
+      {weather?.scene === 'clear' || !weather ? <Glows /> : null}
+      <WeatherOverlay w={weather} fall={440} />
       <div className="grid grid-cols-[0.9fr_1.1fr] items-center gap-8 py-8 pl-14 pr-8">
         <div>
-          <h1 className="text-[52px] font-extrabold leading-[1.04] tracking-tight text-ink">
+          <h1 className={`text-[52px] font-extrabold leading-[1.04] tracking-tight ${palette.dark ? 'text-white' : 'text-ink'}`}>
             Same-day
             <br />
             <RotatingWord />
           </h1>
-          <p className="mt-3 max-w-md text-[16px] leading-relaxed text-ink/60">
+          <p className={`mt-3 max-w-md text-[16px] leading-relaxed ${palette.dark ? 'text-white/70' : 'text-ink/60'}`}>
             Cakes, flowers and keepsakes, wrapped with care. {promise}.
           </p>
         </div>
         <Link href="/search" aria-label="Explore gifts" className="block">
-          <DeliveryScene className="h-auto w-full" />
+          <DeliveryScene className="h-auto w-full" weather={weather} />
         </Link>
       </div>
     </section>

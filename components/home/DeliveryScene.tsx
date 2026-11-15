@@ -94,7 +94,32 @@ function Layer({ k, m, d, from, children }: { k: number; m: number; d: number; f
   )
 }
 
-export default function DeliveryScene({ className = '' }: { className?: string }) {
+export type SceneWeather = { scene: 'clear' | 'clouds' | 'rain' | 'storm' | 'snow' | 'fog'; night: boolean }
+
+
+/** The moon at night (stars, rain, snow and fog cover the whole hero; see WeatherOverlay). */
+function WeatherSky({ w }: { w: SceneWeather }) {
+  if (!w.night) return null
+  return <path d="M300 10a13 13 0 1 0 12 18 10 10 0 1 1-12-18z" fill="#FFF3C4" stroke="#E9D48A" strokeWidth={1} />
+}
+
+/** A storm's lightning bolt and puddle splashes on the road when it rains. */
+function WeatherFront({ w }: { w: SceneWeather }) {
+  if (w.scene !== 'rain' && w.scene !== 'storm') return null
+  return (
+    <g>
+      {[40, 120, 205, 300].map((x, i) => (
+        <ellipse key={x} className="sc-splash" cx={x} cy="150" rx="5" ry="1.4" stroke="#7D93C9" strokeWidth={0.8} style={{ '--d': `${i * 0.35}s` } as CSSProperties} />
+      ))}
+      {w.scene === 'storm' ? (
+        <path className="sc-bolt" d="M232 -6l-8 18h7l-6 16 14-21h-7l6-13z" fill="#FFE38A" stroke="#E0A92E" strokeWidth={1} />
+      ) : null}
+    </g>
+  )
+}
+
+export default function DeliveryScene({ className = '', weather }: { className?: string; weather?: SceneWeather }) {
+  const w: SceneWeather = weather ?? { scene: 'clear', night: false }
   const ref = useRef<SVGSVGElement>(null)
 
   // Parallax: scroll (all devices) and pointer (mouse only). Off for reduced motion.
@@ -122,11 +147,24 @@ export default function DeliveryScene({ className = '' }: { className?: string }
 
   return (
     <svg ref={ref} viewBox="0 -26 360 182" className={className} fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {/* sun, behind everything */}
-      <Layer k={0.36} m={-2} d={0.1} from={30}>
-        <circle cx="298" cy="22" r="13" fill="#FFE2A6" />
-        <circle cx="298" cy="22" r="20" fill="#FFE2A6" opacity="0.35" />
-      </Layer>
+      <defs>
+        <linearGradient id="sc-night-land" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#1E2250" stopOpacity="0" />
+          <stop offset="0.35" stopColor="#1E2250" stopOpacity="0.28" />
+          <stop offset="1" stopColor="#1E2250" stopOpacity="0.32" />
+        </linearGradient>
+      </defs>
+      <WeatherSky w={w} />
+
+      {/* sun, behind everything (dimmed behind clouds, gone at night) */}
+      {!w.night ? (
+        <Layer k={0.36} m={-2} d={0.1} from={30}>
+          <g opacity={w.scene === 'clear' ? 1 : w.scene === 'clouds' || w.scene === 'fog' ? 0.45 : 0}>
+            <circle cx="298" cy="22" r="13" fill="#FFE2A6" />
+            <circle cx="298" cy="22" r="20" fill="#FFE2A6" opacity="0.35" />
+          </g>
+        </Layer>
+      ) : null}
 
       {/* far range: snowy peaks */}
       <Layer k={0.28} m={-4} d={0} from={40}>
@@ -152,9 +190,33 @@ export default function DeliveryScene({ className = '' }: { className?: string }
         </g>
       </Layer>
 
-      {/* birds crossing the sky */}
-      <Bird y={24} d={0} t={16} />
-      <Bird y={32} d={1.2} t={16} />
+      {w.scene !== 'clear' && w.scene !== 'fog' ? (
+        <Layer k={0.2} m={-5} d={0.25} from={10}>
+          {[
+            [28, 6, 1],
+            [150, -4, 1.2],
+            [262, 10, 1],
+          ].map(([cx, cy, s]) => (
+            <g key={cx} className="sc-cloud" style={{ '--t': `${15 + cx / 40}s` } as CSSProperties}>
+              <path
+                transform={`translate(${cx} ${cy}) scale(${s})`}
+                d="M0 12a9 9 0 0 1 16-7 11 11 0 0 1 20 2 8 8 0 0 1 5 13H2a7 7 0 0 1-2-8z"
+                fill={w.scene === 'storm' ? '#AEB6CB' : '#D9DEE9'}
+                stroke={w.scene === 'storm' ? '#8A94AE' : '#C2C9D8'}
+                strokeWidth={1.1}
+              />
+            </g>
+          ))}
+        </Layer>
+      ) : null}
+
+      {/* birds crossing the sky (not in bad weather or at night) */}
+      {w.scene === 'clear' && !w.night ? (
+        <>
+          <Bird y={24} d={0} t={16} />
+          <Bird y={32} d={1.2} t={16} />
+        </>
+      ) : null}
 
       {/* middle hills */}
       <Layer k={0.16} m={-7} d={0.12} from={28}>
@@ -309,6 +371,8 @@ export default function DeliveryScene({ className = '' }: { className?: string }
           </g>
         </g>
       </g>
+      <WeatherFront w={w} />
+      {w.night ? <rect x="-10" y="-30" width="380" height="190" fill="url(#sc-night-land)" pointerEvents="none" /> : null}
     </svg>
   )
 }

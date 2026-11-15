@@ -185,7 +185,7 @@ export function pageMascotScript(pathname: string, cartCount: number): MascotScr
   let lines: string[] = []
 
   if (path === '/') {
-    lines = ['Psst… try AI search. Just tell me who it’s for!', 'Need ideas? Flowers + chocolate never miss 💐🍫']
+    lines = ['Tap me! I can find the perfect gift ✨', 'Need ideas? Flowers + chocolate never miss 💐🍫']
   } else if (path.startsWith('/search')) {
     lines = ['Tell me who it’s for. I’ll help you find it!', 'Try “flowers under 2000 for mom” 💐']
   } else if (path.startsWith('/cart')) {
@@ -205,6 +205,8 @@ export function pageMascotScript(pathname: string, cartCount: number): MascotScr
     lines = ['Looking good! 😎']
   }
 
+  // Every page: a reminder that the mascot is the gift helper.
+  lines = [...lines, 'Not sure what to send? Tap me and ask ✨']
   return { lines, added: DEFAULT_ADDED }
 }
 

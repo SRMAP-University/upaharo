@@ -1,3 +1,4 @@
+import type { Viewport } from 'next'
 import Link from 'next/link'
 import BrandLogo from '@/components/BrandLogo'
 import { headers } from 'next/headers'
@@ -26,6 +27,13 @@ import { contextLeadingFeed } from '@/lib/context-recommendations'
 import { formatPriceNoDecimals } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
+
+/** Phone address bar / app status bar: the hero's soft pink on the gifts store. */
+export async function generateViewport(): Promise<Viewport> {
+  const host = (await headers()).get('host')?.toLowerCase() || ''
+  const grocery = host.startsWith('grocery.') || host.includes('grocery.upaharo')
+  return { themeColor: grocery ? '#ffffff' : '#FFF6F3' }
+}
 export const revalidate = 0
 
 async function getHomeData() {

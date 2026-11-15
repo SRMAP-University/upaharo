@@ -21,8 +21,8 @@ export type ShowcaseCategory = {
 const TINTS = ['#FDECEA', '#FFF3DC', '#EEF0FB', '#E8F5EF', '#F5EEFB', '#FFEDE4']
 
 const SAME_DAY = /cake|flower|bouquet|rose/i
-// Two rows before "View all": 4 per row on phones and on desktop.
-const INITIAL = 8
+// Two rows before "View all": 5 per row on phones and on desktop.
+const INITIAL = 10
 
 export default function CategoryShowcase({ categories }: { categories: ShowcaseCategory[] }) {
   const [all, setAll] = useState(false)
@@ -32,7 +32,7 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
   return (
     <div>
       {/* Phone: small tiles */}
-      <div className="grid grid-cols-4 gap-x-2.5 gap-y-3.5 lg:hidden">
+      <div className="grid grid-cols-5 gap-x-2 gap-y-3 lg:hidden">
         {shown.map((c, i) => {
           const off = Math.round(c.maxDiscount)
           return (
@@ -43,17 +43,17 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
               style={{ '--d': `${Math.min(i, 8) * 40}ms` } as CSSProperties}
             >
               <span
-                className="relative flex aspect-square w-full items-center justify-center rounded-[18px] ring-1 ring-ink/[0.05]"
+                className="relative flex aspect-square w-full items-center justify-center rounded-[15px] ring-1 ring-ink/[0.05]"
                 style={{ backgroundColor: TINTS[i % TINTS.length] }}
               >
-                <CategoryArt name={c.name} className="h-[78%] w-[78%]" />
+                <CategoryArt name={c.name} className="h-[80%] w-[80%]" />
                 {off >= 10 ? (
-                  <span className="absolute -right-1 -top-1 rounded-full bg-brand px-1.5 py-[1px] text-[9.5px] font-bold text-white ring-2 ring-white">
-                    {off}% off
+                  <span className="absolute -right-1.5 -top-1.5 rounded-full bg-brand px-1 py-[1px] text-[8.5px] font-bold leading-tight text-white ring-2 ring-white">
+                    -{off}%
                   </span>
                 ) : null}
               </span>
-              <span className="mt-1.5 line-clamp-2 w-full text-center text-[11.5px] font-semibold leading-tight text-ink">
+              <span className="mt-1 line-clamp-2 w-full text-center text-[10px] font-semibold leading-tight tracking-[-0.01em] text-ink">
                 {c.shortName || c.name}
               </span>
             </Link>
@@ -62,7 +62,7 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
       </div>
 
       {/* Desktop: larger cards */}
-      <div className="hidden grid-cols-4 gap-5 lg:grid">
+      <div className="hidden grid-cols-5 gap-4 lg:grid">
         {shown.map((c, i) => {
           const off = Math.round(c.maxDiscount)
           const sameDay = SAME_DAY.test(c.name)
@@ -70,11 +70,11 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
             <Link
               key={c.id}
               href={`/categories/${c.id}`}
-              className={`block hs-rise group relative h-[148px] overflow-hidden rounded-[24px] bg-white ring-1 ring-ink/[0.07] transition hover:ring-ink/[0.14] active:scale-[0.98] lg:h-[184px] lg:rounded-[28px]`}
+              className={`block hs-rise group relative h-[148px] overflow-hidden rounded-[24px] bg-white ring-1 ring-ink/[0.07] transition hover:ring-ink/[0.14] active:scale-[0.98] lg:h-[168px] lg:rounded-[26px]`}
               style={{ '--d': `${Math.min(i, 8) * 60}ms` } as CSSProperties}
             >
               <div className="relative z-10 p-4 lg:p-5">
-                <p className="line-clamp-2 max-w-[70%] text-[17px] font-semibold leading-[1.2] text-ink lg:text-[20px]">
+                <p className="line-clamp-2 max-w-[70%] text-[17px] font-semibold leading-[1.2] text-ink lg:text-[18px]">
                   {c.shortName || c.name}
                 </p>
                 {sameDay || off >= 10 ? (
@@ -92,12 +92,12 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
 
               <span
                 aria-hidden
-                className="absolute -bottom-7 -right-7 h-[118px] w-[118px] rounded-full transition-transform duration-500 group-hover:scale-105 lg:h-[146px] lg:w-[146px]"
+                className="absolute -bottom-7 -right-7 h-[118px] w-[118px] rounded-full transition-transform duration-500 group-hover:scale-105 lg:h-[128px] lg:w-[128px]"
                 style={{ backgroundColor: TINTS[i % TINTS.length] }}
               />
               <CategoryArt
                 name={c.name}
-                className="absolute bottom-1 right-1 h-[86px] w-[86px] transition-transform duration-500 group-hover:-translate-y-1 lg:bottom-2 lg:right-2 lg:h-[108px] lg:w-[108px]"
+                className="absolute bottom-1 right-1 h-[86px] w-[86px] transition-transform duration-500 group-hover:-translate-y-1 lg:bottom-2 lg:right-2 lg:h-[92px] lg:w-[92px]"
               />
             </Link>
           )

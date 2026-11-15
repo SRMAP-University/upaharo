@@ -449,6 +449,8 @@ function GiftBuddy({ className = '', hidden = false, script, scriptKey }: NavMas
   const onTap = () => {
     const now = Date.now()
     lastActivityRef.current = now
+    // The mascot is the Upaharo helper: a tap opens it (after a little hop).
+    later(() => window.dispatchEvent(new Event('upaharo-open-helper')), 260)
     if (live.current.asleep) {
       wake(false)
       return
@@ -613,10 +615,19 @@ function GiftBuddy({ className = '', hidden = false, script, scriptKey }: NavMas
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Tell the helper a mascot is on screen (it then hides its own button).
+  useEffect(() => {
+    window.dispatchEvent(new Event('upaharo-mascot'))
+    return () => {
+      window.setTimeout(() => window.dispatchEvent(new Event('upaharo-mascot')), 0)
+    }
+  }, [])
+
   const shownFace: Face = asleep && face === 'idle' ? 'sleep' : face
 
   return (
     <motion.div
+      data-upaharo-mascot
       className={`pointer-events-none absolute -z-10 h-11 w-11 ${className}`}
       initial={false}
       animate={{ y: hidden ? 56 : 7, opacity: hidden ? 0 : 1 }}
@@ -632,7 +643,7 @@ function GiftBuddy({ className = '', hidden = false, script, scriptKey }: NavMas
             ref={buttonRef}
             type="button"
             onClick={onTap}
-            aria-label={asleep ? 'Gift buddy is napping — tap to wake it' : 'Gift buddy — tap to say hi'}
+            aria-label={asleep ? 'Upaharo helper is napping — tap to ask for gift ideas' : 'Upaharo helper — tap to ask for gift ideas'}
             className="pointer-events-auto block h-full w-full touch-manipulation select-none outline-none [-webkit-tap-highlight-color:transparent] focus-visible:rounded-full focus-visible:ring-2 focus-visible:ring-blush/60"
             animate={spin}
           >

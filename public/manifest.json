@@ -4,8 +4,8 @@
   "description": "Send flowers, cakes, and gifts across Nepal with same-day delivery. Express your love with personalized gifts.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#FFF6F3",
+  "theme_color": "#FFF6F3",
   "orientation": "portrait",
   "scope": "/",
   "icons": [

@@ -499,3 +499,70 @@ select:focus {
   .sc-rackbox { animation: none !important; opacity: 1; }
   .sc-speed, .sc-puff, .sc-load, .sc-drop, .sc-person, .sc-heart, .sc-badge, .sc-rwave, .sc-bird { animation: none !important; opacity: 0; }
 }
+
+/* Hero weather: rain, storm, snow, fog, stars. */
+@keyframes sc-rain {
+  from { transform: translate(0, -30px); }
+  to { transform: translate(-14px, 190px); }
+}
+@keyframes sc-splash {
+  0%, 60% { transform: scale(0.2); opacity: 0; }
+  70% { opacity: 0.8; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+@keyframes sc-snow {
+  from { transform: translate(0, -30px); }
+  50% { transform: translate(8px, 70px); }
+  to { transform: translate(-4px, 180px); }
+}
+@keyframes sc-fog {
+  0%, 100% { transform: translateX(-20px); }
+  50% { transform: translateX(30px); }
+}
+@keyframes sc-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+@keyframes sc-lightning {
+  0%, 88%, 91%, 93%, 100% { opacity: 0; }
+  89%, 92% { opacity: 0.55; }
+}
+.sc-rain { animation: sc-rain var(--t, 0.8s) linear var(--d, 0s) infinite; }
+.sc-splash { transform-box: fill-box; transform-origin: center; opacity: 0; animation: sc-splash 1.4s ease-out var(--d, 0s) infinite; }
+.sc-snow { animation: sc-snow 6s linear var(--d, 0s) infinite; }
+.sc-fog { animation: sc-fog 14s ease-in-out var(--d, 0s) infinite; }
+.sc-twinkle { animation: sc-twinkle 2.6s ease-in-out var(--d, 0s) infinite; }
+.sc-lightning { opacity: 0; animation: sc-lightning 7s linear infinite; pointer-events: none; }
+.sc-bolt { opacity: 0; animation: sc-lightning 7s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .sc-rain, .sc-splash, .sc-snow, .sc-fog, .sc-twinkle { animation: none !important; }
+  .sc-lightning, .sc-bolt { animation: none !important; opacity: 0; }
+}
+
+/* Whole-hero weather overlay (rain, storm flash, snow, fog, stars). */
+@keyframes hw-drop {
+  from { transform: translate3d(0, 0, 0) rotate(12deg); }
+  to { transform: translate3d(-40px, var(--fall, 380px), 0) rotate(12deg); }
+}
+@keyframes hw-flake {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(var(--x, 8px), calc(var(--fall, 380px) * 0.5), 0); }
+  100% { transform: translate3d(0, var(--fall, 380px), 0); }
+}
+@keyframes hw-fog {
+  0%, 100% { transform: translateX(-6%); }
+  50% { transform: translateX(6%); }
+}
+@keyframes hw-flash {
+  0%, 86%, 89%, 91%, 100% { opacity: 0; }
+  87%, 90% { opacity: 0.5; }
+}
+.hw-drop { animation: hw-drop var(--t, 0.85s) linear var(--d, 0s) infinite; }
+.hw-flake { animation: hw-flake 7s linear var(--d, 0s) infinite; }
+.hw-fog { animation: hw-fog 16s ease-in-out var(--d, 0s) infinite; }
+.hw-flash { opacity: 0; animation: hw-flash 7s linear infinite; }
+.hw-star { animation: sc-twinkle 2.6s ease-in-out var(--d, 0s) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hw-drop, .hw-flake, .hw-fog, .hw-star { animation: none !important; }
+  .hw-flash { animation: none !important; opacity: 0; }
+}
