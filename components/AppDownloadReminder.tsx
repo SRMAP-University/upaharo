@@ -16,7 +16,8 @@ function shouldHide(pathname: string) {
     pathname.startsWith('/b2b') ||
     pathname.startsWith('/bill/') ||
     pathname.startsWith('/b/') ||
-    pathname.startsWith('/app-features/')
+    pathname.startsWith('/app-features/') ||
+    pathname.startsWith('/play')
   )
 }
 

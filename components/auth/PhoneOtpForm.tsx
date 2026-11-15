@@ -48,13 +48,24 @@ export default function PhoneOtpForm() {
   const phoneDigits = phone.replace(/\D/g, '').slice(0, 10)
   const phoneLooksValid = phoneDigits.length === 10
 
+  /** Where to go after signing in: ?next=/some/path on this site, else home. */
+  const nextPath = () => {
+    try {
+      const next = new URLSearchParams(window.location.search).get('next') || ''
+      // Only paths on this site: "/x", never "//host" or "/\host".
+      return /^\/(?![/\\])/.test(next) ? next : '/'
+    } catch {
+      return '/'
+    }
+  }
+
   const afterAuth = async () => {
     const sessionRes = await fetch('/api/auth/session')
     const session = await sessionRes.json()
     if (session?.user?.role === 'ADMIN') {
       router.push('/admin')
     } else {
-      router.push('/')
+      router.push(nextPath())
     }
     router.refresh()
   }
@@ -192,7 +203,7 @@ export default function PhoneOtpForm() {
         setError(configError)
         return
       }
-      await signIn('google', { callbackUrl: '/' })
+      await signIn('google', { callbackUrl: nextPath() })
     } catch {
       setError('Failed to sign in with Google')
     } finally {

@@ -36,7 +36,7 @@ type Profile = {
 type Message = { role: 'user' | 'assistant'; content: string; products?: Product[] }
 
 // Pages where the helper stays out of the way.
-const HIDDEN_ON = /^\/(admin|seller|bill|checkout|app-features|login|auth|account-deletion|b2b|bhai-tika)(\/|$)/
+const HIDDEN_ON = /^\/(admin|seller|bill|checkout|app-features|login|auth|account-deletion|b2b|bhai-tika|play)(\/|$)/
 // Pages with their own bottom buttons: no launcher on phones there.
 const DESKTOP_ONLY_ON = /^\/(products|cart)(\/|$)/
 

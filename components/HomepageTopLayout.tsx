@@ -15,6 +15,7 @@ import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { studioTint } from '@/lib/studio-tints'
 import { HeroSpotlightDesktop, HeroSpotlightPhone } from '@/components/home/HeroSpotlight'
 import CategoryShowcase, { type ShowcaseCategory } from '@/components/home/CategoryShowcase'
+import PlayWinCard from '@/components/home/PlayWinCard'
 import {
   bannerWashCss,
   normalizeBannerBgGradient,
@@ -536,6 +537,9 @@ export default function HomepageTopLayout({
             />
             <div className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
               <CategoryShowcase categories={spotlight.categories} />
+              <div className="mt-5">
+                <PlayWinCard />
+              </div>
               {showBanner && banners.length > 0 ? (
                 <div className="mt-8">
                   <h2 className="mb-3 text-[22px] font-extrabold tracking-tight text-ink">Featured</h2>
@@ -752,6 +756,9 @@ export default function HomepageTopLayout({
               <div className="mx-auto max-w-7xl px-6 pt-10 xl:px-8">
                 <h2 className="mb-4 text-[28px] font-extrabold tracking-tight text-ink">Shop by category</h2>
                 <CategoryShowcase categories={spotlight.categories} />
+                <div className="mt-8">
+                  <PlayWinCard />
+                </div>
               </div>
             </>
           ) : hero ? (
