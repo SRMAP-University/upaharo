@@ -9,7 +9,9 @@ import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 
-const ACTIONS = ['enable', 'disable', 'delete', 'setCategory', 'restore'] as const
+// addTags / removeTags: put products into, or take them out of, extra shop
+// categories, occasions and recipient groups (all saved as tags with the name).
+const ACTIONS = ['enable', 'disable', 'delete', 'setCategory', 'restore', 'addTags', 'removeTags'] as const
 type BulkAction = (typeof ACTIONS)[number]
 
 export async function POST(request: NextRequest) {
@@ -43,6 +45,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         tags: true,
+        category: true,
         _count: { select: { orderItems: true } },
       },
     })
@@ -88,6 +91,36 @@ export async function POST(request: NextRequest) {
         data: { category },
       })
       updated = result.count
+    } else if (action === 'addTags' || action === 'removeTags') {
+      const wanted = Array.from(
+        new Set(
+          (Array.isArray(body?.tags) ? body.tags : [])
+            .map((tag: unknown) => String(tag || '').trim())
+            .filter((tag: string) => tag.length > 0)
+        )
+      ).slice(0, 20) as string[]
+      if (!wanted.length) {
+        return NextResponse.json({ error: 'Choose a category or occasion' }, { status: 400 })
+      }
+      // Only names of this store's categories (shop, occasion or recipient), never free text.
+      const known = await prisma.category.findMany({
+        where: { storeId: storeContext.store.id, name: { in: wanted } },
+        select: { name: true },
+      })
+      const knownNames = new Set(known.map((category) => category.name))
+      if (wanted.some((tag) => !knownNames.has(tag))) {
+        return NextResponse.json({ error: 'Unknown category or occasion' }, { status: 400 })
+      }
+      for (const product of products) {
+        if (product.tags.includes(ARCHIVED_PRODUCT_TAG)) continue
+        const next =
+          action === 'addTags'
+            ? Array.from(new Set([...product.tags, ...wanted.filter((tag) => tag !== product.category)]))
+            : product.tags.filter((tag) => !wanted.includes(tag))
+        if (next.length === product.tags.length && next.every((tag, i) => tag === product.tags[i])) continue
+        await prisma.product.update({ where: { id: product.id }, data: { tags: next } })
+        updated += 1
+      }
     } else if (action === 'restore') {
       for (const product of products) {
         if (!product.tags.includes(ARCHIVED_PRODUCT_TAG)) continue

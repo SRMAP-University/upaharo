@@ -14,6 +14,8 @@ import {
   normalizeAdminProductsPageSize,
 } from '@/lib/admin-products-list'
 import ProductActiveSwitch from '@/components/admin/ProductActiveSwitch'
+import { ProductGroupChips, ProductGroupsEditor } from '@/components/admin/ProductGroupsEditor'
+import { EMPTY_PRODUCT_CATEGORY_GROUPS, fetchProductCategoryGroups, type ProductCategoryGroups } from '@/lib/product-categories'
 
 interface Product {
   id: string
@@ -24,6 +26,8 @@ interface Product {
   image: string
   isAvailable: boolean
   category: string
+  /** Extra shop categories, occasions and recipients are saved here by name. */
+  tags?: string[]
   createdAt: string
   sku?: string | null
   trackStock?: boolean
@@ -101,6 +105,9 @@ function AdminProductsContent() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkCategory, setBulkCategory] = useState('')
+  const [bulkGroup, setBulkGroup] = useState('')
+  const [groups, setGroups] = useState<ProductCategoryGroups>(EMPTY_PRODUCT_CATEGORY_GROUPS)
+  const [editing, setEditing] = useState<Product | null>(null)
   const [importing, setImporting] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
   const [itemsPerPage, setItemsPerPage] = useState(urlPerPage)
@@ -232,6 +239,7 @@ function AdminProductsContent() {
 
   useEffect(() => {
     void fetchCategories()
+    void fetchProductCategoryGroups().then(setGroups).catch(() => undefined)
   }, [fetchCategories])
 
   useEffect(() => {
@@ -617,7 +625,14 @@ function AdminProductsContent() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-ink/55">{product.category}</td>
+                        <td className="px-6 py-4 text-sm text-ink/55">
+                          {product.category}
+                          <ProductGroupChips
+                            product={product}
+                            groups={groups}
+                            onEdit={showArchived ? undefined : () => setEditing(product)}
+                          />
+                        </td>
                         <td className="px-6 py-4 text-sm font-medium text-ink">
                           {offer ? (
                             <>
@@ -717,6 +732,11 @@ function AdminProductsContent() {
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-ink">{product.name}</div>
                         <div className="text-xs text-ink/55">{product.category}</div>
+                        <ProductGroupChips
+                          product={product}
+                          groups={groups}
+                          onEdit={showArchived ? undefined : () => setEditing(product)}
+                        />
                         {product.sku ? (
                           <div className="text-[11px] text-ink/45">SKU {product.sku}</div>
                         ) : null}
@@ -887,6 +907,58 @@ function AdminProductsContent() {
                       Apply
                     </button>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <select
+                      value={bulkGroup}
+                      onChange={(e) => setBulkGroup(e.target.value)}
+                      className="rounded-full border border-stone-300 px-2 py-1 text-xs"
+                    >
+                      <option value="">Also show in / occasion…</option>
+                      {groups.productCategories.length ? (
+                        <optgroup label="Also show in">
+                          {groups.productCategories.map((option) => (
+                            <option key={option.id} value={option.name}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {groups.occasionCategories.length ? (
+                        <optgroup label="Occasions">
+                          {groups.occasionCategories.map((option) => (
+                            <option key={option.id} value={option.name}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                      {groups.recipientCategories.length ? (
+                        <optgroup label="For">
+                          {groups.recipientCategories.map((option) => (
+                            <option key={option.id} value={option.name}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : null}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={bulkBusy || !bulkGroup}
+                      onClick={() => runBulk('addTags', { tags: [bulkGroup] })}
+                      className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-50"
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bulkBusy || !bulkGroup}
+                      onClick={() => runBulk('removeTags', { tags: [bulkGroup] })}
+                      className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-ink/60 disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
                   <button
                     type="button"
                     disabled={bulkBusy}
@@ -908,6 +980,18 @@ function AdminProductsContent() {
           </div>
         </div>
       )}
+      {editing ? (
+        <ProductGroupsEditor
+          product={editing}
+          groups={groups}
+          onClose={() => setEditing(null)}
+          onSaved={(tags) => {
+            setProducts((prev) => prev.map((p) => (p.id === editing.id ? { ...p, tags } : p)))
+            setMessage(`Saved categories & occasions for “${editing.name}”.`)
+            setEditing(null)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

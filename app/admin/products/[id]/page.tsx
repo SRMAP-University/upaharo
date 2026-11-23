@@ -52,6 +52,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
+  const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [storeSlug, setStoreSlug] = useState('')
@@ -263,7 +264,9 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
         const tagState = splitProductTags(
           plainTags,
           nextCategoryGroups.recipientCategories,
-          nextCategoryGroups.occasionCategories
+          nextCategoryGroups.occasionCategories,
+          nextCategoryGroups.productCategories,
+          product.category
         )
 
         setFormData({
@@ -321,6 +324,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
         )
         setRecipientSelections(tagState.recipientSelections)
         setOccasionSelections(tagState.occasionSelections)
+        setExtraCategorySelections(tagState.extraCategorySelections)
         setSubProductIds(extractSubProductIdsFromTags(product.tags))
         setVariantFiles(new Array(variants.length).fill(null))
       }
@@ -367,7 +371,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
               : Number(formData.unitValue),
           aisle: formData.aisle.trim() || null,
           tags: mergeSubProductTags(
-            buildProductTags(formData.tags, recipientSelections, occasionSelections),
+            buildProductTags(formData.tags, recipientSelections, occasionSelections, extraCategorySelections),
             subProductIds
           ),
           images: formData.images.filter(img => img.trim()),
@@ -480,6 +484,8 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                 onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
                 onRecipientSelectionsChange={setRecipientSelections}
                 onOccasionSelectionsChange={setOccasionSelections}
+                extraCategorySelections={extraCategorySelections}
+                onExtraCategorySelectionsChange={setExtraCategorySelections}
                 accent="orange"
               />
 

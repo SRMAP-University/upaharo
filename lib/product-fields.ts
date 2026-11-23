@@ -133,7 +133,8 @@ export function buildAdminProductWhere(params: {
   }
 
   if (params.category && params.category !== 'all') {
-    where.category = params.category
+    // Main category, or listed in it as an extra category.
+    where.AND = [...((where.AND as unknown[]) || []), { OR: [{ category: params.category }, { tags: { has: params.category } }] }]
   }
 
   if (params.availability === 'available') {

@@ -38,6 +38,7 @@ export default function EditSellerProductPage({ params }: { params: Promise<{ id
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
+  const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [formData, setFormData] = useState({
     name: '',
@@ -116,7 +117,9 @@ export default function EditSellerProductPage({ params }: { params: Promise<{ id
       const tagState = splitProductTags(
         product.tags,
         nextCategoryGroups.recipientCategories,
-        nextCategoryGroups.occasionCategories
+        nextCategoryGroups.occasionCategories,
+        nextCategoryGroups.productCategories,
+        product.category
       )
 
       setFormData({
@@ -142,6 +145,7 @@ export default function EditSellerProductPage({ params }: { params: Promise<{ id
       )
       setRecipientSelections(tagState.recipientSelections)
       setOccasionSelections(tagState.occasionSelections)
+      setExtraCategorySelections(tagState.extraCategorySelections)
       setVariantFiles(new Array(variants.length).fill(null))
     } catch (error) {
       console.error('Failed to fetch seller product:', error)
@@ -274,7 +278,7 @@ export default function EditSellerProductPage({ params }: { params: Promise<{ id
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          tags: buildProductTags(formData.tags, recipientSelections, occasionSelections),
+          tags: buildProductTags(formData.tags, recipientSelections, occasionSelections, extraCategorySelections),
           images: formData.images.filter((img) => img.trim()),
           showFoodTypeLabel: formData.showFoodTypeLabel,
           variants: formData.variants
@@ -348,6 +352,8 @@ export default function EditSellerProductPage({ params }: { params: Promise<{ id
             onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
             onRecipientSelectionsChange={setRecipientSelections}
             onOccasionSelectionsChange={setOccasionSelections}
+            extraCategorySelections={extraCategorySelections}
+            onExtraCategorySelectionsChange={setExtraCategorySelections}
           />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

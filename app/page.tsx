@@ -175,7 +175,7 @@ async function getHomeData() {
       .map((category) => ({
         category,
         products: products
-          .filter((product) => product.category === category.name)
+          .filter((product) => product.category === category.name || (product.tags || []).includes(category.name))
           .slice(0, 4),
       }))
       .filter((section) => section.products.length > 0)

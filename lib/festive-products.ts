@@ -35,11 +35,13 @@ function isBhaiTikaName(value: string) {
 
 type Category = { id: string; name: string; type: string }
 
-/** Product categories live on product.category; occasions are saved as tags (trimmed name). */
+/**
+ * Product categories live on product.category; occasions, and the extra shop
+ * categories a product also shows in, are saved as tags (trimmed name).
+ */
 function inCategory(category: Category, product: any) {
-  return category.type === 'PRODUCT'
-    ? product.category === category.name
-    : Array.isArray(product.tags) && product.tags.includes(category.name.trim())
+  const tagged = Array.isArray(product.tags) && product.tags.includes(category.name.trim())
+  return category.type === 'PRODUCT' ? product.category === category.name || tagged : tagged
 }
 
 const categoryHref = (category?: Category) => (category ? `/categories/${category.id}` : null)

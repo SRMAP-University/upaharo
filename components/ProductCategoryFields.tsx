@@ -10,6 +10,9 @@ type ProductCategoryFieldsProps = {
   customTags: string
   recipientSelections: string[]
   occasionSelections: string[]
+  /** Other shop categories the product also shows in (omit to hide the choice). */
+  extraCategorySelections?: string[]
+  onExtraCategorySelectionsChange?: (value: string[]) => void
   onCategoryChange: (value: string) => void
   onCustomTagsChange: (value: string) => void
   onRecipientSelectionsChange: (value: string[]) => void
@@ -89,6 +92,8 @@ export default function ProductCategoryFields({
   customTags,
   recipientSelections,
   occasionSelections,
+  extraCategorySelections,
+  onExtraCategorySelectionsChange,
   onCategoryChange,
   onCustomTagsChange,
   onRecipientSelectionsChange,
@@ -147,7 +152,7 @@ export default function ProductCategoryFields({
             className={fieldClassName}
           />
           <p className="mt-1 text-xs text-ink/55">
-            Optional extra search tags. Recipient and occasion selections are added automatically.
+            Optional extra search tags. Recipient, occasion and “Also show in” choices are added automatically.
           </p>
         </div>
       </div>
@@ -172,6 +177,18 @@ export default function ProductCategoryFields({
           loading={loading}
         />
       </div>
+
+      {extraCategorySelections && onExtraCategorySelectionsChange ? (
+        <ChoiceGroup
+          title="Also show in"
+          description="Other shop categories this product appears in, besides its main category (e.g. a cake in Cakes and Wedding Gifts)."
+          options={categories.productCategories.filter((option) => option.name !== category)}
+          selections={extraCategorySelections}
+          onChange={onExtraCategorySelectionsChange}
+          accent={accent}
+          loading={loading}
+        />
+      ) : null}
     </div>
   )
 }

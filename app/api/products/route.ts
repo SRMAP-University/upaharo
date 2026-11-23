@@ -123,7 +123,11 @@ export async function GET(request: NextRequest) {
         // Wedding / Winter: gathered from across the shop (lib/season-categories.ts).
         seasonalName = selectedCategory.name
       } else if (selectedCategory.type === 'PRODUCT') {
-        where.category = selectedCategory.name
+        // Its main category, or listed in it as an extra category (a tag with its name).
+        where.AND = [
+          ...(where.AND || []),
+          { OR: [{ category: selectedCategory.name }, { tags: { has: selectedCategory.name } }] },
+        ]
       } else {
         where.tags = {
           has: selectedCategory.name,

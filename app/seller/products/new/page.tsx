@@ -35,6 +35,7 @@ export default function NewProductPage() {
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
+  const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [formData, setFormData] = useState({
     name: '',
@@ -193,7 +194,7 @@ export default function NewProductPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          tags: buildProductTags(formData.tags, recipientSelections, occasionSelections),
+          tags: buildProductTags(formData.tags, recipientSelections, occasionSelections, extraCategorySelections),
           images: formData.images.filter((img) => img.trim()),
           showFoodTypeLabel: formData.showFoodTypeLabel,
           variants: formData.variants
@@ -284,6 +285,8 @@ export default function NewProductPage() {
             onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
             onRecipientSelectionsChange={setRecipientSelections}
             onOccasionSelectionsChange={setOccasionSelections}
+            extraCategorySelections={extraCategorySelections}
+            onExtraCategorySelectionsChange={setExtraCategorySelections}
           />
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

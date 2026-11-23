@@ -46,6 +46,7 @@ export default function NewProduct() {
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
+  const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [storeSlug, setStoreSlug] = useState('')
@@ -267,7 +268,7 @@ export default function NewProduct() {
               : Number(formData.unitValue),
           aisle: formData.aisle.trim() || null,
           tags: mergeSubProductTags(
-            buildProductTags(formData.tags, recipientSelections, occasionSelections),
+            buildProductTags(formData.tags, recipientSelections, occasionSelections, extraCategorySelections),
             subProductIds
           ),
           images: formData.images.filter(img => img.trim()),
@@ -376,6 +377,8 @@ export default function NewProduct() {
                 onCustomTagsChange={(value) => setFormData({ ...formData, tags: value })}
                 onRecipientSelectionsChange={setRecipientSelections}
                 onOccasionSelectionsChange={setOccasionSelections}
+                extraCategorySelections={extraCategorySelections}
+                onExtraCategorySelectionsChange={setExtraCategorySelections}
                 accent="orange"
               />
 
