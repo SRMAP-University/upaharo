@@ -270,7 +270,46 @@ export function BagArt(p: ArtProps) {
   )
 }
 
+/** Wedding: two linked rings, one with a stone, and two hearts. */
+export function WeddingArt(p: ArtProps) {
+  return (
+    <Art {...p}>
+      <path fillRule="evenodd" d="M24 76a21 21 0 1 0 42 0a21 21 0 1 0-42 0zm6.5 0a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0z" fill={GOLD} />
+      <path fillRule="evenodd" d="M54 76a21 21 0 1 0 42 0a21 21 0 1 0-42 0zm6.5 0a14.5 14.5 0 1 0 29 0a14.5 14.5 0 1 0-29 0z" fill={GOLD_SOFT} />
+      {/* the first ring passes back over the second, so they link */}
+      <path d="M62.22 80.29A17.75 17.75 0 0 1 55.93 89.99" stroke={GOLD} strokeWidth={6.5} strokeLinecap="butt" />
+      <path d="M65.38 81.08A21 21 0 0 1 57.93 92.55M59.07 79.51A14.5 14.5 0 0 1 53.93 87.43" />
+      <path d="M68 48h16l5 6-13 11-13-11z" fill="#fff" />
+      <path d="M63 54h26M72 48l-2 6 6 11 6-11-2-6" strokeWidth={1.3} opacity="0.5" />
+      <path d={heart(40, 32, 0.95)} fill={RED} />
+      <path d={heart(84, 28, 0.55)} fill={RED_SOFT} strokeWidth={1.6} />
+      <path d="M100 18v6M97 21h6" stroke={GOLD} />
+    </Art>
+  )
+}
+
+/** Winter: a warm mug with steam and a snowflake. */
+export function WinterArt(p: ArtProps) {
+  return (
+    <Art {...p}>
+      <path d="M44 40c-4-4 3-7 0-12M56 38c-4-4 3-7 0-12M68 40c-4-4 3-7 0-12" strokeWidth={1.8} opacity="0.55" />
+      <path d="M78 60h5a10 10 0 0 1 0 20h-5" strokeWidth={5} stroke={INK} />
+      <path d="M78 60h5a10 10 0 0 1 0 20h-5" strokeWidth={2.5} stroke={RED} />
+      <path d="M32 48h48v40a12 12 0 0 1-12 12H44a12 12 0 0 1-12-12z" fill={RED} />
+      <path d="M32 60h48" stroke="#fff" strokeWidth={3} opacity="0.9" />
+      <path d={heart(56, 76, 0.75)} fill="#fff" strokeWidth={1.6} />
+      <g stroke="#7FA7D9" strokeWidth={1.8}>
+        <path d="M96 22v20M87.3 27l17.4 10M87.3 37l17.4-10" />
+        <path d="M93 22.5l3 3 3-3M93 41.5l3-3 3 3" strokeWidth={1.4} />
+      </g>
+    </Art>
+  )
+}
+
 const BY_KEYWORD: Array<[RegExp, (p: ArtProps) => ReactElement]> = [
+  // Seasons first ("Winter Warmers" would otherwise match the budget tag below).
+  [/winter|woolen|woollen|cosy|cozy/, WinterArt],
+  [/wedding|marriage|bibaha|bride|groom/, WeddingArt],
   [/mini\s*cake|cupcake|pastry/, CupcakeArt],
   [/cake/, CakeArt],
   [/flower|bouquet|rose|bloom/, BouquetArt],
@@ -282,7 +321,7 @@ const BY_KEYWORD: Array<[RegExp, (p: ArtProps) => ReactElement]> = [
   [/event|balloon|party|decor/, BalloonsArt],
   [/chocolate|sweet/, ChocolateArt],
   [/under|budget|deal|rs\b/, TagArt],
-  [/wedding|engage/, RingArt],
+  [/engage/, RingArt],
   [/anniversary/, HeartsArt],
   [/birthday/, PartyHatArt],
   [/love|valentine|romance/, EnvelopeArt],

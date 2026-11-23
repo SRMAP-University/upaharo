@@ -493,8 +493,14 @@ select:focus {
 .sc-bird { opacity: 0; animation: sc-bird var(--t, 16s) linear var(--d, 0s) infinite; }
 .sc-in { animation: sc-in 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) var(--d, 0s) both; }
 .sc-flap { transform-box: fill-box; transform-origin: center; animation: sc-flap 0.45s ease-in-out infinite; }
+/* Season decorations: wedding fairy lights twinkle, the winter scarf flutters. */
+.sc-twinkle { animation: sc-twinkle 1.8s ease-in-out var(--d, 0s) infinite alternate; }
+.sc-scarf { transform-box: fill-box; transform-origin: 100% 0%; animation: sc-scarf 0.6s ease-in-out infinite alternate; }
+.sc-garland { transform-box: fill-box; transform-origin: 50% 0; animation: sc-flags 3.4s ease-in-out infinite alternate; }
+@keyframes sc-twinkle { from { opacity: 1; } to { opacity: 0.35; } }
+@keyframes sc-scarf { from { transform: rotate(-4deg); } to { transform: rotate(5deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .sc-ride, .sc-wheel, .sc-lean, .sc-bob, .sc-door, .sc-flags, .sc-cloud, .sc-flap, .sc-wave, .sc-wave-r, .sc-in { animation: none !important; }
+  .sc-ride, .sc-wheel, .sc-lean, .sc-bob, .sc-door, .sc-flags, .sc-cloud, .sc-flap, .sc-wave, .sc-wave-r, .sc-in, .sc-twinkle, .sc-scarf, .sc-garland { animation: none !important; }
   .sc-ride { opacity: 1; }
   .sc-rackbox { animation: none !important; opacity: 1; }
   .sc-speed, .sc-puff, .sc-load, .sc-drop, .sc-person, .sc-heart, .sc-badge, .sc-rwave, .sc-bird { animation: none !important; opacity: 0; }

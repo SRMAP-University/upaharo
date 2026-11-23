@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
 import BrandLogo from '@/components/BrandLogo'
 import DeliveryScene, { type SceneWeather } from '@/components/home/DeliveryScene'
+import { WeddingArt, WinterArt } from '@/components/home/GiftArt'
 import WeatherOverlay, { heroPalette } from '@/components/home/WeatherOverlay'
 import { useLocationStore } from '@/lib/store/location'
 
@@ -92,6 +93,63 @@ function useHeroWeather(): SceneWeather | undefined {
   return weather
 }
 
+/** The season being celebrated (from lib/occasions.ts on the server), with links to its categories. */
+export type HeroSeason = {
+  wedding: boolean
+  winter: boolean
+  links: Array<{ key: 'wedding' | 'winter'; href: string }>
+}
+
+const SEASON_LABEL = { wedding: 'Wedding season', winter: 'Winter warmers' } as const
+
+/** `?season=wedding|winter|both|off` previews a seasonal look on any day. */
+function useSeason(season?: HeroSeason): HeroSeason | undefined {
+  const [preview, setPreview] = useState<HeroSeason | null>()
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('season')
+    if (!wanted) return
+    if (wanted === 'off') {
+      setPreview(null)
+      return
+    }
+    const on = { wedding: wanted === 'wedding' || wanted === 'both', winter: wanted === 'winter' || wanted === 'both' }
+    const links = (['wedding', 'winter'] as const)
+      .filter((key) => on[key])
+      .map((key) => season?.links.find((link) => link.key === key) ?? { key, href: `/search?q=${key}` })
+    setPreview({ ...on, links })
+  }, [season])
+  return preview === undefined ? season : preview ?? undefined
+}
+
+/** "Wedding season" / "Winter warmers" buttons that open the season's category. */
+function SeasonPills({ season, large = false }: { season?: HeroSeason; large?: boolean }) {
+  if (!season?.links.length) return null
+  return (
+    <div className="flex flex-wrap gap-2">
+      {season.links.map((link) => {
+        const Art = link.key === 'wedding' ? WeddingArt : WinterArt
+        return (
+          <Link
+            key={link.key}
+            href={link.href}
+            className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 font-bold text-ink transition active:scale-[0.97] ${PILL} ${
+              large ? 'pr-4 text-[14px]' : 'pr-3 text-[12px]'
+            }`}
+          >
+            <span className={`flex items-center justify-center rounded-full bg-brand-soft ${large ? 'h-8 w-8' : 'h-6 w-6'}`}>
+              <Art className={large ? 'h-7 w-7' : 'h-5 w-5'} />
+            </span>
+            {SEASON_LABEL[link.key]}
+            <svg className="h-3 w-3 text-ink/45" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
+            </svg>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
 export type SpotlightHeader = {
   locationLabel: string
   locationNote: string
@@ -117,8 +175,9 @@ function useThemeColourOnScroll(top: string) {
   }, [top])
 }
 
-export function HeroSpotlightPhone({ promise, header }: { promise: string; header: SpotlightHeader }) {
+export function HeroSpotlightPhone({ promise, header, season: serverSeason }: { promise: string; header: SpotlightHeader; season?: HeroSeason }) {
   const weather = useHeroWeather()
+  const season = useSeason(serverSeason)
   const palette = heroPalette(weather)
   useThemeColourOnScroll(palette.from)
   return (
@@ -173,21 +232,27 @@ export function HeroSpotlightPhone({ promise, header }: { promise: string; heade
         </Link>
       </div>
 
-      <div className="relative z-10 flex items-end justify-between gap-3 px-5 pt-5">
+      {season?.links.length ? (
+        <div className="relative z-10 px-4 pt-4">
+          <SeasonPills season={season} />
+        </div>
+      ) : null}
+      <div className={`relative z-10 flex items-end justify-between gap-3 px-5 ${season?.links.length ? 'pt-3' : 'pt-5'}`}>
         <h1 className={`whitespace-nowrap text-[24px] font-extrabold leading-[1.1] tracking-tight ${palette.dark ? 'text-white' : 'text-ink'}`}>
           Same-day <RotatingWord />
         </h1>
         <p className={`max-w-[96px] pb-0.5 text-right text-[11px] font-medium leading-tight ${palette.dark ? 'text-white/65' : 'text-ink/55'}`}>{promise}</p>
       </div>
       <Link href="/search" aria-label="Explore gifts" className="relative z-0 mt-1 block">
-        <DeliveryScene className="block h-auto w-full" weather={weather} />
+        <DeliveryScene className="block h-auto w-full" weather={weather} season={season} />
       </Link>
     </section>
   )
 }
 
-export function HeroSpotlightDesktop({ promise }: { promise: string }) {
+export function HeroSpotlightDesktop({ promise, season: serverSeason }: { promise: string; season?: HeroSeason }) {
   const weather = useHeroWeather()
+  const season = useSeason(serverSeason)
   const palette = heroPalette(weather)
   return (
     <section
@@ -198,6 +263,11 @@ export function HeroSpotlightDesktop({ promise }: { promise: string }) {
       <WeatherOverlay w={weather} fall={440} />
       <div className="grid grid-cols-[0.9fr_1.1fr] items-center gap-8 py-8 pl-14 pr-8">
         <div>
+          {season?.links.length ? (
+            <div className="mb-5">
+              <SeasonPills season={season} large />
+            </div>
+          ) : null}
           <h1 className={`text-[52px] font-extrabold leading-[1.04] tracking-tight ${palette.dark ? 'text-white' : 'text-ink'}`}>
             Same-day
             <br />
@@ -208,7 +278,7 @@ export function HeroSpotlightDesktop({ promise }: { promise: string }) {
           </p>
         </div>
         <Link href="/search" aria-label="Explore gifts" className="block">
-          <DeliveryScene className="h-auto w-full" weather={weather} />
+          <DeliveryScene className="h-auto w-full" weather={weather} season={season} />
         </Link>
       </div>
     </section>

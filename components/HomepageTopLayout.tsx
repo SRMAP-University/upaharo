@@ -13,7 +13,7 @@ import { useCartStore } from '@/lib/store/cart'
 import { formatPriceNoDecimals } from '@/lib/utils'
 import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { studioTint } from '@/lib/studio-tints'
-import { HeroSpotlightDesktop, HeroSpotlightPhone } from '@/components/home/HeroSpotlight'
+import { HeroSpotlightDesktop, HeroSpotlightPhone, type HeroSeason } from '@/components/home/HeroSpotlight'
 import CategoryShowcase, { type ShowcaseCategory } from '@/components/home/CategoryShowcase'
 import PlayWinCard from '@/components/home/PlayWinCard'
 import {
@@ -54,7 +54,7 @@ type HomepageTopLayoutProps = {
   /** Seasonal hero, shown under the search and categories, above the banners. */
   hero?: ReactNode
   /** Gifts store: the animated spotlight hero (with this promise line) and 3D category cards. */
-  spotlight?: { promise: string; categories: ShowcaseCategory[] }
+  spotlight?: { promise: string; categories: ShowcaseCategory[]; season?: HeroSeason }
   categories: Category[]
   occasionCategories?: Category[]
   showTopCategories?: boolean
@@ -526,6 +526,7 @@ export default function HomepageTopLayout({
           <div className="lg:hidden">
             <HeroSpotlightPhone
               promise={spotlight.promise}
+              season={spotlight.season}
               header={{
                 locationLabel: hasLocation ? locationLabel : 'Set location',
                 locationNote: hasLocation ? 'Delivering today' : 'Tap to choose your area',
@@ -751,7 +752,7 @@ export default function HomepageTopLayout({
           {spotlight ? (
             <>
               <div className="mx-auto max-w-7xl px-6 pt-6 xl:px-8">
-                <HeroSpotlightDesktop promise={spotlight.promise} />
+                <HeroSpotlightDesktop promise={spotlight.promise} season={spotlight.season} />
               </div>
               <div className="mx-auto max-w-7xl px-6 pt-10 xl:px-8">
                 <h2 className="mb-4 text-[28px] font-extrabold tracking-tight text-ink">Shop by category</h2>

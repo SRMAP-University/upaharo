@@ -24,6 +24,8 @@ import { PLAY_STORE_APP_URL } from '@/lib/app-download'
 import { normalizeBannerBgGradient } from '@/lib/banner-bg-gradient'
 import { festiveFirst } from '@/lib/festive-products'
 import { contextLeadingFeed } from '@/lib/context-recommendations'
+import { activeOccasions } from '@/lib/occasions'
+import { orderCategoriesForSeason, SEASON_CATEGORIES, seasonsOn, type SeasonKey } from '@/lib/season-categories'
 import { formatPriceNoDecimals } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -164,7 +166,12 @@ async function getHomeData() {
         ? await contextLeadingFeed(storeId, fetchedProducts, 60, { storeSlug: storeContext?.slug }).catch(() => festiveFirst(fetchedProducts))
         : fetchedProducts
 
-    const groupedCategories = categories
+    // Seasons (wedding, winter…): their categories lead the home page while they are on.
+    const occasionsNow = settings.festivalMode !== false ? activeOccasions() : []
+    const seasonalCategories = orderCategoriesForSeason(categories, occasionsNow)
+    const seasons = seasonsOn(occasionsNow).map((season) => season.key)
+
+    const groupedCategories = seasonalCategories
       .map((category) => ({
         category,
         products: products
@@ -296,7 +303,8 @@ async function getHomeData() {
     return {
       storeSlug: storeContext?.slug ?? '',
       settings,
-      categories,
+      categories: seasonalCategories,
+      seasons,
       occasionCategories,
       groupedCategories,
       products,
@@ -321,6 +329,7 @@ async function getHomeData() {
       storeSlug: '',
       settings: await getAppSettings(),
       categories: [],
+      seasons: [] as SeasonKey[],
       occasionCategories: [],
       groupedCategories: [],
       products: [],
@@ -372,6 +381,7 @@ export default async function Home() {
     storeSlug,
     settings,
     categories,
+    seasons,
     occasionCategories,
     groupedCategories,
     products,
@@ -585,7 +595,19 @@ export default async function Home() {
             name: c.name,
             shortName: c.shortName,
             maxDiscount: categoryDeals[c.name] || 0,
+            inSeason: seasons.some((key) => SEASON_CATEGORIES.find((season) => season.key === key)?.pattern.test(c.name)),
           })),
+          season: seasons.length
+            ? {
+                wedding: seasons.includes('wedding'),
+                winter: seasons.includes('winter'),
+                links: seasons.map((key) => {
+                  const def = SEASON_CATEGORIES.find((season) => season.key === key)!
+                  const category = categories.find((c) => def.pattern.test(c.name))
+                  return { key, href: category ? `/categories/${category.id}` : `/search?q=${key}` }
+                }),
+              }
+            : undefined,
         }
       : undefined
 

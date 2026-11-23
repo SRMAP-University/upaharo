@@ -112,6 +112,7 @@ const OCCASIONS: Array<[RegExp, string]> = [
   [/father|\bdad\b/, 'A dad-approved pick 👍'],
   [/tihar|dashain|diwali|deepawali|festival|christmas|new year/, 'Festival ready! ✨'],
   [/wedding|marriage/, 'Wedding-worthy, for sure.'],
+  [/winter|woolen|woollen|shawl|pashmina|scarf|muffler/, 'A cosy pick for cold days ❄️'],
   [/baby|newborn|kids?\b/, 'So cute for a little one 👶'],
   [/get ?well|sympathy|sorry/, 'Like a warm hug in a box 🤗'],
   [/congrat|graduat|promotion|success/, 'Congrats energy! 🥳'],

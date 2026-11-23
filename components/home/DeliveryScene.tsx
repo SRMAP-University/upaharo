@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from 'react'
 
 /**
  * The home hero's animated story (a 14 s loop, CSS only, see globals.css):
@@ -96,6 +96,78 @@ function Layer({ k, m, d, from, children }: { k: number; m: number; d: number; f
 
 export type SceneWeather = { scene: 'clear' | 'clouds' | 'rain' | 'storm' | 'snow' | 'fog'; night: boolean }
 
+/** Seasonal dressing: wedding season (marigolds, fairy lights) and winter (snowy peaks, a scarf). */
+export type SceneSeason = { wedding?: boolean; winter?: boolean }
+
+const MARIGOLD = '#F28C1E'
+const FAIRY = '#FFD36B'
+
+const FAR_RANGE = 'M0 80L22 62l16 8 24-36 18 16 18-8 22 18 26-30 24 22 20-8 24 20 26-38 22 20 22-8 22 20 28-22 26 18v72H0z'
+const MID_HILLS = 'M0 118L30 98l18 8 34-34 22 18 20-10 26 20 26-16 22 12 34-34 30 30 26-10 30 22 42-14v56H0z'
+
+/** Everything above a jagged snowline at height y (clipped to a mountain outline). */
+function snowAbove(y: number) {
+  let d = `M-4 -40H364V${y}`
+  for (let x = 364, up = true; x > -4; x -= 6, up = !up) d += `L${x - 6} ${up ? y + 3.5 : y}`
+  return `${d}z`
+}
+
+/** Snow caps for winter: the snowline cuts across both mountain layers. */
+function SnowCaps({ id, outline, line }: { id: string; outline: string; line: number }) {
+  return (
+    <>
+      <clipPath id={id}>
+        <path d={outline} />
+      </clipPath>
+      <g clipPath={`url(#${id})`}>
+        <path d={snowAbove(line)} fill="#fff" />
+      </g>
+      <path d={outline} stroke="#E3C6D6" strokeWidth={1.1} fill="none" />
+    </>
+  )
+}
+
+/** Points along a quadratic curve, evenly stepped. */
+function swag(p0: [number, number], p1: [number, number], p2: [number, number], n: number) {
+  return along(p0, p1, p2, Array.from({ length: n }, (_, i) => i / (n - 1)))
+}
+
+/** A marigold (sayapatri) garland draped between two points, with hanging strands at the ends. */
+function Garland({ from, mid, to, n, strands = 2 }: { from: [number, number]; mid: [number, number]; to: [number, number]; n: number; strands?: number }) {
+  const beads = swag(from, mid, to, n)
+  const hang = (x: number, y: number) => Array.from({ length: strands }, (_, i) => [x, y + 4.2 * (i + 1)] as [number, number])
+  return (
+    <g className="sc-garland" stroke={INK} strokeWidth={0.8}>
+      {[...beads, ...hang(...from), ...hang(...to)].map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={2.3} fill={i % 2 ? GOLD : MARIGOLD} />
+      ))}
+    </g>
+  )
+}
+
+/** Warm fairy lights hanging along a line, twinkling one after another. */
+function FairyLights({ from, mid, to, n }: { from: [number, number]; mid: [number, number]; to: [number, number]; n: number }) {
+  const bulbs = swag(from, mid, to, n)
+  return (
+    <g>
+      <path d={`M${from[0]} ${from[1]}Q${mid[0]} ${mid[1]} ${to[0]} ${to[1]}`} stroke={INK} strokeWidth={0.7} opacity="0.5" />
+      {bulbs.map(([x, y], i) => (
+        <circle
+          key={i}
+          className="sc-twinkle"
+          style={{ '--d': `${(i % 4) * 0.45}s` } as CSSProperties}
+          cx={x}
+          cy={y + 1.6}
+          r={1.7}
+          fill={FAIRY}
+          stroke="#E0A92E"
+          strokeWidth={0.6}
+        />
+      ))}
+    </g>
+  )
+}
+
 
 /** The moon at night (stars, rain, snow and fog cover the whole hero; see WeatherOverlay). */
 function WeatherSky({ w }: { w: SceneWeather }) {
@@ -118,9 +190,20 @@ function WeatherFront({ w }: { w: SceneWeather }) {
   )
 }
 
-export default function DeliveryScene({ className = '', weather }: { className?: string; weather?: SceneWeather }) {
+export default function DeliveryScene({
+  className = '',
+  weather,
+  season,
+}: {
+  className?: string
+  weather?: SceneWeather
+  season?: SceneSeason
+}) {
   const w: SceneWeather = weather ?? { scene: 'clear', night: false }
+  const wedding = Boolean(season?.wedding)
+  const winter = Boolean(season?.winter)
   const ref = useRef<SVGSVGElement>(null)
+  const uid = useId().replace(/:/g, '')
 
   // Parallax: scroll (all devices) and pointer (mouse only). Off for reduced motion.
   useEffect(() => {
@@ -168,12 +251,8 @@ export default function DeliveryScene({ className = '', weather }: { className?:
 
       {/* far range: snowy peaks */}
       <Layer k={0.28} m={-4} d={0} from={40}>
-        <path
-          d="M0 80L22 62l16 8 24-36 18 16 18-8 22 18 26-30 24 22 20-8 24 20 26-38 22 20 22-8 22 20 28-22 26 18v72H0z"
-          fill="#F2E3EE"
-          stroke="#E3C6D6"
-          strokeWidth={1.1}
-        />
+        <path d={FAR_RANGE} fill="#F2E3EE" stroke="#E3C6D6" strokeWidth={1.1} />
+        {winter ? <SnowCaps id={`${uid}-far`} outline={FAR_RANGE} line={47} /> : null}
         <path d="M55 44l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
         <path d="M139 40l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
         <path d="M233 36l7-10 7 10-4-2-3 4-3-4z" fill="#fff" />
@@ -220,12 +299,8 @@ export default function DeliveryScene({ className = '', weather }: { className?:
 
       {/* middle hills */}
       <Layer k={0.16} m={-7} d={0.12} from={28}>
-        <path
-          d="M0 118L30 98l18 8 34-34 22 18 20-10 26 20 26-16 22 12 34-34 30 30 26-10 30 22 42-14v56H0z"
-          fill="#FBE6E9"
-          stroke={SOFT_LINE}
-          strokeWidth={1.3}
-        />
+        <path d={MID_HILLS} fill="#FBE6E9" stroke={SOFT_LINE} strokeWidth={1.3} />
+        {winter ? <SnowCaps id={`${uid}-mid`} outline={MID_HILLS} line={82} /> : null}
         <path d="M74 80l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
         <path d="M224 70l8-8 8 8-4-2-4 4-4-4z" fill="#fff" />
       </Layer>
@@ -287,6 +362,7 @@ export default function DeliveryScene({ className = '', weather }: { className?:
         upaharo
       </text>
       <SmallGift x={26} y={102} s={0.7} />
+      {wedding ? <Garland from={[9, 89]} mid={[47, 104]} to={[85, 89]} n={13} /> : null}
 
       {/* the gift coming out of the shop and hopping onto the scooter */}
       <g className="sc-load">
@@ -302,8 +378,14 @@ export default function DeliveryScene({ className = '', weather }: { className?:
         <path d="M330.5 104v15M324 111.5h13" strokeWidth={1} />
         <rect x="292" y="108" width="20" height="38" fill="#5E3A2B" />
       </g>
+      {wedding ? (
+        <>
+          <FairyLights from={[270, 96]} mid={[290, 90]} to={[311, 72]} n={7} />
+          <FairyLights from={[311, 72]} mid={[332, 90]} to={[352, 96]} n={7} />
+        </>
+      ) : null}
       <g className="sc-person">
-        <path d="M296 146v-15c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5v15z" fill={GOLD} stroke={INK} strokeWidth={1.3} />
+        <path d="M296 146v-15c0-4 2.5-6.5 6-6.5s6 2.5 6 6.5v15z" fill={wedding ? RED : GOLD} stroke={INK} strokeWidth={1.3} />
         <circle cx="302" cy="119" r="4.6" fill={TAN} stroke={INK} strokeWidth={1.3} />
         <path d="M297.5 117.5a4.8 4.8 0 0 1 9 0c-2-1-6.5-1-9 0z" fill={INK} />
         <g className="sc-wave">
@@ -314,6 +396,7 @@ export default function DeliveryScene({ className = '', weather }: { className?:
         <rect className="sc-door" x="292" y="108" width="20" height="38" fill="#9A6A50" />
         <rect x="287" y="145" width="30" height="2.5" fill={RED_SOFT} stroke="none" />
       </g>
+      {wedding ? <Garland from={[288, 106]} mid={[302, 116]} to={[316, 106]} n={7} strands={3} /> : null}
 
       {/* hearts and the badge when the gift arrives */}
       <path className="sc-heart" style={{ '--d': '0s', '--hx': '-8px' } as CSSProperties} d={heart(300, 112, 0.5)} fill={RED} stroke={INK} strokeWidth={1} />
@@ -347,7 +430,14 @@ export default function DeliveryScene({ className = '', weather }: { className?:
             </g>
             {/* rider */}
             <path d="M10-24l11 9 7 7" strokeWidth={3.2} />
+            {winter ? (
+              <g className="sc-scarf">
+                <path d="M11-44c-4 .6-8 2.4-11.5 5.6l1.8 2.2c3.2-2.6 6.6-4.2 10.4-4.8z" fill={GOLD} strokeWidth={1.1} />
+                <path d="M3.6-41.2l1.6 2M7-42.8l1.4 2.1" stroke={RED} strokeWidth={1.3} />
+              </g>
+            ) : null}
             <path d="M5-24c-1-8 3-18 9-20l6 2c0 8-3 15-6 18z" fill={JACKET} />
+            {winter ? <path d="M10.4-45.6c3.4 1.6 7.4 1.8 11 .2l.5 3c-3.9 1.6-8.1 1.4-12-.2z" fill={GOLD} strokeWidth={1.1} /> : null}
             <path d="M16-40l13 6 8-2" strokeWidth={2.2} />
             <g className="sc-rwave">
               <g className="sc-wave-r">

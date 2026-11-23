@@ -15,6 +15,8 @@ export type ShowcaseCategory = {
   name: string
   shortName?: string | null
   maxDiscount: number
+  /** Its season (wedding, winter…) is on now: a small "Season" tag. */
+  inSeason?: boolean
 }
 
 // Soft circles behind the drawings, used in turn.
@@ -47,6 +49,11 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
                 style={{ backgroundColor: TINTS[i % TINTS.length] }}
               >
                 <CategoryArt name={c.name} className="h-[80%] w-[80%]" />
+                {c.inSeason ? (
+                  <span className="absolute -left-1 -top-1.5 rounded-full bg-ink px-1.5 py-[1px] text-[8px] font-bold uppercase leading-tight tracking-wide text-white ring-2 ring-white">
+                    Season
+                  </span>
+                ) : null}
                 {off >= 10 ? (
                   <span className="absolute -right-1.5 -top-1.5 rounded-full bg-brand px-1 py-[1px] text-[8.5px] font-bold leading-tight text-white ring-2 ring-white">
                     -{off}%
@@ -77,8 +84,14 @@ export default function CategoryShowcase({ categories }: { categories: ShowcaseC
                 <p className="line-clamp-2 max-w-[70%] text-[17px] font-semibold leading-[1.2] text-ink lg:text-[18px]">
                   {c.shortName || c.name}
                 </p>
-                {sameDay || off >= 10 ? (
+                {sameDay || off >= 10 || c.inSeason ? (
                   <span className="mt-1.5 block space-y-0.5 text-[12px] font-semibold lg:text-[13px]">
+                    {c.inSeason ? (
+                      <span className="flex items-center gap-1.5 text-brand">
+                        <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+                        In season now
+                      </span>
+                    ) : null}
                     {sameDay ? (
                       <span className="flex items-center gap-1.5 text-[#0E7F69]">
                         <span className="h-1.5 w-1.5 rounded-full bg-[#14A887]" />

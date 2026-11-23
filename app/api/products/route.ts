@@ -10,6 +10,7 @@ import { getAppSettings } from '@/lib/app-settings'
 import { festiveFirst } from '@/lib/festive-products'
 import { contextLeadingFeed } from '@/lib/context-recommendations'
 import { resolveStoreContext } from '@/lib/store-context'
+import { listSeasonCategoryProducts, seasonCategoryFor, type SeasonCategory } from '@/lib/season-categories'
 import { storeAwarePublicCacheHeaders } from '@/lib/store-cache-headers'
 
 type ProductVariantInput = {
@@ -89,6 +90,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    let seasonal: SeasonCategory | null = null
+    let seasonalName: string | null = null
     if (categoryId) {
       const selectedCategory = await prisma.category.findFirst({
         where: {
@@ -115,7 +118,11 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      if (selectedCategory.type === 'PRODUCT') {
+      seasonal = selectedCategory.type === 'PRODUCT' ? seasonCategoryFor(selectedCategory.name) : null
+      if (seasonal) {
+        // Wedding / Winter: gathered from across the shop (lib/season-categories.ts).
+        seasonalName = selectedCategory.name
+      } else if (selectedCategory.type === 'PRODUCT') {
         where.category = selectedCategory.name
       } else {
         where.tags = {
@@ -155,9 +162,16 @@ export async function GET(request: NextRequest) {
       })
     )
 
-    const listed = await getOrSetJson(cacheKey, view === 'card' ? 180 : 90, async () =>
-      view === 'card' ? findManyProductCardsCompat(queryArgs) : findManyProductsCompat(queryArgs)
-    )
+    const listed = await getOrSetJson(cacheKey, view === 'card' ? 180 : 90, async () => {
+      if (seasonal && seasonalName) {
+        const find = (filter: Record<string, unknown>) =>
+          (view === 'card'
+            ? findManyProductCardsCompat({ where: filter as any, orderBy: { createdAt: 'desc' }, take: 120 })
+            : findManyProductsCompat({ where: filter as any, orderBy: { createdAt: 'desc' }, take: 120 })) as Promise<any[]>
+        return listSeasonCategoryProducts(seasonal, seasonalName, where, find, (queryArgs as { take?: number }).take ?? 60)
+      }
+      return view === 'card' ? findManyProductCardsCompat(queryArgs) : findManyProductsCompat(queryArgs)
+    })
     // Festival mode: the plain feed (app home grid) leads with the current
     // festival or occasion, then nudges up products for the weather and time of day.
     const isPlainFeed = !category && !categoryId && !search && !idsParam && !wholesaleOnly

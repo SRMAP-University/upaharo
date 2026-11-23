@@ -47,6 +47,14 @@ const LOVE_WORDS = [
   'ring', 'perfume', 'bouquet', 'flower',
 ]
 
+const WEDDING_WORDS = [
+  'wedding', 'bibaha', 'bihe', 'marriage', 'married', 'bride', 'groom', 'couple', 'engagement', 'ring',
+  'shagun', 'sagun', 'janti', 'mehendi', 'mehndi', 'haldi', 'jewellery', 'jewelry', 'necklace', 'pote',
+  'chura', 'sindoor', 'tilhari', 'saree', 'sari', 'silver', 'dinner set', 'photo frame', 'dry fruit',
+  'gift set', 'hamper', 'bouquet', 'flower',
+]
+const WEDDING_CATEGORY = /wedding|marriage|bibaha|engage|bride|groom|couple/i
+
 export const OCCASIONS: OccasionDef[] = [
   {
     id: 'tihar',
@@ -355,6 +363,59 @@ export const OCCASIONS: OccasionDef[] = [
     headline: 'Teej celebrations',
     subtitle: 'Red sarees, pote, chura and mehendi for Haritalika Teej.',
   },
+  // Seasons rather than single days: the date is the season's last day and
+  // leadDays its length, so they run the whole stretch at a moderate weight
+  // and real festivals (Christmas, Valentine's) still lead when they come.
+  {
+    id: 'wedding-season',
+    name: 'Wedding season',
+    nepaliName: 'बिहेको सिजन',
+    emoji: '💍',
+    kind: 'celebration',
+    // Mangsir, the main lagan month (about 17 Nov – 15 Dec; 2027 provisional).
+    dates: ['2026-12-15', '2027-12-16'],
+    leadDays: 29,
+    weight: 82,
+    keywords: WEDDING_WORDS,
+    categoryPattern: WEDDING_CATEGORY,
+    headline: 'Wedding season',
+    subtitle: 'Gifts for the couple, shagun hampers and flowers for the big day.',
+  },
+  {
+    id: 'wedding-season-magh',
+    name: 'Wedding season',
+    nepaliName: 'बिहेको सिजन',
+    emoji: '💍',
+    kind: 'celebration',
+    // Magh and Falgun, the second lagan stretch (about 15 Jan – 13 Mar).
+    dates: ['2027-03-13', '2028-03-13'],
+    leadDays: 57,
+    weight: 78,
+    keywords: WEDDING_WORDS,
+    categoryPattern: WEDDING_CATEGORY,
+    headline: 'Wedding season',
+    subtitle: 'Gifts for the couple, shagun hampers and flowers for the big day.',
+  },
+  {
+    id: 'winter',
+    name: 'Winter',
+    nepaliName: 'जाडो',
+    emoji: '❄️',
+    kind: 'celebration',
+    // Mid-November to mid-February in the valley.
+    fixed: '02-15',
+    leadDays: 92,
+    weight: 72,
+    keywords: [
+      'winter', 'warm', 'woolen', 'woollen', 'wool', 'knit', 'shawl', 'pashmina', 'scarf', 'muffler', 'beanie',
+      'gloves', 'socks', 'sweater', 'hoodie', 'jacket', 'blanket', 'cozy', 'cosy', 'mug', 'coffee', 'tea',
+      'hot chocolate', 'cocoa', 'soup', 'dry fruit', 'nuts', 'honey', 'candle', 'lotion', 'body butter',
+      'lip balm', 'moisturiser', 'moisturizer', 'thermos', 'flask',
+    ],
+    categoryPattern: /winter|warm|woolen|woollen/i,
+    headline: 'Winter warmers',
+    subtitle: 'Shawls, warm mugs and cosy hampers for cold days.',
+  },
 ]
 
 export type ActiveOccasion = OccasionDef & {
@@ -428,6 +489,8 @@ const SEASONAL_GROUPS: Array<{ ids: string[]; pattern: RegExp }> = [
   { ids: ['janai-purnima'], pattern: /raksha|rakhi|janai/i },
   { ids: ['fathers-day'], pattern: /father['’]?s\s*day|kushe/i },
   { ids: ['teej'], pattern: /\bteej\b/i },
+  // Wedding gifts sell all year, so only "winter" items are held back off-season.
+  { ids: ['winter'], pattern: /\bwinter\b/i },
 ]
 
 /** True for products made for an occasion that isn't on right now. */
