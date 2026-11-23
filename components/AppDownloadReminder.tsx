@@ -49,9 +49,28 @@ function shouldHide(pathname: string) {
   ].some((prefix) => pathname.startsWith(prefix))
 }
 
-/** Android phones on the gifts shop, outside the Upaharo app. */
+const IN_APP_KEY = 'upaharo-in-app'
+
+/**
+ * True when this tab is the Upaharo app's own web view. The app adds `?inApp=1`
+ * and a bridge when it opens a page; remember it for the whole tab so later
+ * pages (where the URL no longer carries `inApp=1`) never offer the app either.
+ */
+function insideApp() {
+  try {
+    if (isInApp()) {
+      sessionStorage.setItem(IN_APP_KEY, '1')
+      return true
+    }
+    return sessionStorage.getItem(IN_APP_KEY) === '1'
+  } catch {
+    return isInApp()
+  }
+}
+
+/** Android phones browsing the gifts website, never inside the Upaharo app. */
 function isAndroidShopper() {
-  if (isInApp()) return false
+  if (insideApp()) return false
   const host = window.location.hostname.toLowerCase()
   if (host.startsWith('grocery.') || host.includes('grocery.upaharo')) return false
   return /android/i.test(navigator.userAgent)
