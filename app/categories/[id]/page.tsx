@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import SkeletonLoader from '@/components/SkeletonLoader'
@@ -9,6 +9,10 @@ import BottomNav from '@/components/BottomNav'
 import ProductCard from '@/components/ProductCard'
 import { rememberViewedCategory } from '@/lib/personalization-consent'
 import { memoryChanged } from '@/lib/shopper-memory'
+import CategoryFilterChips from '@/components/CategoryFilterChips'
+import { applySelection, chipGroups, groupsForCategory, type FilterGroup, type Selection } from '@/lib/category-filters'
+
+const FILTER_PARAMS: FilterGroup['id'][] = ['for', 'occasion', 'type', 'price']
 
 interface Category {
   id: string
@@ -30,6 +34,8 @@ interface Product {
   discount: number
   prepTime: number
   categoryId: string
+  category?: string
+  tags?: string[] | null
 }
 
 export default function CategoryPage({ params }: { params: Promise<{ id: string }> }) {
@@ -38,10 +44,44 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
   const [category, setCategory] = useState<Category | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [selection, setSelection] = useState<Selection>({})
+  const [showOptions, setShowOptions] = useState(false)
 
   useEffect(() => {
     fetchCategoryAndProducts()
   }, [id])
+
+  // Options come from the address (?for=her&occasion=birthday), so they survive back and share.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const fromUrl: Selection = {}
+    for (const key of FILTER_PARAMS) {
+      const value = params.get(key)
+      if (value) fromUrl[key] = value
+    }
+    setSelection(fromUrl)
+    // Gift options only; the grocery store's aisles don't need them.
+    const host = window.location.hostname.toLowerCase()
+    setShowOptions(!(host.startsWith('grocery.') || host.includes('grocery.upaharo')))
+  }, [id])
+
+  const choose = useCallback((next: Selection) => {
+    setSelection(next)
+    const params = new URLSearchParams(window.location.search)
+    for (const key of FILTER_PARAMS) {
+      if (next[key]) params.set(key, next[key] as string)
+      else params.delete(key)
+    }
+    const query = params.toString()
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`)
+  }, [])
+
+  const groups = useMemo(
+    () => (category && showOptions && products.length >= 4 ? groupsForCategory(category.name) : []),
+    [category, showOptions, products.length],
+  )
+  const chips = useMemo(() => chipGroups(products, groups, selection), [products, groups, selection])
+  const shown = useMemo(() => applySelection(products, groups, selection), [products, groups, selection])
 
   const fetchCategoryAndProducts = async () => {
     try {
@@ -133,10 +173,19 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
             <div className="min-w-0">
               <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-ink lg:text-[40px]">{category.name}</h1>
               <p className="mt-0.5 text-[13px] text-ink/50 lg:text-sm">
-                {products.length} {products.length === 1 ? 'gift' : 'gifts'}
+                {shown.length === products.length
+                  ? `${products.length} ${products.length === 1 ? 'gift' : 'gifts'}`
+                  : `${shown.length} of ${products.length} gifts`}
               </p>
             </div>
           </div>
+
+          <CategoryFilterChips
+            groups={chips}
+            selection={selection}
+            onChange={(group, option) => choose({ ...selection, [group]: option ?? undefined })}
+            onClear={() => choose({})}
+          />
         </div>
       </div>
 
@@ -158,14 +207,22 @@ export default function CategoryPage({ params }: { params: Promise<{ id: string 
               Browse all gifts
             </button>
           </motion.div>
+        ) : shown.length === 0 ? (
+          <div className="py-16 text-center">
+            <h2 className="mb-2 text-xl font-extrabold text-ink">No gifts match these choices</h2>
+            <p className="mb-6 text-ink/55">Try fewer options to see more gifts.</p>
+            <button onClick={() => choose({})} className="u-btn-primary">
+              Clear all
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-x-3 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-5 lg:gap-y-8 xl:grid-cols-5">
-            {products.map((product, index) => (
+            {shown.map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
+                transition={{ delay: Math.min(index, 12) * 0.04 }}
               >
                 <ProductCard product={product} />
               </motion.div>

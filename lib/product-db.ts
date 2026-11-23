@@ -42,6 +42,8 @@ export const PRODUCT_CARD_SELECT = {
   discount: true,
   showFoodTypeLabel: true,
   miniDescription: true,
+  /** Category pages match "For Her", "Anniversary"… options on tags too. */
+  tags: true,
   pickupEnabled: true,
   pickupLatitude: true,
   pickupLongitude: true,
