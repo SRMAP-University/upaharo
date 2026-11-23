@@ -24,6 +24,12 @@ export default function PWAInstallPrompt() {
       return
     }
     const handler = (e: Event) => {
+      // Android shoppers are offered the Play Store app instead (AppDownloadReminder),
+      // so keep Chrome's own install banner quiet there too.
+      if (/android/i.test(navigator.userAgent)) {
+        e.preventDefault()
+        return
+      }
       // Check if user has dismissed the prompt before
       const dismissed = localStorage.getItem('pwa-install-dismissed')
       const dismissedTime = dismissed ? parseInt(dismissed) : 0
