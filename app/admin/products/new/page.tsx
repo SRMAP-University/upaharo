@@ -22,6 +22,8 @@ import {
 import { mergeSubProductTags } from '@/lib/product-subproducts'
 import { renderProductDescriptionMarkdown } from '@/lib/markdown-description'
 import { formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import DivisionPicker from '@/components/admin/DivisionPicker'
+import { divisionFor, isDivision, type Division } from '@/lib/divisions'
 
 type ProductVariant = {
   color: string
@@ -47,6 +49,7 @@ export default function NewProduct() {
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
   const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
+  const [division, setDivision] = useState<Division | null>(null)
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [storeSlug, setStoreSlug] = useState('')
@@ -250,6 +253,7 @@ export default function NewProduct() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          division: division ?? divisionFor(formData.category),
           wholesalePrice:
             formData.wholesalePrice === '' || formData.wholesalePrice == null
               ? null
@@ -381,6 +385,8 @@ export default function NewProduct() {
                 onExtraCategorySelectionsChange={setExtraCategorySelections}
                 accent="orange"
               />
+
+              <DivisionPicker value={division ?? divisionFor(formData.category)} onChange={setDivision} auto={division === null} />
 
               <SubProductSelector value={subProductIds} onChange={setSubProductIds} />
 

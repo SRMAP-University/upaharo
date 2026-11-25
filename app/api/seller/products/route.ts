@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth-options'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG, sanitizeProductTags } from '@/lib/product-archive'
 import { findManyProductsCompat, withProductWriteCompatibility } from '@/lib/product-db'
+import { divisionFor } from '@/lib/divisions'
 
 type ProductVariantInput = {
   color?: unknown
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       miniDescription: String(body?.miniDescription || '').trim() || null,
       description: body.description,
       category: body.category,
+      division: divisionFor(body.category),
       price: parseFloat(body.price),
       image: body.image,
       images: body.images || [],

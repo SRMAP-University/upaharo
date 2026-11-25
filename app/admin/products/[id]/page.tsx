@@ -24,6 +24,8 @@ import {
 import { extractSubProductIdsFromTags, mergeSubProductTags, stripSubProductTags } from '@/lib/product-subproducts'
 import { renderProductDescriptionMarkdown } from '@/lib/markdown-description'
 import { formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import DivisionPicker from '@/components/admin/DivisionPicker'
+import { divisionFor, isDivision, type Division } from '@/lib/divisions'
 
 type ProductVariant = {
   color: string
@@ -53,6 +55,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
   const [recipientSelections, setRecipientSelections] = useState<string[]>([])
   const [occasionSelections, setOccasionSelections] = useState<string[]>([])
   const [extraCategorySelections, setExtraCategorySelections] = useState<string[]>([])
+  const [division, setDivision] = useState<Division>('gifts')
   const [subProductIds, setSubProductIds] = useState<string[]>([])
   const [prepTimeUnit, setPrepTimeUnit] = useState<PrepTimeUnit>('minutes')
   const [storeSlug, setStoreSlug] = useState('')
@@ -325,6 +328,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
         setRecipientSelections(tagState.recipientSelections)
         setOccasionSelections(tagState.occasionSelections)
         setExtraCategorySelections(tagState.extraCategorySelections)
+        setDivision(isDivision(product.division) ? product.division : divisionFor(product.category))
         setSubProductIds(extractSubProductIdsFromTags(product.tags))
         setVariantFiles(new Array(variants.length).fill(null))
       }
@@ -352,6 +356,7 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          division,
           sellerId: formData.sellerId === loadedSellerIdRef.current ? undefined : formData.sellerId,
           wholesalePrice:
             formData.wholesalePrice === '' || formData.wholesalePrice == null
@@ -488,6 +493,8 @@ function EditProductContent({ params }: { params: Promise<{ id: string }> }) {
                 onExtraCategorySelectionsChange={setExtraCategorySelections}
                 accent="orange"
               />
+
+              <DivisionPicker value={division} onChange={setDivision} />
 
               <SubProductSelector value={subProductIds} onChange={setSubProductIds} excludeProductId={id} />
 

@@ -5,6 +5,7 @@ import { withProductWriteCompatibility } from '@/lib/product-db'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { divisionFor } from '@/lib/divisions'
 
 export async function POST(
   request: NextRequest,
@@ -36,6 +37,7 @@ export async function POST(
       miniDescription: source.miniDescription,
       description: source.description,
       category: source.category,
+      division: divisionFor(source.category, (source as { division?: string }).division),
       price: source.price,
       wholesalePrice: source.wholesalePrice,
       image: source.image,

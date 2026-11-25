@@ -5,6 +5,7 @@ import { inventoryRow, listInventory, type InventoryFilter } from '@/lib/invento
 import { INVENTORY_ITEM_TAG } from '@/lib/inventory-tags'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { divisionFor, isDivision, type Division } from '@/lib/divisions'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +34,7 @@ export async function GET(request: NextRequest) {
     category: p.get('category') || 'all',
     page: Number(p.get('page')) || 1,
     perPage: Number(p.get('perPage')) || 50,
+    division: isDivision(p.get('division')) ? (p.get('division') as Division) : undefined,
   })
   return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } })
 }
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
       name,
       description: String(body?.description || '').trim(),
       category,
+      division: divisionFor(category, body?.division),
       price,
       costPrice,
       packagingCost,

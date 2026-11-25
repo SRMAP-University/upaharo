@@ -5,6 +5,7 @@ import { inventoryRow } from '@/lib/inventory'
 import { HAMPER_TAG, readHamperInput } from '@/lib/inventory-hampers'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { divisionFor } from '@/lib/divisions'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,6 +35,7 @@ export async function POST(request: NextRequest) {
       name: data.name,
       description: data.description,
       category: data.category,
+      division: divisionFor(data.category, body?.division),
       price: data.price,
       packagingCost: data.packagingCost,
       costPrice: null,

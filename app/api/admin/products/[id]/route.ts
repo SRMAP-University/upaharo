@@ -13,6 +13,7 @@ import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 import { resolveProductSellerId } from '@/lib/product-seller'
+import { isDivision } from '@/lib/divisions'
 
 type ProductVariantInput = {
   color?: unknown
@@ -136,6 +137,12 @@ export async function PATCH(
       data.variants = normalizeVariants(body.variants)
     }
 
+    if (body?.division !== undefined) {
+      if (!isDivision(body.division)) {
+        return NextResponse.json({ error: 'Choose Upaharo Gifts or Upaharo Cakes' }, { status: 400 })
+      }
+      data.division = body.division
+    }
     if (body?.tags !== undefined) {
       data.tags = sanitizeProductTags(body.tags)
     }

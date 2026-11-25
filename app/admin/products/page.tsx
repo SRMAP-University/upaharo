@@ -28,6 +28,8 @@ interface Product {
   category: string
   /** Extra shop categories, occasions and recipients are saved here by name. */
   tags?: string[]
+  /** Upaharo Gifts or Upaharo Cakes inventory. */
+  division?: string
   createdAt: string
   sku?: string | null
   trackStock?: boolean
@@ -627,6 +629,9 @@ function AdminProductsContent() {
                         </td>
                         <td className="px-6 py-4 text-sm text-ink/55">
                           {product.category}
+                          <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${product.division === 'cakes' ? 'bg-rose-100 text-rose-800' : 'bg-stone-100 text-ink/60'}`}>
+                            {product.division === 'cakes' ? 'Cakes' : 'Gifts'}
+                          </span>
                           <ProductGroupChips
                             product={product}
                             groups={groups}
@@ -731,7 +736,9 @@ function AdminProductsContent() {
                       </div>
                       <div className="flex-1">
                         <div className="text-sm font-semibold text-ink">{product.name}</div>
-                        <div className="text-xs text-ink/55">{product.category}</div>
+                        <div className="text-xs text-ink/55">
+                          {product.category} · {product.division === 'cakes' ? 'Upaharo Cakes' : 'Upaharo Gifts'}
+                        </div>
                         <ProductGroupChips
                           product={product}
                           groups={groups}
@@ -905,6 +912,24 @@ function AdminProductsContent() {
                       className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-wine disabled:opacity-50"
                     >
                       Apply
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={bulkBusy}
+                      onClick={() => runBulk('setDivision', { division: 'gifts' })}
+                      className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-ink/70 disabled:opacity-50"
+                    >
+                      To Gifts
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bulkBusy}
+                      onClick={() => runBulk('setDivision', { division: 'cakes' })}
+                      className="rounded-full border border-stone-300 px-3 py-1.5 text-xs font-semibold text-ink/70 disabled:opacity-50"
+                    >
+                      To Cakes
                     </button>
                   </div>
                   <div className="flex items-center gap-1">

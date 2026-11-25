@@ -13,6 +13,7 @@ import { PRODUCT_UNITS } from '@/lib/product-fields'
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { divisionFor } from '@/lib/divisions'
 
 const MAX_ROWS = 2000
 
@@ -90,6 +91,7 @@ async function upsertImportRow(
           data: {
             name: safeData.name,
             category: safeData.category,
+            division: divisionFor(safeData.category),
             price: safeData.price,
             wholesalePrice: safeData.wholesalePrice,
             image: safeData.image,

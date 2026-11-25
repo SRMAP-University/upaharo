@@ -338,6 +338,9 @@ model Product {
   unitValue                 Float?
   /// Grocery shelf / aisle label.
   aisle                     String?
+  /// Inventory it belongs to: "gifts" (Upaharo Gifts) or "cakes" (Upaharo Cakes).
+  /// Added by scripts/_ensure-product-division.mjs.
+  division                  String               @default("gifts")
   /// Customer may collect this product instead of paying for delivery.
   pickupEnabled             Boolean              @default(false)
   pickupLatitude            Float?

@@ -7,6 +7,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { dayEnd, dayStart, isDay, orderFigures, saleLine, unitCosts } from '@/lib/inventory'
+import type { Division } from '@/lib/divisions'
 
 export type InventoryOrderView = 'all' | 'counted' | 'off' | 'deleted'
 const ORDER_STATUSES = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'OUT_FOR_DELIVERY', 'DELIVERED'] as const
@@ -145,6 +146,8 @@ export async function listInventoryOrders(
     search?: string
     page?: number
     perPage?: number
+    /** Only orders with Upaharo Gifts or Upaharo Cakes items (Product Inventory). */
+    division?: Division
   }
 ) {
   const perPage = [20, 50, 100].includes(Number(options.perPage)) ? Number(options.perPage) : 20
@@ -160,6 +163,7 @@ export async function listInventoryOrders(
     status: status ? status : { not: 'CANCELLED' },
     ...(createdAt.gte || createdAt.lt ? { createdAt } : {}),
     ...(options.source === 'offline' ? { source: 'OFFLINE' } : options.source === 'online' ? { source: 'UPAHARO' } : {}),
+    ...(options.division ? { items: { some: { product: { division: options.division } } } } : {}),
     ...(search
       ? {
           OR: [

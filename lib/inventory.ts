@@ -10,6 +10,7 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
+import type { Division } from '@/lib/divisions'
 
 const NEPAL_OFFSET_MS = (5 * 60 + 45) * 60_000
 const DAY_MS = 86_400_000
@@ -269,13 +270,25 @@ export async function availableStock(storeId: string, productId: string) {
 
 export async function listInventory(
   storeId: string,
-  options: { search?: string; status?: InventoryFilter; category?: string; page?: number; perPage?: number }
+  options: {
+    search?: string
+    status?: InventoryFilter
+    category?: string
+    page?: number
+    perPage?: number
+    /** Upaharo Gifts or Upaharo Cakes only (Product Inventory); all when left out. */
+    division?: Division
+  }
 ) {
   const perPage = [20, 50, 100].includes(Number(options.perPage)) ? Number(options.perPage) : 50
   const page = Math.max(1, Math.floor(Number(options.page) || 1))
   const search = String(options.search || '').trim()
   // Archived products (and hidden custom lines from offline orders) aren't stock.
-  const live: Prisma.ProductWhereInput = { storeId, NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } } }
+  const live: Prisma.ProductWhereInput = {
+    storeId,
+    NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
+    ...(options.division ? { division: options.division } : {}),
+  }
   const where: Prisma.ProductWhereInput = {
     ...live,
     ...(options.category && options.category !== 'all' ? { category: options.category } : {}),
@@ -289,7 +302,14 @@ export async function listInventory(
       : {}),
   }
 
-  const hamperIds = (await storeHampers(storeId)).map((h) => h.id)
+  let hamperIds = (await storeHampers(storeId)).map((h) => h.id)
+  if (options.division && hamperIds.length) {
+    const inDivision = await prisma.product.findMany({
+      where: { id: { in: hamperIds }, division: options.division },
+      select: { id: true },
+    })
+    hamperIds = inDivision.map((h) => h.id)
+  }
   const notHamper: Prisma.ProductWhereInput = hamperIds.length ? { id: { notIn: hamperIds } } : {}
   // Summary across the whole store (tracked products are what stock counts cover).
   const tracked = await prisma.product.findMany({ where: { ...live, ...notHamper, trackStock: true }, select: PRODUCT_SELECT })
@@ -437,6 +457,26 @@ export function orderFigures(
   }
 }
 
+/** One order's figures for some of its lines only (e.g. just its cakes). */
+function divisionPart(whole: ReturnType<typeof orderFigures>, keep: boolean[]) {
+  let itemSales = 0
+  let discounts = 0
+  let cost = 0
+  let profit = 0
+  let uncostedSales = 0
+  whole.lines.forEach((line, index) => {
+    if (!keep[index]) return
+    itemSales += line.sales
+    discounts += line.share
+    if (line.unitCost === null) uncostedSales += line.sales
+    else {
+      cost += line.unitCost * line.quantity
+      profit += line.profit ?? 0
+    }
+  })
+  return { ...whole, itemSales, discounts, netSales: itemSales - discounts, cost, profit, uncostedSales }
+}
+
 export type SalesBucket = {
   key: string
   orders: number
@@ -473,7 +513,18 @@ const emptyBucket = (key: string): SalesBucket => ({
  */
 export async function salesReport(
   storeId: string,
-  options: { from: string; to: string; groupBy?: 'day' | 'month'; source?: 'all' | 'online' | 'offline' }
+  options: {
+    from: string
+    to: string
+    groupBy?: 'day' | 'month'
+    source?: 'all' | 'online' | 'offline'
+    /**
+     * Upaharo Gifts or Upaharo Cakes only (Product Inventory). An order with
+     * both counts its matching lines here, with their share of its discount
+     * and delivery fee.
+     */
+    division?: Division
+  }
 ) {
   const from = isDay(options.from) ? options.from : nepalDay(new Date())
   const to = isDay(options.to) && options.to >= from ? options.to : from
@@ -484,6 +535,7 @@ export async function salesReport(
     storeId,
     createdAt: { gte: start, lt: end },
     ...(options.source === 'offline' ? { source: 'OFFLINE' } : options.source === 'online' ? { source: 'UPAHARO' } : {}),
+    ...(options.division ? { items: { some: { product: { division: options.division } } } } : {}),
   }
 
   const [orders, leftOut] = await Promise.all([
@@ -501,7 +553,7 @@ export async function salesReport(
             price: true,
             inventoryQty: true,
             inventoryPrice: true,
-            product: { select: { name: true } },
+            product: { select: { name: true, division: true } },
           },
         },
       },
@@ -535,9 +587,12 @@ export async function salesReport(
     const bucket = buckets.get(key) ?? emptyBucket(key)
     buckets.set(key, bucket)
 
-    const figures = orderFigures(order.items.map(saleLine), order, costs)
+    const whole = orderFigures(order.items.map(saleLine), order, costs)
+    const figures = options.division ? divisionPart(whole, order.items.map((item) => item.product.division === options.division)) : whole
+    const deliveryFee = whole.itemSales > 0 ? (order.deliveryFee || 0) * (figures.itemSales / whole.itemSales) : order.deliveryFee || 0
     order.items.forEach((item, index) => {
-      const line = figures.lines[index]
+      if (options.division && item.product.division !== options.division) return
+      const line = whole.lines[index]
       const entry = byProduct.get(item.productId) ?? { id: item.productId, name: item.product.name, quantity: 0, sales: 0, profit: 0 }
       entry.quantity += line.quantity
       entry.sales += line.sales - line.share
@@ -553,7 +608,7 @@ export async function salesReport(
       target.cost += figures.cost
       target.profit += figures.profit
       target.uncostedSales += figures.uncostedSales
-      target.deliveryFees += order.deliveryFee || 0
+      target.deliveryFees += deliveryFee
     }
   }
 

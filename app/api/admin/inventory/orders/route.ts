@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireInventoryAccess } from '@/lib/inventory-lock'
 import { listInventoryOrders } from '@/lib/inventory-orders'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { isDivision, type Division } from '@/lib/divisions'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
     search: p.get('search') || '',
     page: Number(p.get('page')) || 1,
     perPage: Number(p.get('perPage')) || 20,
+    division: isDivision(p.get('division')) ? (p.get('division') as Division) : undefined,
   })
   return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } })
 }

@@ -127,7 +127,13 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: 'Catalog',
     items: [
       { label: 'Products', href: '/admin/products', icon: AdminIcons.Gift, keywords: 'items inventory stock price' },
-      { label: 'Inventory', href: '/admin/inventory', icon: AdminIcons.Stock, keywords: 'stock purchase price cost profit sales report pin' },
+      {
+        label: 'Product Inventory',
+        href: '/admin/product-inventory',
+        icon: AdminIcons.Stock,
+        keywords: 'inventory gifts cakes stock sales online offline dashboard pin',
+      },
+      { label: 'Record', href: '/admin/inventory', icon: AdminIcons.Receipt, keywords: 'inventory stock purchase price cost profit sales report pin custom sales' },
       { label: 'Categories', href: '/admin/categories', icon: AdminIcons.Folder, keywords: 'collections' },
       { label: 'Occasions', href: '/admin/occasions', icon: AdminIcons.Sparkles, keywords: 'birthday anniversary festival' },
       { label: 'Gift wraps', href: '/admin/gift-wraps', icon: AdminIcons.Ribbon, keywords: 'packaging wrapping' },

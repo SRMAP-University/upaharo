@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireInventoryAccess } from '@/lib/inventory-lock'
 import { salesReport } from '@/lib/inventory'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { isDivision, type Division } from '@/lib/divisions'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     to: p.get('to') || '',
     groupBy: p.get('groupBy') === 'month' ? 'month' : 'day',
     source: source === 'online' || source === 'offline' ? source : 'all',
+    division: isDivision(p.get('division')) ? (p.get('division') as Division) : undefined,
   })
   return NextResponse.json(report, { headers: { 'Cache-Control': 'private, no-store' } })
 }

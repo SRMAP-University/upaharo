@@ -15,6 +15,7 @@ import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
 import { resolveProductSellerId } from '@/lib/product-seller'
+import { divisionFor } from '@/lib/divisions'
 
 function toNumber(value: unknown, fallback: number) {
   // A missing parameter (null / '') would read as 0.
@@ -234,6 +235,7 @@ export async function POST(request: NextRequest) {
       miniDescription: String(body?.miniDescription || '').trim() || null,
       description,
       category,
+      division: divisionFor(category, body?.division),
       price,
       wholesalePrice,
       image,

@@ -8,10 +8,11 @@ import {
 import { redis, REDIS_KEYS } from '@/lib/redis'
 import { requireAdmin } from '@/lib/request-auth'
 import { resolveAdminStoreContext } from '@/lib/store-context'
+import { isDivision } from '@/lib/divisions'
 
 // addTags / removeTags: put products into, or take them out of, extra shop
 // categories, occasions and recipient groups (all saved as tags with the name).
-const ACTIONS = ['enable', 'disable', 'delete', 'setCategory', 'restore', 'addTags', 'removeTags'] as const
+const ACTIONS = ['enable', 'disable', 'delete', 'setCategory', 'restore', 'addTags', 'removeTags', 'setDivision'] as const
 type BulkAction = (typeof ACTIONS)[number]
 
 export async function POST(request: NextRequest) {
@@ -89,6 +90,15 @@ export async function POST(request: NextRequest) {
           NOT: { tags: { has: ARCHIVED_PRODUCT_TAG } },
         },
         data: { category },
+      })
+      updated = result.count
+    } else if (action === 'setDivision') {
+      if (!isDivision(body?.division)) {
+        return NextResponse.json({ error: 'Choose Upaharo Gifts or Upaharo Cakes' }, { status: 400 })
+      }
+      const result = await prisma.product.updateMany({
+        where: { storeId: storeContext.store.id, id: { in: products.map((p) => p.id) } },
+        data: { division: body.division },
       })
       updated = result.count
     } else if (action === 'addTags' || action === 'removeTags') {

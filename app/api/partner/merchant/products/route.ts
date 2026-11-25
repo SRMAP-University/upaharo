@@ -10,6 +10,7 @@ import {
   findManyProductsCompat,
   withProductWriteCompatibility,
 } from '@/lib/product-db'
+import { divisionFor } from '@/lib/divisions'
 
 type ProductVariantInput = {
   color?: unknown
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
       miniDescription: String(body?.miniDescription || '').trim() || null,
       description: body.description || '',
       category: body.category,
+      division: divisionFor(body.category),
       price: parseFloat(body.price),
       image: body.image,
       images: body.images || [],
