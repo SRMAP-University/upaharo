@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { rememberCartAdd } from '@/lib/shopper-memory'
+import { trackProductEvent } from '@/lib/product-events'
 
 export interface CartItem {
   id: string
@@ -49,6 +50,7 @@ export const useCartStore = create<CartStore>()(
       addItem: (item) => {
         const addQuantity = item.quantity || 1
         rememberCartAdd(item.id)
+        trackProductEvent(item.id, 'add_to_cart', addQuantity)
         const existingItem = get().items.find((i) => i.id === item.id)
         if (existingItem) {
           set({

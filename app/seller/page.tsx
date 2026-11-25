@@ -93,6 +93,16 @@ export default function SellerDashboard() {
               <div className="text-xs text-ink/55">Manage deliveries</div>
             </div>
           </button>
+          <button
+            onClick={() => router.push('/seller/analytics')}
+            className="flex items-center gap-3 bg-white border border-wine/20 text-wine p-4 rounded-2xl hover:border-wine/40 hover:bg-cream transition-colors shadow-sm sm:col-span-2"
+          >
+            <span className="text-2xl">📈</span>
+            <div className="text-left">
+              <div className="font-semibold">Product Stats</div>
+              <div className="text-xs text-ink/55">Views, cart adds, wishlists and sales for each product</div>
+            </div>
+          </button>
         </div>
       </div>
 

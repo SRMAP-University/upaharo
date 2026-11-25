@@ -6,6 +6,7 @@ import ShopAssistant from '@/components/assistant/ShopAssistant'
 import { Providers } from './providers'
 import PWAInstallPrompt from '@/components/PWAInstallPrompt'
 import AppDownloadReminder from '@/components/AppDownloadReminder'
+import ProductClickTracker from '@/components/ProductClickTracker'
 import ChooseLocationPrompt from '@/components/ChooseLocationPrompt'
 import OfflineIndicator from '@/components/OfflineIndicator'
 import { SessionSync } from '@/components/SessionSync'
@@ -170,6 +171,7 @@ export default function RootLayout({
           <PWAInstallPrompt />
           <ChooseLocationPrompt />
           <AppDownloadReminder />
+          <ProductClickTracker />
           {children}
           <ShopAssistant />
         </Providers>

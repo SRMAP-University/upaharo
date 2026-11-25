@@ -359,6 +359,26 @@ model Product {
   @@index([sellerId])
 }
 
+/// Shopper actions on a product (opened from a list, added to cart), for the
+/// product stats in admin and the seller dashboard. Views stay in
+/// ProductViewEvent. Created by scripts/_ensure-product-events.mjs.
+model ProductEvent {
+  id        String   @id @default(cuid())
+  storeId   String
+  productId String
+  /// click | add_to_cart
+  type      String
+  /// Where it happened: home, category, search, product, cart, wishlist, other.
+  source    String?
+  sessionId String?
+  userId    String?
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([storeId, productId, createdAt])
+  @@index([storeId, type, createdAt])
+}
+
 /// Products a customer saved for later.
 model WishlistItem {
   id        String   @id @default(cuid())

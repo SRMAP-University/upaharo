@@ -17,16 +17,16 @@ export async function POST(request: NextRequest, { params }: Params) {
     const userId = await resolveUserId(request)
     const sessionId = String(body?.sessionId || '').trim() || null
 
-    if (userId || sessionId) {
-      const product = await prisma.product.findFirst({
-        where: { id, storeId: store.id },
-        select: { id: true },
+    // Every view counts for the product stats; shoppers who haven't allowed
+    // personal recommendations are counted without any id.
+    const product = await prisma.product.findFirst({
+      where: { id, storeId: store.id },
+      select: { id: true },
+    })
+    if (product) {
+      await prisma.productViewEvent.create({
+        data: { storeId: store.id, productId: id, userId: userId || null, sessionId },
       })
-      if (product) {
-        await prisma.productViewEvent.create({
-          data: { storeId: store.id, productId: id, userId: userId || null, sessionId },
-        })
-      }
     }
 
     return NextResponse.json({ ok: true })

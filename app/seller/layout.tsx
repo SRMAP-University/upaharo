@@ -37,6 +37,7 @@ export default function SellerLayout({
   const navItems = [
     { href: '/seller', label: 'Dashboard', icon: '📊' },
     { href: '/seller/products', label: 'Products', icon: '📦' },
+    { href: '/seller/analytics', label: 'Stats', icon: '📈' },
     { href: '/seller/orders', label: 'Orders', icon: '🛒' },
     { href: '/seller/profile', label: 'Profile', icon: '👤' },
   ]
@@ -101,7 +102,7 @@ export default function SellerLayout({
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-wine/10 shadow-lg z-50">
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {navItems.map((item) => (
             <Link
               key={item.href}

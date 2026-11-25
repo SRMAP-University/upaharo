@@ -16,6 +16,9 @@ export const AdminIcons = {
   Dashboard: (p: IconProps) => (
     <Icon {...p} d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 018.25 20.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
   ),
+  Chart: (p: IconProps) => (
+    <Icon {...p} d="M3 3v18h18M7.5 15.75v-3m4.5 3V9m4.5 6.75v-6" />
+  ),
   Orders: (p: IconProps) => (
     <Icon {...p} d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
   ),
@@ -102,7 +105,15 @@ export type AdminNavGroup = { label: string; items: AdminNavItem[] }
 export const ADMIN_NAV: AdminNavGroup[] = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', shortLabel: 'Home', href: '/admin', icon: AdminIcons.Dashboard, keywords: 'home stats sales' }],
+    items: [
+      { label: 'Dashboard', shortLabel: 'Home', href: '/admin', icon: AdminIcons.Dashboard, keywords: 'home stats sales' },
+      {
+        label: 'Product stats',
+        href: '/admin/analytics',
+        icon: AdminIcons.Chart,
+        keywords: 'analytics views clicks cart wishlist conversion best sellers',
+      },
+    ],
   },
   {
     label: 'Sales',
