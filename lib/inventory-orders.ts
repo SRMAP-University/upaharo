@@ -17,6 +17,8 @@ export type InventoryOrderLine = {
   productId: string
   name: string
   image: string
+  /** Upaharo Gifts ("gifts") or Upaharo Cakes ("cakes"). */
+  division: string
   /** As ordered. */
   orderedQty: number
   orderedPrice: number
@@ -70,7 +72,7 @@ const ORDER_SELECT = {
       price: true,
       inventoryQty: true,
       inventoryPrice: true,
-      product: { select: { name: true, image: true } },
+      product: { select: { name: true, image: true, division: true } },
     },
   },
 } satisfies Prisma.OrderSelect
@@ -98,6 +100,7 @@ function toInventoryOrder(order: OrderRow, costs: Map<string, number | null>): I
         productId: item.productId,
         name: item.product.name,
         image: item.product.image,
+        division: item.product.division,
         orderedQty: item.quantity,
         orderedPrice: item.price,
         quantity: line.quantity,

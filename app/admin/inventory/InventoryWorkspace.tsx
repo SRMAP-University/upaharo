@@ -91,6 +91,7 @@ type InvOrderLine = {
   productId: string
   name: string
   image: string
+  division?: string
   orderedQty: number
   orderedPrice: number
   quantity: number
@@ -1483,8 +1484,15 @@ function OrderCard({
           <div key={line.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
             <Thumb src={line.image} size="h-9 w-9" />
             <div className="min-w-0 flex-1 basis-40">
-              <p className="truncate text-sm font-medium text-ink" title={line.name}>
-                {line.name}
+              <p className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink" title={line.name}>
+                <span className="truncate">{line.name}</span>
+                <span
+                  className={`flex-shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold ${
+                    line.division === 'cakes' ? 'bg-rose-100 text-rose-800' : 'bg-stone-100 text-ink/60'
+                  }`}
+                >
+                  {line.division === 'cakes' ? 'Cakes' : 'Gifts'}
+                </span>
               </p>
               {line.edited ? (
                 <p className="text-[11px] text-ink/45">
@@ -1838,16 +1846,19 @@ export default function InventoryWorkspace({
   title,
   description,
   division,
+  dashboard = false,
   switcher,
 }: {
   title: string
   description: string
   division?: Division
-  /** Shown above the tabs once unlocked (Gifts | Cakes). */
+  /** Product Inventory: a Dashboard tab and its tab names (with or without a division). */
+  dashboard?: boolean
+  /** Shown above the tabs once unlocked (All | Gifts | Cakes). */
   switcher?: React.ReactNode
 }) {
   const [state, setState] = useState<'checking' | 'locked' | 'open' | 'no-pin'>('checking')
-  const [tab, setTab] = useState<Tab>(division ? 'dashboard' : 'stock')
+  const [tab, setTab] = useState<Tab>(dashboard ? 'dashboard' : 'stock')
   const [changingPin, setChangingPin] = useState(false)
 
   const check = useCallback(() => {
@@ -1896,7 +1907,7 @@ export default function InventoryWorkspace({
           {changingPin ? <ChangePin onClose={() => setChangingPin(false)} /> : null}
           {switcher}
           <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl bg-stone-200/60 p-1 sm:w-fit" role="tablist">
-            {(division
+            {(dashboard
               ? ([
                   ['dashboard', 'Dashboard'],
                   ['stock', 'Items'],
@@ -1922,13 +1933,13 @@ export default function InventoryWorkspace({
               </button>
             ))}
           </div>
-          {tab === 'dashboard' && division ? (
+          {tab === 'dashboard' && dashboard ? (
             <DivisionDashboard division={division} onLocked={onLocked} onOpen={(next) => setTab(next)} />
           ) : tab === 'stock' ? (
             <StockTab onLocked={onLocked} division={division} />
           ) : tab === 'orders' ? (
             <OrdersTab onLocked={onLocked} division={division} />
-          ) : tab === 'sheets' && !division ? (
+          ) : tab === 'sheets' && !dashboard ? (
             <SalesSheetsTab onLocked={onLocked} />
           ) : (
             <ReportTab onLocked={onLocked} division={division} />

@@ -5,9 +5,10 @@ import { api, Kpi, presets, rs } from '@/app/admin/inventory/shared'
 import { divisionLabel, type Division } from '@/lib/divisions'
 
 /**
- * Product Inventory → Dashboard for Upaharo Gifts or Upaharo Cakes: sales,
- * orders and profit split online / offline, sales by day, best sellers and
- * stock alerts. Uses the same numbers as Sales & profit and Items.
+ * Product Inventory → Dashboard for Upaharo Gifts, Upaharo Cakes, or both
+ * together ("All", no division): sales, orders and profit split online /
+ * offline (and Gifts / Cakes for All), sales by day, best sellers and stock
+ * alerts. Uses the same numbers as Sales & profit and Items.
  */
 
 // Validated pair (lightness, colour-blind separation, contrast): online / offline.
@@ -140,13 +141,14 @@ export default function DivisionDashboard({
   onLocked,
   onOpen,
 }: {
-  division: Division
+  /** Left out for All (Gifts and Cakes together). */
+  division?: Division
   onLocked: () => void
   onOpen: (tab: 'stock' | 'orders' | 'report') => void
 }) {
   const options = useMemo(() => presets().filter((p) => PERIODS.includes(p.id)), [])
   const [period, setPeriod] = useState('month')
-  const [data, setData] = useState<{ online: Report; offline: Report; summary: Summary } | null>(null)
+  const [data, setData] = useState<{ online: Report; offline: Report; summary: Summary; gifts?: Bucket; cakes?: Bucket } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -154,17 +156,24 @@ export default function DivisionDashboard({
     const chosen = options.find((p) => p.id === period) || options[0]
     const days = Math.round((Date.parse(chosen.to) - Date.parse(chosen.from)) / 86_400_000) + 1
     const groupBy = days > 62 ? 'month' : 'day'
-    const report = (source: 'online' | 'offline') =>
-      api<Report>(`/api/admin/inventory/report?from=${chosen.from}&to=${chosen.to}&groupBy=${groupBy}&source=${source}&division=${division}`)
+    const only = division ? `&division=${division}` : ''
+    const report = (source: 'online' | 'offline' | 'all', side = only) =>
+      api<Report>(`/api/admin/inventory/report?from=${chosen.from}&to=${chosen.to}&groupBy=${groupBy}&source=${source}${side}`)
     let cancelled = false
     setLoading(true)
     setError('')
     Promise.all([
       report('online'),
       report('offline'),
-      api<{ summary: Summary }>(`/api/admin/inventory/products?division=${division}&perPage=20`),
+      api<{ summary: Summary }>(`/api/admin/inventory/products?perPage=20${only}`),
+      // All: how the sales split between the two businesses.
+      division ? null : report('all', '&division=gifts'),
+      division ? null : report('all', '&division=cakes'),
     ])
-      .then(([online, offline, stock]) => !cancelled && setData({ online, offline, summary: stock.summary }))
+      .then(
+        ([online, offline, stock, gifts, cakes]) =>
+          !cancelled && setData({ online, offline, summary: stock.summary, gifts: gifts?.totals, cakes: cakes?.totals })
+      )
       .catch((err) => {
         if (cancelled) return
         if ((err as { locked?: boolean }).locked) onLocked()
@@ -215,7 +224,7 @@ export default function DivisionDashboard({
       {error ? <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Sales" value={rs(sales)} hint={`${divisionLabel(division)}, after discounts`} loading={loading && !data} />
+        <Kpi label="Sales" value={rs(sales)} hint={`${division ? divisionLabel(division) : 'Gifts and Cakes'}, after discounts`} loading={loading && !data} />
         <Kpi label="Orders" value={String(orders)} hint={orders ? `Average ${rs(sales / orders)}` : 'No orders yet'} loading={loading && !data} />
         <Kpi
           label="Profit"
@@ -230,6 +239,45 @@ export default function DivisionDashboard({
           loading={loading && !data}
         />
       </div>
+
+      {!division && data?.gifts && data?.cakes ? (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Gifts and Cakes</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                ['Upaharo Gifts', data.gifts],
+                ['Upaharo Cakes', data.cakes],
+              ] as const
+            ).map(([name, bucket]) => (
+              <div key={name} className="rounded-xl border border-stone-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-ink">{name}</p>
+                  <span className="text-xs text-ink/50">{share(bucket.netSales, data.gifts!.netSales + data.cakes!.netSales)}% of sales</span>
+                </div>
+                <p className="mt-2 text-2xl font-semibold tabular-nums text-ink">{rs(bucket.netSales)}</p>
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <dt className="text-ink/50">Orders</dt>
+                    <dd className="font-semibold tabular-nums text-ink">{bucket.orders}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink/50">Profit</dt>
+                    <dd className="font-semibold tabular-nums text-ink">{rs(bucket.profit)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink/50">Margin</dt>
+                    <dd className="font-semibold tabular-nums text-ink">
+                      {bucket.netSales - bucket.uncostedSales > 0 ? `${Math.round((bucket.profit / (bucket.netSales - bucket.uncostedSales)) * 100)}%` : '—'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-ink/50">An order with both a cake and a gift counts once in each.</p>
+        </section>
+      ) : null}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-ink">Online and offline</h2>
@@ -284,7 +332,7 @@ export default function DivisionDashboard({
 
       <section className="rounded-xl border border-stone-200 bg-white p-4">
         <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold text-ink">Items in {divisionLabel(division)}</h2>
+          <h2 className="text-sm font-semibold text-ink">Items in {division ? divisionLabel(division) : 'Gifts and Cakes'}</h2>
           <button type="button" onClick={() => onOpen('stock')} className="text-xs font-semibold text-wine">
             All items →
           </button>
