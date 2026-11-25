@@ -129,7 +129,7 @@ export async function POST(request: Request) {
         // Send welcome email to seller with credentials
         await sendEmail({
           to: email,
-          subject: 'Welcome to AGS Seller Platform',
+          subject: 'Welcome to Upaharo Seller Platform',
           html: emailTemplates.sellerAccountCreated({
             sellerName: name,
             businessName,

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import AdminPageHeader from '@/components/admin/AdminPageHeader'
+import EmailTestCard from '@/components/admin/EmailTestCard'
 import {
   clampFloat,
   clampInt,
@@ -259,6 +260,8 @@ export default function AdminSettingsPage() {
         title="Settings"
         description="Configure your store and mobile app by category. Changes apply after you save."
       />
+
+      <EmailTestCard />
 
       {message && (
         <div
