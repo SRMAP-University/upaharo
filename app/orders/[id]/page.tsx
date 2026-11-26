@@ -13,6 +13,7 @@ import { resolveImageUrl } from '@/lib/image-url'
 import { lineOffer, orderBreakdown } from '@/lib/order-breakdown'
 import { cancelledByLabel } from '@/lib/order-cancel'
 import { formatPrice, formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
+import CakeLineDetails, { CakeThumb } from '@/components/cake/CakeLineDetails'
 
 const trackingSteps = [
   { key: 'PENDING', label: 'Order Placed' },
@@ -397,17 +398,22 @@ export default function OrderTrackingPage() {
             {order.items.map((item: any) => (
               <div key={item.id} className="flex items-center justify-between gap-3 rounded-xl border border-wine/10 p-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <img
-                    src={resolveImageUrl(item.product.image)}
-                    alt={item.product.name}
-                    className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover border border-wine/10 bg-cream-deep"
-                  />
+                  {item.customization ? (
+                    <CakeThumb customization={item.customization} className="h-14 w-14 flex-shrink-0 rounded-2xl border border-wine/10 bg-[#FFF3F5]" />
+                  ) : (
+                    <img
+                      src={resolveImageUrl(item.product.image)}
+                      alt={item.product.name}
+                      className="h-14 w-14 flex-shrink-0 rounded-2xl object-cover border border-wine/10 bg-cream-deep"
+                    />
+                  )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       {item.product.showFoodTypeLabel && isFoodProduct(item.product) ? <FoodTypeBadge isVeg={item.product.isVeg} className="h-4 w-4" /> : null}
                       <p className="truncate font-display text-sm font-semibold text-ink">{item.product.name}</p>
                     </div>
                     <p className="text-xs text-ink/55">Qty: {item.quantity}</p>
+                    {item.customization ? <CakeLineDetails customization={item.customization} className="mt-1" /> : null}
                     {lineOffer(item).offer ? (
                       <p className="text-xs text-ink/55">
                         <span className="line-through">{formatPriceCompact(lineOffer(item).regularUnit)}</span>{' '}

@@ -7,6 +7,7 @@
 import type { Prisma } from '@prisma/client'
 import { OFFLINE_CUSTOM_TAG } from '@/lib/offline-order'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
+import { CAKE_BUILDER_TAG } from '@/lib/cake-builder'
 
 export const ADMIN_ORDER_INCLUDE = {
   store: { select: { slug: true, name: true } },
@@ -55,7 +56,7 @@ export function toAdminOrder(order: AdminOrderRow) {
         ...item,
         product: {
           ...product,
-          custom: tags.includes(OFFLINE_CUSTOM_TAG),
+          custom: tags.includes(OFFLINE_CUSTOM_TAG) || tags.includes(CAKE_BUILDER_TAG),
           inShop: !tags.includes(ARCHIVED_PRODUCT_TAG),
         },
       }

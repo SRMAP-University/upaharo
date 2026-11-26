@@ -9,6 +9,7 @@ import { CANCEL_REASON_MAX, STORE_CANCEL_REASONS, cancelledByLabel } from '@/lib
 import { formatPriceCompact, formatPriceNoDecimals, formatTime } from '@/lib/utils'
 import { api, PinConfirm, TrashIcon } from '@/app/admin/inventory/shared'
 import DeletedOrders from './DeletedOrders'
+import CakeLineDetails, { CakeThumb } from '@/components/cake/CakeLineDetails'
 
 interface Address {
   label: string
@@ -109,6 +110,8 @@ interface OrderItem {
   quantity: number
   /** Unit price the customer paid. */
   price: number
+  /** Build Your Own Cake picks, when the line is a custom cake. */
+  customization?: unknown
   product: {
     id: string
     name: string
@@ -146,7 +149,9 @@ const orderTime = (iso: string, withYear = true) =>
 function OrderItemRow({ item }: { item: OrderItem }) {
   const pricing = lineOffer(item)
   const shopUrl = item.product.inShop && !item.product.custom ? `/products/${item.product.id}` : null
-  const photo = item.product.image ? (
+  const photo = item.customization ? (
+    <CakeThumb customization={item.customization} className="h-16 w-16 shrink-0 rounded-lg bg-[#FFF3F5] ring-1 ring-stone-200" />
+  ) : item.product.image ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={resolveImageUrl(item.product.image)} alt="" className="h-16 w-16 shrink-0 rounded-lg bg-white object-cover ring-1 ring-stone-200" />
   ) : (
@@ -179,8 +184,13 @@ function OrderItemRow({ item }: { item: OrderItem }) {
             </>
           ) : null}
         </p>
+        {item.customization ? (
+          <CakeLineDetails customization={item.customization} showPrices className="mt-1.5 rounded-lg bg-white p-2 ring-1 ring-stone-200" />
+        ) : null}
         <p className="mt-0.5 text-xs text-ink/45">
-          {item.product.custom ? (
+          {item.customization ? (
+            'Custom cake from Build Your Own Cake'
+          ) : item.product.custom ? (
             'Custom item (not in the shop)'
           ) : item.product.inShop ? (
             <Link href={`/admin/products/${item.product.id}`} className="font-semibold text-wine hover:underline">

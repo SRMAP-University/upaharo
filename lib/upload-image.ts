@@ -13,6 +13,11 @@ export async function uploadCategoryImage(file: File): Promise<string> {
   return uploadImageToFolder(file, 'categories')
 }
 
+/** A customer's picture for a custom cake (photo print or design reference). */
+export async function uploadCakePhoto(file: File): Promise<string> {
+  return uploadImageToFolder(file, 'cake-photos')
+}
+
 export async function uploadBannerMedia(file: File): Promise<string> {
   return uploadImageToFolder(file, 'banners')
 }
@@ -40,7 +45,11 @@ async function uploadImageToFolder(file: File, folder: string): Promise<string> 
       throw new Error('File is too large. Images must be 5MB or smaller, videos 20MB or smaller.')
     }
     if (response.status === 401) {
-      throw new Error('Session expired — refresh and sign in again as admin.')
+      throw new Error(
+        folder === 'cake-photos'
+          ? 'Please sign in to upload a photo.'
+          : 'Session expired — refresh and sign in again as admin.'
+      )
     }
     const message =
       payload && 'error' in payload && payload.error

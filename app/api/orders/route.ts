@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { generateOrderNumber } from '@/lib/utils'
 import { ARCHIVED_PRODUCT_TAG } from '@/lib/product-archive'
@@ -26,6 +27,8 @@ import {
   roundMoney,
 } from '@/lib/wallet'
 import { resolveDeliveryCoverage } from '@/lib/delivery-radius'
+import { CAKE_BUILDER_KIND } from '@/lib/cake-builder'
+import { priceCakeOrderLines } from '@/lib/cake-builder-server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,9 +94,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const productIds = items
+    // Custom cakes are priced here from the admin's cake builder config; the
+    // other items keep the usual availability check.
+    const isCakeLine = (item: any) => item?.customization?.kind === CAKE_BUILDER_KIND
+    const catalogItems = items.filter((item: any) => !isCakeLine(item))
+    const cakePricing = await priceCakeOrderLines(
+      storeContext.store.id,
+      items.filter(isCakeLine)
+    )
+    if (!cakePricing.ok) {
+      return NextResponse.json({ error: cakePricing.error }, { status: cakePricing.status })
+    }
+    const cakeLines = cakePricing.lines
+
+    const productIds = catalogItems
       .map((item: any) => baseProductId(String(item?.id || '')))
       .filter(Boolean)
+    const orderProductIds = [...productIds, ...cakeLines.map((line) => line.productId)]
 
     const availableProducts = await prisma.product.findMany({
       where: {
@@ -119,7 +136,7 @@ export async function POST(request: NextRequest) {
     // Pickup is only offered when every item in *this* order shares one pin.
     // Mixed carts place a separate pickup order with only pickup-capable items.
     const pickup = isPickup
-      ? await resolvePickupForProductIds(productIds, storeContext.store.id)
+      ? await resolvePickupForProductIds(orderProductIds, storeContext.store.id)
       : null
     if (isPickup && (!pickup?.eligible || !pickup.location)) {
       return NextResponse.json(
@@ -204,7 +221,7 @@ export async function POST(request: NextRequest) {
     if (couponCode?.trim()) {
       const result = await validateCoupon(couponCode, {
         subtotal: resolvedSubtotal,
-        productIds,
+        productIds: orderProductIds,
       }, storeContext.store.id)
 
       if (!result.valid || !result.coupon) {
@@ -342,11 +359,19 @@ export async function POST(request: NextRequest) {
           senderName: isGift ? senderName : null,
           showSenderName: isGift ? (showSenderName || false) : false,
           items: {
-            create: items.map((item: any) => ({
-              productId: baseProductId(String(item?.id || '')),
-              quantity: item.quantity,
-              price: item.price,
-            })),
+            create: [
+              ...catalogItems.map((item: any) => ({
+                productId: baseProductId(String(item?.id || '')),
+                quantity: item.quantity,
+                price: item.price,
+              })),
+              ...cakeLines.map((line) => ({
+                productId: line.productId,
+                quantity: line.quantity,
+                price: line.price,
+                customization: line.customization as unknown as Prisma.InputJsonValue,
+              })),
+            ],
           },
         },
         include: {

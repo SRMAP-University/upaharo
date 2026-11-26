@@ -637,6 +637,9 @@ model OrderItem {
   inventoryQty   Int?
   /// Inventory's corrected unit price for sales and profit (null = as ordered).
   inventoryPrice Float?
+  /// Build Your Own Cake picks, summary and price lines (null for normal items).
+  /// Added by scripts/_ensure-cake-builder.mjs.
+  customization  Json?
   createdAt DateTime @default(now())
 
   @@index([orderId])
@@ -1064,4 +1067,14 @@ model DeletedOrder {
   deletedAt   DateTime @default(now())
 
   @@index([storeId, deletedAt])
+}
+
+/// Build Your Own Cake options and prices for one store, managed in
+/// /admin/cake-builder. Created by scripts/_ensure-cake-builder.mjs.
+model CakeBuilderSettings {
+  id        String   @id @default(cuid())
+  storeId   String   @unique
+  config    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

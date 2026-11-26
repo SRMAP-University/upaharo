@@ -11,6 +11,7 @@ import Header from '@/components/Header'
 import RecommendationShelf from '@/components/recommendations/RecommendationShelf'
 import { getRecentViewedProductIds } from '@/lib/recommendation-session'
 import { resolveImageUrl } from '@/lib/image-url'
+import CakeLineDetails, { CakeThumb } from '@/components/cake/CakeLineDetails'
 
 interface RecommendationProduct {
   id: string
@@ -198,23 +199,35 @@ export default function CartPage() {
 
       <div className="mx-auto max-w-6xl px-4 py-4 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-8 lg:px-8 lg:py-6">
         <ul className="divide-y divide-ink/10 overflow-hidden rounded-3xl border border-ink/10 bg-white">
-          {items.map((item) => (
+          {items.map((item) => {
+            const href = item.href || `/products/${item.id}`
+            return (
             <li key={item.id} className="flex gap-3 p-3 lg:gap-4 lg:p-4">
               <Link
-                href={`/products/${item.id}`}
+                href={href}
                 className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-cream-deep lg:h-24 lg:w-24"
               >
-                {item.image ? (
+                {item.customization ? (
+                  <CakeThumb customization={item.customization} className="h-full w-full bg-[#FFF3F5]" />
+                ) : item.image ? (
                   <Image src={item.image} alt={item.name} fill sizes="96px" className="object-cover" />
                 ) : null}
               </Link>
 
               <div className="flex min-w-0 flex-1 flex-col">
-                <Link href={`/products/${item.id}`} className="min-w-0">
+                <Link href={href} className="min-w-0">
                   <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-ink lg:text-base">
                     {item.name}
                   </h3>
                 </Link>
+                {item.customization ? (
+                  <>
+                    <CakeLineDetails customization={item.customization} className="mt-1" />
+                    <Link href={href} className="mt-1 text-xs font-semibold text-brand hover:underline">
+                      Edit cake
+                    </Link>
+                  </>
+                ) : null}
                 {item.quantity > 1 ? (
                   <p className="mt-0.5 text-xs text-ink/50">{formatPriceCompact(item.price)} each</p>
                 ) : null}
@@ -258,7 +271,8 @@ export default function CartPage() {
                 </div>
               </div>
             </li>
-          ))}
+            )
+          })}
         </ul>
 
         <section className="mt-4 rounded-3xl border border-ink/10 bg-white p-4 lg:sticky lg:top-24 lg:mt-0 lg:p-5">

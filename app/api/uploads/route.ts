@@ -5,6 +5,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-options'
 import { requirePartner } from '@/lib/partner-auth'
 import { prisma } from '@/lib/prisma'
+import { getTokenFromRequest, verifyToken } from '@/lib/auth'
+import { CAKE_UPLOAD_FOLDER } from '@/lib/cake-builder'
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 const MAX_VIDEO_SIZE_BYTES = 20 * 1024 * 1024
@@ -236,15 +238,31 @@ async function canUpload(request: Request): Promise<boolean> {
   return Boolean(seller?.isVerified && seller.isActive !== false)
 }
 
+/** Any signed-in customer may upload a picture for their custom cake. */
+async function isSignedInCustomer(request: Request): Promise<boolean> {
+  const token = getTokenFromRequest(request)
+  if (token) {
+    const payload = await verifyToken(token)
+    if (payload?.userId) return true
+  }
+  const session = await getServerSession(authOptions)
+  return Boolean(session?.user?.id)
+}
+
 export async function POST(request: Request) {
   try {
-    if (!(await canUpload(request))) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const formData = await request.formData()
     const file = formData.get('file')
     const folderName = sanitizeFolderName(String(formData.get('folder') || 'products'))
+    const isCakePhoto = folderName === CAKE_UPLOAD_FOLDER
+
+    const allowed = (await canUpload(request)) || (isCakePhoto && (await isSignedInCustomer(request)))
+    if (!allowed) {
+      return NextResponse.json(
+        { error: isCakePhoto ? 'Please sign in to upload a photo' : 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: 'Image file is required' }, { status: 400 })
@@ -253,6 +271,10 @@ export async function POST(request: Request) {
     const contentType = resolveMediaMime(file)
     const isVideo = ALLOWED_VIDEO_TYPES.has(contentType)
     const isImage = ALLOWED_IMAGE_TYPES.has(contentType)
+    if (isCakePhoto && !isImage) {
+      return NextResponse.json({ error: 'Only JPG, PNG, WEBP or GIF pictures are allowed' }, { status: 400 })
+    }
+
     if (!contentType || (!isVideo && !isImage)) {
       return NextResponse.json(
         { error: 'Only JPG, PNG, WEBP, GIF, MP4, WEBM and MOV files are allowed' },
