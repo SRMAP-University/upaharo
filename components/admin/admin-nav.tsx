@@ -40,6 +40,16 @@ export const AdminIcons = {
   Sparkles: (p: IconProps) => (
     <Icon {...p} d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
   ),
+  Cake: (p: IconProps) => (
+    <Icon
+      {...p}
+      d={[
+        'M4.5 12.75h15v6.75a.75.75 0 01-.75.75H5.25a.75.75 0 01-.75-.75v-6.75z',
+        'M4.5 15c1.25.75 2.5.75 3.75 0s2.5-.75 3.75 0 2.5.75 3.75 0 2.5-.75 3.75 0',
+        'M12 12.75V9.75M12 6.75c.83 0 1.5-.67 1.5-1.5S12 3 12 3s-1.5 1.42-1.5 2.25.67 1.5 1.5 1.5z',
+      ]}
+    />
+  ),
   Ribbon: (p: IconProps) => (
     <Icon {...p} d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3zM6 6h.008v.008H6V6z" />
   ),
@@ -137,6 +147,12 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { label: 'Categories', href: '/admin/categories', icon: AdminIcons.Folder, keywords: 'collections' },
       { label: 'Occasions', href: '/admin/occasions', icon: AdminIcons.Sparkles, keywords: 'birthday anniversary festival' },
       { label: 'Gift wraps', href: '/admin/gift-wraps', icon: AdminIcons.Ribbon, keywords: 'packaging wrapping' },
+      {
+        label: 'Cake builder',
+        href: '/admin/cake-builder',
+        icon: AdminIcons.Cake,
+        keywords: 'build your own cake custom cake flavours toppings sizes prices',
+      },
     ],
   },
   {

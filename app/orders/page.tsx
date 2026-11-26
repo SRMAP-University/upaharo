@@ -11,11 +11,20 @@ import { useCartStore } from '@/lib/store/cart'
 import { resolveImageUrl } from '@/lib/image-url'
 import { formatPrice, formatPriceNoDecimals } from '@/lib/utils'
 import { cancelledByLabel } from '@/lib/order-cancel'
+import { CakeThumb } from '@/components/cake/CakeLineDetails'
+import {
+  CAKE_BUILDER_PATH,
+  cakeCartLineId,
+  cakeLineName,
+  isCakeCustomization,
+} from '@/lib/cake-builder'
 
 interface OrderItem {
   id: string
   quantity: number
   price: number
+  /** Build Your Own Cake picks, when the line is a custom cake. */
+  customization?: unknown
   product: {
     id: string
     name: string
@@ -145,6 +154,23 @@ export default function OrdersPage() {
     order.items.forEach((item) => {
       if (!item?.product?.id) return
 
+      // A custom cake goes back in as the same cake; checkout prices it again.
+      if (isCakeCustomization(item.customization)) {
+        const cake = item.customization
+        const id = cakeCartLineId(item.product.id, cake.selection)
+        addItem({
+          id,
+          name: cakeLineName(cake.summary),
+          price: Number(item.price) || 0,
+          image: '',
+          isVeg: cake.summary.isVeg,
+          quantity: Math.max(1, Number(item.quantity) || 1),
+          customization: cake,
+          href: `${CAKE_BUILDER_PATH}?edit=${encodeURIComponent(id)}`,
+        })
+        return
+      }
+
       addItem({
         id: item.product.id,
         name: item.product.name,
@@ -240,13 +266,21 @@ export default function OrdersPage() {
                 <div className="space-y-3 mb-4">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
-                      <img
-                        src={item.product.image}
-                        alt={item.product.name}
-                        className="w-16 h-16 rounded-2xl object-cover bg-cream-deep"
-                      />
+                      {isCakeCustomization(item.customization) ? (
+                        <CakeThumb customization={item.customization} className="w-16 h-16 rounded-2xl bg-[#FFF3F5]" />
+                      ) : (
+                        <img
+                          src={item.product.image}
+                          alt={item.product.name}
+                          className="w-16 h-16 rounded-2xl object-cover bg-cream-deep"
+                        />
+                      )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-display font-semibold text-ink truncate">{item.product.name}</h3>
+                        <h3 className="font-display font-semibold text-ink truncate">
+                          {isCakeCustomization(item.customization)
+                            ? cakeLineName(item.customization.summary)
+                            : item.product.name}
+                        </h3>
                         <p className="text-sm text-ink/55">Quantity: {item.quantity}</p>
                       </div>
                       <div className="text-right">
